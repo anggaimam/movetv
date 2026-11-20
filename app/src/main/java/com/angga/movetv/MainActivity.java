@@ -56,6 +56,7 @@ import java.util.Random;
  *
  * Remote:
  *   OK            camera picture on/off (skeleton only)
+ *   Left          light boost on/off (brightens dark rooms for the AI)
  *   Up / Down     bigger / smaller image for the AI (speed vs accuracy)
  *   Menu (≡)      1 player (AI follows you) or 2 players (one per half of the screen)
  *   Rewind        AI engine: MoveNet (fast) / MediaPipe Lite / MediaPipe Full
@@ -114,6 +115,9 @@ public class MainActivity extends Activity {
             case KeyEvent.KEYCODE_DPAD_CENTER:
             case KeyEvent.KEYCODE_ENTER:
                 view.toggleCamera();
+                return true;
+            case KeyEvent.KEYCODE_DPAD_LEFT:
+                engine.toggleLightBoost();
                 return true;
             case KeyEvent.KEYCODE_DPAD_UP:
                 engine.changeSize(+1);
@@ -201,6 +205,16 @@ class PoseEngine {
     private volatile float cropX, cropY, cropS;
     private volatile boolean following = false;
 
+    // Light boost: stretches dark and bright parts of the picture (helps dark rooms and backlight).
+    volatile boolean lightBoost = true;
+    private final int[] yLut = new int[256];
+    private int boostLo = 16, boostHi = 235;
+    // Steadier joints, per player and point: smoothed position and when it was last seen.
+    private final float[][] jx = new float[2][17], jy = new float[2][17];
+    private final long[][] jSeen = new long[2][17];
+    private static final long HOLD_MS = 400;
+    private static final float LEG_SCORE = 0.2f;
+
     // stats
     private int camFrames = 0, aiFrames = 0, dropped = 0;
     private long statStart = 0, convertMs = 0, aiMs = 0;
@@ -257,6 +271,7 @@ class PoseEngine {
     void cycleEngine() { engineType = (engineType + 1) % 3; rebuild(); }
     void setGpu(boolean g) { gpu = g; rebuild(); }
     boolean isMoveNet() { return engineType == 0; }
+    void toggleLightBoost() { lightBoost = !lightBoost; }
 
     synchronized void changeSize(int delta) {
         sizeIndex = Math.max(0, Math.min(INPUT_WIDTHS.length - 1, sizeIndex + delta));
@@ -338,7 +353,7 @@ class PoseEngine {
         String mode = engineType == 0
                 ? (players == 2 ? "2P split" : (following ? "1P follow" : "1P searching"))
                 : (gpu ? "GPU" : "CPU") + " · " + players + "P";
-        return eng + " · " + mode;
+        return eng + " · " + mode + (lightBoost ? " · light boost" : "");
     }
 
     private String pickCamera() throws Exception {
@@ -456,6 +471,7 @@ class PoseEngine {
             vb.get(vBuf, 0, vb.remaining());
             sYRow = p[0].getRowStride(); sYPix = p[0].getPixelStride();
             sUvRow = p[1].getRowStride(); sUvPix = p[1].getPixelStride();
+            if (lightBoost) updateLut();
             img.close();
             img = null;
             fresh = true;
@@ -541,10 +557,27 @@ class PoseEngine {
                     float py = crops[n][1] + y * crops[n][2];
                     xs[k] = px; ys[k] = py; sc[k] = s;
                     int m = COCO_TO_MP[k];
-                    p[m * 3] = px / camW;
-                    p[m * 3 + 1] = py / camH;
-                    p[m * 3 + 2] = s > MIN_SCORE ? 1f : 0f;
-                    if (s > MIN_SCORE) good++;
+                    float need = k >= 13 ? LEG_SCORE : MIN_SCORE; // knees and ankles are harder to see
+                    float nx = px / camW, ny = py / camH;
+                    long now0 = SystemClock.uptimeMillis();
+                    if (s > need) {
+                        if (now0 - jSeen[n][k] > HOLD_MS) {
+                            jx[n][k] = nx; jy[n][k] = ny;
+                        } else {
+                            // small moves are smoothed (less jitter), big moves follow at once (no lag)
+                            float d = Math.abs(nx - jx[n][k]) + Math.abs(ny - jy[n][k]);
+                            float a = Math.min(1f, 0.35f + d * 8f);
+                            jx[n][k] += (nx - jx[n][k]) * a;
+                            jy[n][k] += (ny - jy[n][k]) * a;
+                        }
+                        jSeen[n][k] = now0;
+                        good++;
+                    }
+                    // a briefly lost point stays where it was for a moment instead of flickering
+                    boolean visible = now0 - jSeen[n][k] <= HOLD_MS;
+                    p[m * 3] = jx[n][k];
+                    p[m * 3 + 1] = jy[n][k];
+                    p[m * 3 + 2] = visible ? 1f : 0f;
                 }
                 if (np == 1) {
                     if (good >= 5) { poses.add(p); updateCrop(xs, ys, sc); } else resetCrop();
@@ -625,9 +658,35 @@ class PoseEngine {
         following = true;
     }
 
+    /** Light boost: measures the frame's darkest and brightest 2% and stretches them apart, lifting shadows. */
+    private void updateLut() {
+        int[] hist = new int[256];
+        int n = 0;
+        for (int j = 0; j < camH; j += 4) {
+            int yo = j * sYRow;
+            for (int i = 0; i < camW; i += 4) { hist[yBuf[yo + i * sYPix] & 0xff]++; n++; }
+        }
+        int lo = 0, hi = 255, acc = 0;
+        for (int v = 0; v < 256; v++) { acc += hist[v]; if (acc >= n * 0.02f) { lo = v; break; } }
+        acc = 0;
+        for (int v = 255; v >= 0; v--) { acc += hist[v]; if (acc >= n * 0.02f) { hi = v; break; } }
+        if (hi - lo < 40) hi = Math.min(255, lo + 40);
+        boostLo += (lo - boostLo) / 4; // glide, so brightness doesn't flicker
+        boostHi += (hi - boostHi) / 4;
+        float range = Math.max(40, boostHi - boostLo);
+        for (int v = 0; v < 256; v++) {
+            float t = (v - boostLo) / range;
+            if (t < 0) t = 0; else if (t > 1) t = 1;
+            t = (float) Math.pow(t, 0.75); // lift the shadows
+            yLut[v] = 16 + (int) (t * 219);
+        }
+    }
+
     /** Builds MoveNet's 192x192 RGB input from a square crop of the newest frame (outside = black). */
     private void fillMoveNetInput(float[] crop, ByteBuffer dst) {
         byte[] out = mnBytes;
+        boolean boost = lightBoost;
+        int[] lut = yLut;
         int step = (int) (crop[2] / MN * 65536f);
         int bx = (int) (crop[0] * 65536f), by = (int) (crop[1] * 65536f);
         int o = 0;
@@ -646,7 +705,7 @@ class PoseEngine {
                     out[o++] = 0; out[o++] = 0; out[o++] = 0;
                     continue;
                 }
-                int y = (yBuf[yo + srcX * sYPix] & 0xff) - 16;
+                int y = (boost ? lut[yBuf[yo + srcX * sYPix] & 0xff] : (yBuf[yo + srcX * sYPix] & 0xff)) - 16;
                 if (y < 0) y = 0;
                 int uvi = uvo + (srcX >> 1) * sUvPix;
                 int u = (uBuf[uvi] & 0xff) - 128;
@@ -688,6 +747,8 @@ class PoseEngine {
     /** YUV (newest frame) -> ARGB picture for the screen, shrunk to outW x outH. */
     private void convertShrink(Bitmap out) {
         int ow = outW, oh = outH;
+        boolean boost = lightBoost;
+        int[] lut = yLut;
         int sx = (camW << 16) / ow, sy = (camH << 16) / oh; // 16.16 fixed-point step
         int[] dst = argb;
         for (int j = 0; j < oh; j++) {
@@ -696,7 +757,7 @@ class PoseEngine {
             int fx = 0;
             for (int i = 0; i < ow; i++, fx += sx) {
                 int srcX = fx >> 16;
-                int y = (yBuf[yo + srcX * sYPix] & 0xff) - 16;
+                int y = (boost ? lut[yBuf[yo + srcX * sYPix] & 0xff] : (yBuf[yo + srcX * sYPix] & 0xff)) - 16;
                 if (y < 0) y = 0;
                 int uvi = uvo + (srcX >> 1) * sUvPix;
                 int u = (uBuf[uvi] & 0xff) - 128;
@@ -731,7 +792,7 @@ class PoseView extends View {
     };
     private static final int[] HANDS = {15, 16, 19, 20};
     private static final int[] COLORS = {Color.rgb(0, 200, 255), Color.rgb(255, 80, 200)};
-    private static final float GLIDE = 0.5f; // 0..1, higher = snappier, lower = smoother
+    private static final float GLIDE = 0.65f; // 0..1, higher = snappier, lower = smoother
 
     private volatile Bitmap frame;
     private volatile List<float[]> target = new ArrayList<>();
@@ -895,7 +956,7 @@ class PoseView extends View {
         text.setTextSize(44f);
         c.drawText("🎈 " + score, vw - 180, 110, text);
         text.setTextSize(28f);
-        String help = "≡: 1/2 players   OK: camera on/off   ⏪: AI engine   ▲▼: picture size   ⏩: CPU/GPU (MediaPipe)";
+        String help = "≡: 1/2 players   ◀: light boost   OK: camera on/off   ⏪: AI engine   ▲▼: picture size   ⏩: GPU (MediaPipe)";
         c.drawRect(0, vh - 52, vw, vh, panel);
         c.drawText(help, 16, vh - 16, text);
         String s = status;
