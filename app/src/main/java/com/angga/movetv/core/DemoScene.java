@@ -57,7 +57,7 @@ public final class DemoScene implements Scene {
     private static final float MIN_DRAW = 0.2f;
     private static final int PAPER = 0xFFF3EBDD;
     private static final String HELP =
-            "SOUND TEST   Up/Down: choose effect   OK: play   Right or M: next song   F1-F12, Z X C V: effects";
+            "REMOTE   Up/Down: effect   OK: play   Right: song   Menu \u2261: 1 or 2 players   Left: light   hold Left: fps";
 
     /** One floating bubble (pooled). */
     private static final class Bubble {
@@ -90,6 +90,7 @@ public final class DemoScene implements Scene {
     // sound test
     private int fxIndex = 0;
     private int trackIndex = -1; // -1 = music off
+    private int playersShown = 1;
     private String statusLine = ""; // "Effect 5/16: pop     Music: off"; rebuilt only when it changes
     private volatile long beatFlashUntil = 0;
     private volatile int lastBeat = 0;
@@ -160,6 +161,10 @@ public final class DemoScene implements Scene {
         camera = f.camera;
         time += dt;
         f.pose.copyInto(target);
+        if (target.mode != playersShown && (target.mode == 1 || target.mode == 2)) {
+            playersShown = target.mode;
+            updateLabels();
+        }
         handleInput(f.input);
 
         // glide the shown skeleton toward the newest result (the AI updates only 7-14 times a second)
@@ -234,7 +239,8 @@ public final class DemoScene implements Scene {
 
     private void updateLabels() { // only when something changes, so draw() never builds text
         statusLine = "Effect " + (fxIndex + 1) + "/" + Synth.EFFECTS.length + ": " + Synth.EFFECTS[fxIndex]
-                + "     Music: " + (trackIndex < 0 ? "off" : Tracks.names()[trackIndex]);
+                + "     Music: " + (trackIndex < 0 ? "off" : Tracks.names()[trackIndex])
+                + "     Players: " + playersShown;
     }
 
     @Override
