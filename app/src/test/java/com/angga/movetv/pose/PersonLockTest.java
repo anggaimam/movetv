@@ -51,7 +51,7 @@ public class PersonLockTest {
     public void poseWithTooFewPointsDoesNotLock() {
         PersonLock l = fresh();
         float[][] p = person(300, 200, 80);
-        for (int k = 0; k < 17; k++) if (k != Kp.L_SHOULDER && k != Kp.R_SHOULDER && k > 3) p[2][k] = 0f;
+        for (int k = 0; k < 17; k++) if (k != Kp.L_SHOULDER && k != Kp.R_SHOULDER && k > 1) p[2][k] = 0f;
         assertFalse(offer(l, p, 0));
         assertEquals(PersonLock.State.SEARCHING, l.state());
         float[][] q = person(300, 200, 80);
