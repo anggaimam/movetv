@@ -51,6 +51,7 @@ import java.util.Random;
  *
  * Remote:
  *   OK            camera picture on/off (skeleton only)
+ *   Up / Down     bigger / smaller image for the AI (speed vs accuracy)
  *   Menu (≡)      1 or 2 players
  *   Rewind        Lite or Full tracking model
  *   Fast-forward  CPU or GPU
@@ -109,6 +110,12 @@ public class MainActivity extends Activity {
             case KeyEvent.KEYCODE_ENTER:
                 view.toggleCamera();
                 return true;
+            case KeyEvent.KEYCODE_DPAD_UP:
+                engine.changeSize(+1);
+                return true;
+            case KeyEvent.KEYCODE_DPAD_DOWN:
+                engine.changeSize(-1);
+                return true;
             case KeyEvent.KEYCODE_MENU:
                 engine.setPlayers(engine.players == 1 ? 2 : 1);
                 return true;
@@ -124,8 +131,17 @@ public class MainActivity extends Activity {
     }
 }
 
-/** Camera + body tracking, all on one background thread. */
+/**
+ * Camera + body tracking.
+ * Performance design:
+ *  - frames are shrunk while converting (default 320x240), 4x less work than 640x480
+ *  - LIVE_STREAM mode: the AI runs on its own thread; frames that arrive while it is busy are
+ *    skipped before any conversion, so it always works on the newest frame (low lag)
+ *  - drawing runs separately at the TV's refresh rate and glides between AI results
+ */
 class PoseEngine {
+
+    static final int[] INPUT_WIDTHS = {192, 256, 320, 480};
 
     private final Context ctx;
     private final PoseView view;
@@ -133,26 +149,32 @@ class PoseEngine {
     volatile int players = 1;
     volatile boolean fullModel = false;
     volatile boolean gpu = false;
+    volatile int sizeIndex = 2; // 320
 
     private HandlerThread thread;
     private Handler bg;
     private CameraDevice device;
     private CameraCaptureSession session;
     private ImageReader reader;
-    private PoseLandmarker landmarker;
+    private volatile PoseLandmarker landmarker;
     private volatile int gen = 0;
 
-    private int width, height;
+    private int camW, camH;      // camera frame size
+    private int outW, outH;      // size given to the AI
     private int[] argb;
     private byte[] yBuf, uBuf, vBuf;
     private final Bitmap[] bitmaps = new Bitmap[3];
     private int bmpIndex = 0;
     private long lastTs = 0;
+    private volatile boolean inFlight = false;
+    private volatile long inFlightSince = 0;
+    private final java.util.concurrent.ConcurrentHashMap<Long, Bitmap> pending = new java.util.concurrent.ConcurrentHashMap<>();
+    private final java.util.concurrent.ConcurrentHashMap<Long, Long> sentAt = new java.util.concurrent.ConcurrentHashMap<>();
 
     // stats
-    private int camFrames = 0, doneFrames = 0;
-    private long statStart = 0, convertMs = 0, detectMs = 0;
-    private float camFps = 0, poseFps = 0;
+    private int camFrames = 0, aiFrames = 0, dropped = 0;
+    private long statStart = 0, convertMs = 0, aiMs = 0;
+    private float camFps = 0, aiFps = 0, dropPct = 0;
 
     PoseEngine(Context ctx, PoseView view) {
         this.ctx = ctx.getApplicationContext();
@@ -165,7 +187,7 @@ class PoseEngine {
 
     synchronized void start() {
         if (thread != null) return;
-        thread = new HandlerThread("movetv");
+        thread = new HandlerThread("movetv-cam");
         thread.start();
         bg = new Handler(thread.getLooper());
         final int myGen = ++gen;
@@ -188,6 +210,8 @@ class PoseEngine {
             try { if (reader != null) reader.close(); } catch (Throwable ignored) { }
             try { if (landmarker != null) landmarker.close(); } catch (Throwable ignored) { }
             session = null; device = null; reader = null; landmarker = null;
+            inFlight = false;
+            pending.clear(); sentAt.clear();
             th.quitSafely();
         });
     }
@@ -196,23 +220,31 @@ class PoseEngine {
     void setFullModel(boolean f) { fullModel = f; rebuild(); }
     void setGpu(boolean g) { gpu = g; rebuild(); }
 
+    synchronized void changeSize(int delta) {
+        sizeIndex = Math.max(0, Math.min(INPUT_WIDTHS.length - 1, sizeIndex + delta));
+        if (bg == null) return;
+        bg.post(this::allocBuffers);
+    }
+
     private synchronized void rebuild() {
         if (bg == null) return;
         bg.post(() -> {
             try { if (landmarker != null) landmarker.close(); } catch (Throwable ignored) { }
             landmarker = null;
+            inFlight = false;
+            pending.clear(); sentAt.clear();
             buildLandmarker();
         });
     }
 
     private String settingsText() {
-        return (fullModel ? "Full" : "Lite") + " model · " + (gpu ? "GPU" : "CPU") + " · "
-                + players + (players == 1 ? " player" : " players");
+        return outW + "x" + outH + " · " + (fullModel ? "Full" : "Lite") + " · " + (gpu ? "GPU" : "CPU") + " · "
+                + players + "P";
     }
 
     private void buildLandmarker() {
         String model = fullModel ? "pose_landmarker_full.task" : "pose_landmarker_lite.task";
-        view.setStatus("Loading body tracking (" + settingsText() + ")…");
+        view.setStatus("Loading body tracking (" + (fullModel ? "Full" : "Lite") + ", " + (gpu ? "GPU" : "CPU") + ")…");
         try {
             BaseOptions base = BaseOptions.builder()
                     .setModelAssetPath(model)
@@ -220,17 +252,19 @@ class PoseEngine {
                     .build();
             PoseLandmarker.PoseLandmarkerOptions opts = PoseLandmarker.PoseLandmarkerOptions.builder()
                     .setBaseOptions(base)
-                    .setRunningMode(RunningMode.VIDEO)
+                    .setRunningMode(RunningMode.LIVE_STREAM)
                     .setNumPoses(players)
                     .setMinPoseDetectionConfidence(0.5f)
                     .setMinPosePresenceConfidence(0.5f)
                     .setMinTrackingConfidence(0.5f)
+                    .setResultListener(this::onResult)
+                    .setErrorListener(e -> { inFlight = false; view.setStatus("AI error: " + e.getMessage()); })
                     .build();
             landmarker = PoseLandmarker.createFromOptions(ctx, opts);
             view.setStatus(null);
         } catch (Throwable t) {
             landmarker = null;
-            view.setStatus("Body tracking failed to load (" + settingsText() + "): " + t.getMessage()
+            view.setStatus("Body tracking failed to load: " + t.getMessage()
                     + (gpu ? "  → press Fast-forward to go back to CPU" : ""));
         }
     }
@@ -244,6 +278,19 @@ class PoseEngine {
         return ids.length > 0 ? ids[0] : null;
     }
 
+    /** (Re)creates the shrunk frame buffers for the current input size. Runs on the camera thread. */
+    private void allocBuffers() {
+        if (camW == 0) return;
+        outW = Math.min(INPUT_WIDTHS[sizeIndex], camW);
+        outH = Math.round(outW * (float) camH / camW);
+        argb = new int[outW * outH];
+        for (int i = 0; i < bitmaps.length; i++) {
+            bitmaps[i] = Bitmap.createBitmap(outW, outH, Bitmap.Config.ARGB_8888);
+        }
+        inFlight = false;
+        pending.clear(); sentAt.clear();
+    }
+
     @SuppressLint("MissingPermission")
     private void openCamera(final int myGen) {
         try {
@@ -254,22 +301,19 @@ class PoseEngine {
             }
             StreamConfigurationMap map = manager().getCameraCharacteristics(id)
                     .get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP);
-            Size best = new Size(640, 480);
+            // Smallest supported size that is at least 480 wide (fast for the webcam, enough detail).
+            Size best = null;
             if (map != null) {
-                Size b = null;
                 for (Size s : map.getOutputSizes(ImageFormat.YUV_420_888)) {
-                    int score = Math.abs(s.getWidth() - 640) + Math.abs(s.getHeight() - 480);
-                    if (b == null || score < Math.abs(b.getWidth() - 640) + Math.abs(b.getHeight() - 480)) b = s;
+                    if (s.getWidth() < 480) continue;
+                    if (best == null || s.getWidth() * s.getHeight() < best.getWidth() * best.getHeight()) best = s;
                 }
-                if (b != null) best = b;
             }
-            width = best.getWidth();
-            height = best.getHeight();
-            argb = new int[width * height];
-            for (int i = 0; i < bitmaps.length; i++) {
-                bitmaps[i] = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
-            }
-            reader = ImageReader.newInstance(width, height, ImageFormat.YUV_420_888, 2);
+            if (best == null) best = new Size(640, 480);
+            camW = best.getWidth();
+            camH = best.getHeight();
+            allocBuffers();
+            reader = ImageReader.newInstance(camW, camH, ImageFormat.YUV_420_888, 2);
             reader.setOnImageAvailableListener(this::onImage, bg);
             final ImageReader myReader = reader;
 
@@ -311,56 +355,80 @@ class PoseEngine {
             img = r.acquireLatestImage();
             if (img == null || r != reader) return;
             camFrames++;
-            long t0 = SystemClock.uptimeMillis();
-            yuvToArgb(img);
-            img.close();
-            img = null;
+            long now = SystemClock.uptimeMillis();
+            PoseLandmarker lm = landmarker;
+            // Skip this frame entirely if the AI is still busy (no conversion work wasted).
+            if (lm == null || (inFlight && now - inFlightSince < 1000)) {
+                dropped++;
+                updateStats(now);
+                return;
+            }
+            long t0 = now;
             Bitmap bmp = bitmaps[bmpIndex];
             bmpIndex = (bmpIndex + 1) % bitmaps.length;
-            bmp.setPixels(argb, 0, width, 0, 0, width, height);
+            convertShrink(img, bmp);
+            img.close();
+            img = null;
             long t1 = SystemClock.uptimeMillis();
-
-            List<float[]> poses = new ArrayList<>();
-            if (landmarker != null) {
-                long ts = Math.max(t1, lastTs + 1);
-                lastTs = ts;
-                MPImage mp = new BitmapImageBuilder(bmp).build();
-                PoseLandmarkerResult res = landmarker.detectForVideo(mp, ts);
-                for (List<NormalizedLandmark> lm : res.landmarks()) {
-                    float[] p = new float[lm.size() * 3];
-                    for (int i = 0; i < lm.size(); i++) {
-                        NormalizedLandmark l = lm.get(i);
-                        p[i * 3] = l.x();
-                        p[i * 3 + 1] = l.y();
-                        p[i * 3 + 2] = l.visibility().orElse(1f);
-                    }
-                    poses.add(p);
-                }
-            }
-            long t2 = SystemClock.uptimeMillis();
-            doneFrames++;
             convertMs = (convertMs * 7 + (t1 - t0)) / 8;
-            detectMs = (detectMs * 7 + (t2 - t1)) / 8;
-            if (statStart == 0) statStart = t2;
-            if (t2 - statStart >= 1000) {
-                float secs = (t2 - statStart) / 1000f;
-                camFps = camFrames / secs;
-                poseFps = doneFrames / secs;
-                camFrames = 0; doneFrames = 0; statStart = t2;
-            }
-            String stats = String.format(java.util.Locale.US,
-                    "Tracking %.0f fps · camera %.0f fps · AI %d ms · convert %d ms · %dx%d · %s",
-                    poseFps, camFps, detectMs, convertMs, width, height, settingsText());
-            view.update(bmp, poses, stats);
+
+            long ts = Math.max(t1, lastTs + 1);
+            lastTs = ts;
+            pending.put(ts, bmp);
+            sentAt.put(ts, t1);
+            inFlight = true;
+            inFlightSince = t1;
+            lm.detectAsync(new BitmapImageBuilder(bmp).build(), ts);
+            updateStats(t1);
         } catch (Throwable t) {
+            inFlight = false;
             view.setStatus("Tracking error: " + t.getMessage());
         } finally {
             if (img != null) img.close();
         }
     }
 
-    /** YUV_420_888 -> ARGB, integer math. */
-    private void yuvToArgb(Image img) {
+    private void onResult(PoseLandmarkerResult res, MPImage input) {
+        long now = SystemClock.uptimeMillis();
+        long ts = res.timestampMs();
+        Bitmap bmp = pending.remove(ts);
+        Long sent = sentAt.remove(ts);
+        if (sent != null) aiMs = (aiMs * 7 + (now - sent)) / 8;
+        aiFrames++;
+        inFlight = false;
+        List<float[]> poses = new ArrayList<>();
+        for (List<NormalizedLandmark> lmk : res.landmarks()) {
+            float[] p = new float[lmk.size() * 3];
+            for (int i = 0; i < lmk.size(); i++) {
+                NormalizedLandmark l = lmk.get(i);
+                p[i * 3] = l.x();
+                p[i * 3 + 1] = l.y();
+                p[i * 3 + 2] = l.visibility().orElse(1f);
+            }
+            poses.add(p);
+        }
+        view.update(bmp, poses, statsText());
+    }
+
+    private synchronized void updateStats(long now) {
+        if (statStart == 0) statStart = now;
+        if (now - statStart >= 1000) {
+            float secs = (now - statStart) / 1000f;
+            camFps = camFrames / secs;
+            aiFps = aiFrames / secs;
+            dropPct = camFrames == 0 ? 0 : 100f * dropped / camFrames;
+            camFrames = 0; aiFrames = 0; dropped = 0; statStart = now;
+        }
+    }
+
+    private String statsText() {
+        return String.format(java.util.Locale.US,
+                "AI %.0f fps (%d ms) · camera %.0f fps (%dx%d) · convert %d ms · skipped %.0f%% · %s",
+                aiFps, aiMs, camFps, camW, camH, convertMs, dropPct, settingsText());
+    }
+
+    /** YUV_420_888 -> ARGB while shrinking to outW x outH (nearest pixel), integer math. */
+    private void convertShrink(Image img, Bitmap out) {
         Image.Plane[] p = img.getPlanes();
         ByteBuffer yb = p[0].getBuffer(), ub = p[1].getBuffer(), vb = p[2].getBuffer();
         if (yBuf == null || yBuf.length < yb.remaining()) yBuf = new byte[yb.remaining()];
@@ -371,13 +439,18 @@ class PoseEngine {
         vb.get(vBuf, 0, vb.remaining());
         int yRow = p[0].getRowStride(), yPix = p[0].getPixelStride();
         int uvRow = p[1].getRowStride(), uvPix = p[1].getPixelStride();
-        int w = width, h = height;
-        for (int j = 0; j < h; j++) {
-            int yo = j * yRow, uvo = (j >> 1) * uvRow, o = j * w;
-            for (int i = 0; i < w; i++) {
-                int y = (yBuf[yo + i * yPix] & 0xff) - 16;
+        int ow = outW, oh = outH;
+        int sx = (camW << 16) / ow, sy = (camH << 16) / oh; // 16.16 fixed-point step
+        int[] dst = argb;
+        for (int j = 0; j < oh; j++) {
+            int srcY = (j * sy) >> 16;
+            int yo = srcY * yRow, uvo = (srcY >> 1) * uvRow, o = j * ow;
+            int fx = 0;
+            for (int i = 0; i < ow; i++, fx += sx) {
+                int srcX = fx >> 16;
+                int y = (yBuf[yo + srcX * yPix] & 0xff) - 16;
                 if (y < 0) y = 0;
-                int uvi = uvo + (i >> 1) * uvPix;
+                int uvi = uvo + (srcX >> 1) * uvPix;
                 int u = (uBuf[uvi] & 0xff) - 128;
                 int v = (vBuf[uvi] & 0xff) - 128;
                 int y1192 = 1192 * y;
@@ -387,13 +460,17 @@ class PoseEngine {
                 if (r < 0) r = 0; else if (r > 262143) r = 262143;
                 if (g < 0) g = 0; else if (g > 262143) g = 262143;
                 if (b < 0) b = 0; else if (b > 262143) b = 262143;
-                argb[o + i] = 0xff000000 | ((r << 6) & 0xff0000) | ((g >> 2) & 0xff00) | ((b >> 10) & 0xff);
+                dst[o + i] = 0xff000000 | ((r << 6) & 0xff0000) | ((g >> 2) & 0xff00) | ((b >> 10) & 0xff);
             }
         }
+        out.setPixels(dst, 0, ow, 0, 0, ow, oh);
     }
 }
 
-/** Draws the mirrored camera picture, the skeletons, a balloon to pop and the stats. */
+/**
+ * Draws at the TV's refresh rate. Skeleton points glide toward the latest AI result,
+ * so motion looks smooth even when the AI updates less often.
+ */
 class PoseView extends View {
 
     // MediaPipe pose landmark indexes
@@ -406,9 +483,11 @@ class PoseView extends View {
     };
     private static final int[] HANDS = {15, 16, 19, 20};
     private static final int[] COLORS = {Color.rgb(0, 200, 255), Color.rgb(255, 80, 200)};
+    private static final float GLIDE = 0.5f; // 0..1, higher = snappier, lower = smoother
 
     private volatile Bitmap frame;
-    private volatile List<float[]> poses = new ArrayList<>();
+    private volatile List<float[]> target = new ArrayList<>();
+    private final List<float[]> shown = new ArrayList<>();
     private volatile String stats = "";
     private volatile String status = "Starting…";
     private boolean showCamera = true;
@@ -428,6 +507,11 @@ class PoseView extends View {
     private int score = 0;
     private long popFlashUntil = 0;
 
+    // screen fps
+    private int drawFrames = 0;
+    private long drawStart = 0;
+    private float screenFps = 0;
+
     PoseView(Context c) {
         super(c);
         setBackgroundColor(Color.BLACK);
@@ -440,10 +524,9 @@ class PoseView extends View {
     }
 
     void update(Bitmap bmp, List<float[]> p, String s) {
-        frame = bmp;
-        poses = p;
+        if (bmp != null) frame = bmp;
+        target = p;
         stats = s;
-        postInvalidate();
     }
 
     void setStatus(String s) {
@@ -453,11 +536,19 @@ class PoseView extends View {
 
     void toggleCamera() {
         showCamera = !showCamera;
-        invalidate();
     }
 
     @Override
     protected void onDraw(Canvas c) {
+        long now = SystemClock.uptimeMillis();
+        drawFrames++;
+        if (drawStart == 0) drawStart = now;
+        if (now - drawStart >= 1000) {
+            screenFps = drawFrames * 1000f / (now - drawStart);
+            drawFrames = 0;
+            drawStart = now;
+        }
+
         int vw = getWidth(), vh = getHeight();
         Bitmap f = frame;
         float fw = f != null ? f.getWidth() : 4, fh = f != null ? f.getHeight() : 3;
@@ -473,8 +564,20 @@ class PoseView extends View {
             c.restore();
         }
 
+        // glide shown skeletons toward the latest AI result
+        List<float[]> tg = target;
+        while (shown.size() > tg.size()) shown.remove(shown.size() - 1);
+        for (int n = 0; n < tg.size(); n++) {
+            float[] t = tg.get(n);
+            if (n >= shown.size() || shown.get(n).length != t.length) {
+                if (n < shown.size()) shown.set(n, t.clone()); else shown.add(t.clone());
+                continue;
+            }
+            float[] s = shown.get(n);
+            for (int i = 0; i < t.length; i++) s[i] += (t[i] - s[i]) * GLIDE;
+        }
+
         // balloon
-        long now = SystemClock.uptimeMillis();
         float br = dh * 0.07f;
         float bpx = left + bx * dw, bpy = top + by * dh;
         if (now < popFlashUntil) {
@@ -489,13 +592,11 @@ class PoseView extends View {
         }
 
         // skeletons
-        List<float[]> ps = poses;
         boolean hit = false;
-        for (int n = 0; n < ps.size(); n++) {
-            float[] p = ps.get(n);
+        for (int n = 0; n < shown.size(); n++) {
+            float[] p = shown.get(n);
             int col = COLORS[n % COLORS.length];
             bone.setColor(col);
-            joint.setColor(Color.WHITE);
             for (int[] b : BONES) {
                 if (vis(p, b[0]) && vis(p, b[1])) {
                     c.drawLine(px(p, b[0], left, dw), py(p, b[0], top, dh),
@@ -524,21 +625,21 @@ class PoseView extends View {
 
         // text
         c.drawRect(0, 0, vw, 52, panel);
-        c.drawText(stats, 16, 36, text);
+        c.drawText(String.format(java.util.Locale.US, "Screen %.0f fps · ", screenFps) + stats, 16, 36, text);
         text.setTextSize(44f);
         c.drawText("🎈 " + score, vw - 180, 110, text);
         text.setTextSize(28f);
-        String help = "OK: camera picture on/off   ≡: 1/2 players   ⏪: Lite/Full model   ⏩: CPU/GPU";
+        String help = "OK: camera on/off   ▲▼: AI image size   ≡: 1/2 players   ⏪: Lite/Full   ⏩: CPU/GPU";
         c.drawRect(0, vh - 52, vw, vh, panel);
         c.drawText(help, 16, vh - 16, text);
         String s = status;
         if (s != null) {
             c.drawRect(0, vh / 2f - 40, vw, vh / 2f + 30, panel);
             c.drawText(s, 24, vh / 2f + 8, text);
-        } else if (ps.isEmpty() && f != null) {
+        } else if (tg.isEmpty() && f != null) {
             c.drawText("Step back so your whole body is in view", 24, 100, text);
         }
-        if (!hit && now < popFlashUntil) postInvalidateDelayed(30);
+        postInvalidateOnAnimation(); // keep drawing at the TV's refresh rate
     }
 
     private static boolean vis(float[] p, int i) {
