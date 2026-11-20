@@ -62,4 +62,16 @@ public class ProfileLogicTest {
         assertEquals("stars_fruit_2", ProfileLogic.starsKey("fruit", 2));
         assertEquals("stars_sky_1", ProfileLogic.starsKey("sky", 9));
     }
+
+    @Test
+    public void pointerDefaultsToHandAndRecoversFromJunk() {
+        assertEquals("hand", ProfileLogic.cleanPointer(null));
+        assertEquals("hand", ProfileLogic.cleanPointer("hand"));
+        assertEquals("reach", ProfileLogic.cleanPointer("reach"));
+        assertEquals("hand", ProfileLogic.cleanPointer("banana"));
+        assertEquals("hand", ProfileLogic.cleanPointer(Integer.valueOf(7)));
+        assertEquals(1.0f, ProfileLogic.pointerGain("hand"), 0f);
+        assertEquals(1.6f, ProfileLogic.pointerGain("reach"), 0f);
+        assertEquals(1.0f, ProfileLogic.pointerGain(null), 0f);
+    }
 }

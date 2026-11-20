@@ -4,6 +4,7 @@ import android.graphics.Canvas;
 import android.graphics.Paint;
 import android.view.KeyEvent;
 
+import com.angga.movetv.core.ProfileLogic;
 import com.angga.movetv.core.Scene;
 import com.angga.movetv.core.Stage;
 import com.angga.movetv.ui.Theme;
@@ -13,7 +14,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * The settings panel, drawn over any screen. It holds the hold time (0.7 / 1.0 / 1.4 s), the camera's light
+ * The settings panel, drawn over any screen. It holds the hold time (0.7 / 1.0 / 1.4 s), the pointer (on my hand / easy reach), the camera's light
  * boost and the performance overlay, all as big tiles that work with a hand or with the remote. The menu key
  * (or Back, or the Done tile) closes it. While it is open the screen underneath is not updated, so a game
  * pauses. Wrap each scene with {@link #host(Scene)} to give it the overlay.
@@ -28,7 +29,7 @@ public final class SettingsOverlay {
     private final Paint dim = new Paint();
     private boolean open;
     private float ignoreMs;
-    private TileMenu.Tile tBoost, tPerf;
+    private TileMenu.Tile tBoost, tPerf, tPointer;
     private final List<TileMenu.Tile> holdTiles = new ArrayList<>();
 
     /**
@@ -53,7 +54,8 @@ public final class SettingsOverlay {
     public void open() {
         if (open) return;
         List<TileMenu.Tile> tiles = new ArrayList<>();
-        float w = 440f, h = 380f, gap = 56f, x0 = (Stage.W - 3f * w - 2f * gap) / 2f;
+        float w = 400f, h = 380f, gap = 40f, x0 = (Stage.W - 4f * w - 3f * gap) / 2f;
+        float x1 = (Stage.W - 3f * w - 2f * gap) / 2f;
         int[] ms = {700, 1000, 1400};
         String[] names = {"0.7 s", "1.0 s", "1.4 s"};
         String[] subs = {"Quick", "Normal", "Slow"};
@@ -64,10 +66,13 @@ public final class SettingsOverlay {
             holdTiles.add(t);
             tiles.add(t);
         }
-        tBoost = new TileMenu.Tile("boost", "Light boost", null, Theme.ORANGE, Theme::paintSun, x0, 600f, w, h);
-        tPerf = new TileMenu.Tile("perf", "Speed meter", null, Theme.BLUE, Theme::paintGauge, x0 + w + gap, 600f, w, h);
+        tPointer = new TileMenu.Tile("pointer", "Pointer", null, Theme.PINK, Theme::paintPointer,
+                x0 + 3f * (w + gap), 170f, w, h);
+        tiles.add(tPointer);
+        tBoost = new TileMenu.Tile("boost", "Light boost", null, Theme.ORANGE, Theme::paintSun, x1, 600f, w, h);
+        tPerf = new TileMenu.Tile("perf", "Speed meter", null, Theme.BLUE, Theme::paintGauge, x1 + w + gap, 600f, w, h);
         TileMenu.Tile done = new TileMenu.Tile("done", "Done", null, Theme.SAGE, Theme::paintDone,
-                x0 + 2f * (w + gap), 600f, w, h);
+                x1 + 2f * (w + gap), 600f, w, h);
         tiles.add(tBoost);
         tiles.add(tPerf);
         tiles.add(done);
@@ -90,6 +95,7 @@ public final class SettingsOverlay {
         int cur = currentHold();
         int[] ms = {700, 1000, 1400};
         for (int i = 0; i < holdTiles.size(); i++) holdTiles.get(i).cornerBadge = ms[i] == cur ? Theme.checkBadge() : null;
+        tPointer.badge = Theme.pointerBadge(ProfileLogic.POINTER_REACH.equals(env.pointer()));
         tBoost.badge = Theme.onOffBadge(env.lightBoost());
         tPerf.badge = Theme.onOffBadge(env.perf.isVisible());
     }
@@ -121,6 +127,9 @@ public final class SettingsOverlay {
                 break;
             case "hold1400":
                 if (env.profile != null) env.profile.setHoldMs(1400);
+                break;
+            case "pointer":
+                env.togglePointer();
                 break;
             case "boost":
                 env.toggleLightBoost();

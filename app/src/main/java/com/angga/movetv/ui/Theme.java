@@ -505,6 +505,39 @@ public final class Theme {
     }
 
     /**
+     * A round label for the pointer setting.
+     * @param reach true for "Easy reach", false for "On my hand"
+     * @return a 320x84 bitmap
+     */
+    public static Bitmap pointerBadge(final boolean reach) {
+        return SpriteCache.shared().get(reach ? "theme_badge_reach" : "theme_badge_hand", 320, 84, (c, w, h) -> {
+            R.set(2f, 2f, w - 2f, h - 2f);
+            FILL.setColor(reach ? 0xFFE89A4C : 0xFF5B8DB8);
+            c.drawRoundRect(R, h / 2f, h / 2f, FILL);
+            drawCentered(c, reach ? "Easy reach" : "On my hand", w / 2f, h * 0.68f, 44f, 0xFFFFFFFF);
+        });
+    }
+
+    /**
+     * An arm reaching out to a hand with a ring (Pointer).
+     * @param c canvas
+     * @param w width
+     * @param h height
+     */
+    public static void paintPointer(Canvas c, int w, int h) {
+        LINE.setColor(INK);
+        LINE.setStrokeWidth(w * 0.07f);
+        c.drawLine(w * 0.18f, h * 0.88f, w * 0.52f, h * 0.48f, LINE);
+        FILL.setColor(PAPER);
+        c.drawCircle(w * 0.56f, h * 0.44f, w * 0.11f, FILL);
+        c.drawCircle(w * 0.56f, h * 0.44f, w * 0.11f, LINE);
+        LINE.setStrokeWidth(w * 0.04f);
+        FILL.setColor(PINK);
+        c.drawCircle(w * 0.74f, h * 0.30f, w * 0.14f, FILL);
+        c.drawCircle(w * 0.74f, h * 0.30f, w * 0.14f, LINE);
+    }
+
+    /**
      * A round tick mark, used to show the chosen hold time.
      * @return an 84x84 bitmap
      */

@@ -21,6 +21,11 @@ public final class PerfOverlay {
     private final Paint textPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint panelPaint = new Paint();
 
+    // pointer debug line (player 0): wrist vs cursor
+    private float dbgWx, dbgWy, dbgCx, dbgCy;
+    private long dbgNs = 0;
+    private String pointerText = "";
+
     // frame timing
     private long lastNanos = 0;
     private long secStartNanos = 0;
@@ -56,6 +61,26 @@ public final class PerfOverlay {
      * @return true if visible
      */
     public boolean isVisible() { return visible; }
+
+    /**
+     * Reports where player 0's wrist and cursor are, for the debug line (call every frame while a cursor shows).
+     * @param wx wrist x in stage px
+     * @param wy wrist y
+     * @param cx cursor x
+     * @param cy cursor y
+     */
+    public void setPointerDebug(float wx, float wy, float cx, float cy) {
+        dbgWx = wx;
+        dbgWy = wy;
+        dbgCx = cx;
+        dbgCy = cy;
+        dbgNs = System.nanoTime();
+    }
+
+    /** Removes the pointer debug line (no hand is showing). */
+    public void clearPointerDebug() {
+        dbgNs = 0;
+    }
 
     /**
      * Draw frames per second, averaged over the last full second.
@@ -123,8 +148,20 @@ public final class PerfOverlay {
                     .append(" ms  AI ").append((int) (aiFps + 0.5f)).append(" fps  ")
                     .append(quality == GameView.LOW ? "LOW" : "HIGH");
             text = sb.toString();
+            boolean fresh = dbgNs != 0 && System.nanoTime() - dbgNs < 300_000_000L;
+            if (fresh) {
+                sb.setLength(0);
+                sb.append("wrist (").append((int) (dbgWx + 0.5f)).append(',').append((int) (dbgWy + 0.5f))
+                        .append(") cursor (").append((int) (dbgCx + 0.5f)).append(',').append((int) (dbgCy + 0.5f))
+                        .append(") \u0394 ").append((int) (Math.hypot(dbgCx - dbgWx, dbgCy - dbgWy) + 0.5)).append(" px");
+                pointerText = sb.toString();
+            } else {
+                pointerText = "";
+            }
         }
-        c.drawRect(0f, 0f, 760f, 52f, panelPaint);
+        boolean line2 = pointerText.length() > 0;
+        c.drawRect(0f, 0f, line2 ? 900f : 760f, line2 ? 96f : 52f, panelPaint);
         c.drawText(text, 16f, 38f, textPaint);
+        if (line2) c.drawText(pointerText, 16f, 82f, textPaint);
     }
 }

@@ -7,14 +7,14 @@ import java.util.Map;
 
 /**
  * What the app remembers between runs, kept in SharedPreferences on the TV (nothing leaves the device):
- * the hold time, the last player count, the light boost switch, and the stars
+ * the hold time, the last player count, the light boost switch, the pointer setting, and the stars
  * earned per game and level (0 to 3). Every read goes through {@link ProfileLogic}, so a missing or
  * damaged value turns into the default instead of a crash.
  */
 public final class Profile {
 
     private static final String FILE = "movetv_profile";
-    private static final String K_HOLD = "hold_ms", K_PLAYERS = "players", K_BOOST = "light_boost";
+    private static final String K_HOLD = "hold_ms", K_PLAYERS = "players", K_BOOST = "light_boost", K_POINTER = "pointer";
 
     private final SharedPreferences prefs;
 
@@ -84,6 +84,22 @@ public final class Profile {
      */
     public void setLightBoost(boolean on) {
         prefs.edit().putBoolean(K_BOOST, on).apply();
+    }
+
+    /**
+     * How the hand pointer behaves.
+     * @return "hand" (cursor on the hand, default) or "reach" (cursor reaches further)
+     */
+    public String pointer() {
+        return ProfileLogic.cleanPointer(prefs.getAll().get(K_POINTER));
+    }
+
+    /**
+     * Saves the pointer setting.
+     * @param mode "hand" or "reach" (anything else is saved as "hand")
+     */
+    public void setPointer(String mode) {
+        prefs.edit().putString(K_POINTER, ProfileLogic.cleanPointer(mode)).apply();
     }
 
     /**

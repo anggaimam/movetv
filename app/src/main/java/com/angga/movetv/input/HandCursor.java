@@ -6,8 +6,9 @@ import com.angga.movetv.pose.PlayerPose;
 import com.angga.movetv.pose.PoseFrame;
 
 /**
- * A pointer driven by a raised wrist. The wrist is mapped from a comfort zone anchored to the body
- * into a screen region, then smoothed with a One-Euro filter. Plain Java; not final so tests can fake it.
+ * A pointer driven by a raised wrist. A {@link CursorMapping} turns the wrist into a screen position (the
+ * comfort-box mapping unless another is set), then a One-Euro filter smooths it. Plain Java; not final so
+ * tests can fake it.
  */
 public class HandCursor {
     static final float MIN_WRIST_S = 0.3f, MIN_ELBOW_S = 0.2f;
@@ -16,6 +17,10 @@ public class HandCursor {
 
     private final int playerId;
     private float rx = 0f, ry = 0f, rw = PoseFrame.STAGE_W, rh = PoseFrame.STAGE_H;
+    private final ComfortBoxMapping comfort = new ComfortBoxMapping();
+    private CursorMapping mapping = comfort;
+    private final float[] target = new float[2];
+    private float wristX, wristY;
     private final OneEuro fx = new OneEuro(1.2f, 0.02f, 1.0f), fy = new OneEuro(1.2f, 0.02f, 1.0f);
     private boolean visible;
     private int hand = -1;
@@ -32,13 +37,31 @@ public class HandCursor {
     /** @return the player this cursor belongs to */
     public int playerId() { return playerId; }
 
-    /** Sets the screen rectangle the comfort zone is mapped onto (stage px). */
+    /** Sets the screen rectangle the comfort zone is mapped onto (stage px). Only the comfort-box mapping uses it. */
     public void setRegion(float x, float y, float w, float h) {
         rx = x;
         ry = y;
         rw = w;
         rh = h;
+        comfort.setRegion(x, y, w, h);
     }
+
+    /**
+     * Chooses how the wrist is turned into a screen position.
+     * @param m the mapping (null goes back to the comfort box)
+     */
+    public void setMapping(CursorMapping m) {
+        CursorMapping n = m != null ? m : comfort;
+        if (n == mapping) return;
+        mapping = n;
+        mapping.reset();
+    }
+
+    /** @return wrist x in stage px as last mapped (for the debug line) */
+    public float wristX() { return wristX; }
+
+    /** @return wrist y in stage px as last mapped (for the debug line) */
+    public float wristY() { return wristY; }
 
     /** @return true while a raised hand is tracked */
     public boolean visible() { return visible; }
@@ -68,6 +91,17 @@ public class HandCursor {
      * @param nowMs clock in ms
      */
     public void update(float dt, PlayerPose p, long nowMs) {
+        update(dt, p, nowMs, nowMs);
+    }
+
+    /**
+     * Advances the cursor by one display frame, telling the mapping when the pose was measured.
+     * @param dt seconds since the last call
+     * @param p newest pose of this cursor's player (may be null)
+     * @param nowMs clock in ms
+     * @param poseTimeMs when that pose was measured (same clock as nowMs)
+     */
+    public void update(float dt, PlayerPose p, long nowMs, long poseTimeMs) {
         if (dt <= 0f) dt = 1f / 60f;
         boolean rl = p != null && p.present && raised(p, 0);
         boolean rr = p != null && p.present && raised(p, 1);
@@ -79,6 +113,7 @@ public class HandCursor {
                 hand = -1;
                 fx.reset();
                 fy.reset();
+                mapping.reset();
             }
             return;
         }
@@ -107,26 +142,15 @@ public class HandCursor {
         boolean wasVisible = visible;
         visible = true;
 
-        float sw = PoseFrame.shoulderWidth(p);
-        if (sw <= 0f) {            // no usable body size: freeze where we are
+        Keypoint wr = hand == 0 ? lw : rwk;
+        wristX = wr.x;
+        wristY = wr.y;
+        mapping.timing(poseTimeMs, nowMs);
+        if (!mapping.map(p, hand, target)) {   // cannot map: freeze where we are
             speed = 0f;
             return;
         }
-        Keypoint ls = p.kps[Kp.L_SHOULDER], rs = p.kps[Kp.R_SHOULDER];
-        float midX = (ls.x + rs.x) * 0.5f, midY = (ls.y + rs.y) * 0.5f;
-        // Screen is mirrored: the person's left hand is on the screen's left (smaller x).
-        float cx = midX + (hand == 0 ? -0.35f : 0.35f) * sw;
-        float bw = 2.6f * sw;
-        Keypoint nose = p.kps[Kp.NOSE];
-        float noseY = nose.s >= 0.3f ? nose.y : midY - 0.8f * sw;  // local choice: nose missing
-        float top = noseY - 1.2f * sw;
-        Keypoint lh = p.kps[Kp.L_HIP], rh2 = p.kps[Kp.R_HIP];
-        float bottom = (lh.s >= 0.3f && rh2.s >= 0.3f) ? (lh.y + rh2.y) * 0.5f : midY + 2.0f * sw;
-        float bh = Math.max(bottom - top, 1f);
-        Keypoint wr = hand == 0 ? lw : rwk;
-        float u = clamp01((wr.x - (cx - bw * 0.5f)) / bw);
-        float v = clamp01((wr.y - top) / bh);
-        float tx = rx + u * rw, ty = ry + v * rh;
+        float tx = target[0], ty = target[1];
 
         if (!wasVisible) {
             fx.reset();
@@ -136,9 +160,5 @@ public class HandCursor {
         x = fx.filter(tx, dt);
         y = fy.filter(ty, dt);
         speed = wasVisible ? (float) Math.hypot(x - ox, y - oy) / dt : 0f;
-    }
-
-    private static float clamp01(float v) {
-        return v < 0f ? 0f : (v > 1f ? 1f : v);
     }
 }

@@ -10,6 +10,7 @@ import com.angga.movetv.audio.Voice;
 import com.angga.movetv.core.Input;
 import com.angga.movetv.core.PerfOverlay;
 import com.angga.movetv.core.Profile;
+import com.angga.movetv.core.ProfileLogic;
 import com.angga.movetv.core.Scene;
 import com.angga.movetv.core.SceneManager;
 import com.angga.movetv.core.SpriteCache;
@@ -17,6 +18,7 @@ import com.angga.movetv.core.Stage;
 import com.angga.movetv.input.DwellButtons;
 import com.angga.movetv.input.DwellEvent;
 import com.angga.movetv.input.HandCursor;
+import com.angga.movetv.input.ReachMapping;
 import com.angga.movetv.input.Target;
 import com.angga.movetv.pose.PoseHub;
 import com.angga.movetv.scenes.SettingsOverlay;
@@ -62,6 +64,7 @@ public final class TileMenu {
 
         private boolean menuMusicOn;
         private boolean lightBoost = true; // the engine starts with light boost on
+        private String pointer = ProfileLogic.DEFAULT_POINTER;
 
         /**
          * Creates the environment.
@@ -148,6 +151,20 @@ public final class TileMenu {
             return lightBoost;
         }
 
+        /**
+         * The pointer setting in use (kept here so the menus never read the saved file every frame).
+         * @return "hand" or "reach"
+         */
+        public String pointer() {
+            return pointer;
+        }
+
+        /** Switches the pointer between "on my hand" and "easy reach" and saves the choice. */
+        public void togglePointer() {
+            pointer = ProfileLogic.POINTER_REACH.equals(pointer) ? ProfileLogic.POINTER_HAND : ProfileLogic.POINTER_REACH;
+            if (profile != null) profile.setPointer(pointer);
+        }
+
         /** Switches the camera light boost and saves the choice. */
         public void toggleLightBoost() {
             lightBoost = !lightBoost;
@@ -161,6 +178,7 @@ public final class TileMenu {
          */
         public void applySaved() {
             if (profile == null) return;
+            pointer = profile.pointer();
             if (!profile.lightBoost() && lightBoost) {
                 lightBoost = false;
                 if (hub != null) hub.toggleLightBoost();
@@ -244,6 +262,7 @@ public final class TileMenu {
     private List<Tile> tiles = new ArrayList<>();
     private DwellButtons dwell = new DwellButtons();
     private HandCursor[] hand = {new HandCursor(0), new HandCursor(1)};
+    private final ReachMapping[] reach = {new ReachMapping(1f), new ReachMapping(1f)};
     private final PointerCursor pointer = new PointerCursor(0);
     private final HandCursor[] active = new HandCursor[2];
     private final List<DwellEvent> events = new ArrayList<>();
@@ -362,8 +381,13 @@ public final class TileMenu {
             return;
         }
         for (int i = 0; i < 2; i++) {
-            hand[i].setRegion(0f, 0f, Stage.W, Stage.H);
-            hand[i].update(dt, i < f.pose.mode ? f.pose.players[i] : null, f.nowMs);
+            reach[i].setGain(ProfileLogic.pointerGain(env.pointer()));
+            hand[i].setMapping(reach[i]);
+            hand[i].update(dt, i < f.pose.mode ? f.pose.players[i] : null, f.nowMs, f.pose.timeMs);
+        }
+        if (env.perf != null) {
+            if (hand[0].visible()) env.perf.setPointerDebug(hand[0].wristX(), hand[0].wristY(), hand[0].x(), hand[0].y());
+            else env.perf.clearPointerDebug();
         }
         if (owner >= 0 && !hand[owner].visible()) owner = -1;
         if (owner < 0) {

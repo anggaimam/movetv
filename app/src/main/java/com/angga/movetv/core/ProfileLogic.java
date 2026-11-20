@@ -13,7 +13,36 @@ public final class ProfileLogic {
     /** The player count used when nothing valid is saved. */
     public static final int DEFAULT_PLAYERS = 1;
 
+    /** Pointer setting: the cursor sits on the hand. */
+    public static final String POINTER_HAND = "hand";
+    /** Pointer setting: the cursor reaches further than the hand. */
+    public static final String POINTER_REACH = "reach";
+    /** The pointer setting used when nothing valid is saved. */
+    public static final String DEFAULT_POINTER = POINTER_HAND;
+    /** Gain of "on my hand". */
+    public static final float GAIN_HAND = 1.0f;
+    /** Gain of "easy reach". */
+    public static final float GAIN_REACH = 1.6f;
+
     private ProfileLogic() { }
+
+    /**
+     * Checks a pointer setting.
+     * @param o the saved value (anything, even null)
+     * @return "reach" if the value is the string "reach", otherwise "hand"
+     */
+    public static String cleanPointer(Object o) {
+        return POINTER_REACH.equals(o) ? POINTER_REACH : DEFAULT_POINTER;
+    }
+
+    /**
+     * How far the cursor reaches for a pointer setting.
+     * @param pointer "hand" or "reach" (anything else counts as "hand")
+     * @return 1.0 for "hand", 1.6 for "reach"
+     */
+    public static float pointerGain(String pointer) {
+        return POINTER_REACH.equals(pointer) ? GAIN_REACH : GAIN_HAND;
+    }
 
     /**
      * Reads a saved number whatever type it was stored as.
