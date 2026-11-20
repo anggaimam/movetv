@@ -57,7 +57,7 @@ import java.util.Random;
  * Remote:
  *   OK            camera picture on/off (skeleton only)
  *   Up / Down     bigger / smaller image for the AI (speed vs accuracy)
- *   Menu (≡)      1 or 2 players
+ *   Menu (≡)      1 player (AI follows you) or 2 players (one per half of the screen)
  *   Rewind        AI engine: MoveNet (fast) / MediaPipe Lite / MediaPipe Full
  *   Fast-forward  CPU or GPU
  */
@@ -138,56 +138,68 @@ public class MainActivity extends Activity {
 
 /**
  * Camera + body tracking.
- * Performance design:
- *  - frames are shrunk while converting (default 320x240), 4x less work than 640x480
- *  - LIVE_STREAM mode: the AI runs on its own thread; frames that arrive while it is busy are
- *    skipped before any conversion, so it always works on the newest frame (low lag)
- *  - drawing runs separately at the TV's refresh rate and glides between AI results
+ *  - The camera thread keeps only the newest frame. The moment the AI finishes, it starts on
+ *    that frame (no waiting for the next camera frame, no queue of stale frames).
+ *  - 1 player: the AI looks at a square crop that follows the person, so they appear big.
+ *  - 2 players: the left and right halves of the picture are checked separately (one player each).
+ *  - The webcam is asked for 30 frames per second.
  */
 class PoseEngine {
 
     static final int[] INPUT_WIDTHS = {192, 256, 320, 480};
+    private static final int MN = 192;
+    /** MoveNet's 17 points -> the MediaPipe numbering the drawing code uses */
+    private static final int[] COCO_TO_MP = {0, 2, 5, 7, 8, 11, 12, 13, 14, 15, 16, 23, 24, 25, 26, 27, 28};
+    private static final float MIN_SCORE = 0.3f;
 
     private final Context ctx;
     private final PoseView view;
 
     volatile int players = 1;
-    volatile boolean fullModel = false;
     /** 0 = MoveNet Lightning (fast), 1 = MediaPipe Lite, 2 = MediaPipe Full */
     volatile int engineType = 0;
-    private volatile Interpreter movenet;
-    private final Object mnLock = new Object();
-    private HandlerThread aiThread;
-    private Handler ai;
-    private static final int MN = 192;
-    private final ByteBuffer mnInput = ByteBuffer.allocateDirect(MN * MN * 3).order(ByteOrder.nativeOrder());
-    private final byte[] mnBytes = new byte[MN * MN * 3];
-    private final float[][][][] mnOutput = new float[1][1][17][3];
-    /** MoveNet's 17 points -> the MediaPipe numbering the drawing code uses */
-    private static final int[] COCO_TO_MP = {0, 2, 5, 7, 8, 11, 12, 13, 14, 15, 16, 23, 24, 25, 26, 27, 28};
-    private int sYRow, sYPix, sUvRow, sUvPix;
     volatile boolean gpu = false;
-    volatile int sizeIndex = 2; // 320
+    volatile int sizeIndex = 2; // camera picture shown on screen: 320 wide
 
-    private HandlerThread thread;
-    private Handler bg;
+    private HandlerThread thread, aiThread;
+    private Handler bg, ai;
     private CameraDevice device;
     private CameraCaptureSession session;
     private ImageReader reader;
     private volatile PoseLandmarker landmarker;
+    private volatile Interpreter movenet;
+    private final Object mnLock = new Object();
     private volatile int gen = 0;
+    private String fpsText = "";
+    private android.util.Range<Integer> fpsRange;
 
-    private int camW, camH;      // camera frame size
-    private int outW, outH;      // size given to the AI
-    private int[] argb;
+    // newest camera frame (camera thread only)
+    private int camW, camH;
     private byte[] yBuf, uBuf, vBuf;
+    private int sYRow, sYPix, sUvRow, sUvPix;
+    private boolean fresh = false;
+
+    // picture shown on screen
+    private int outW, outH;
+    private int[] argb;
     private final Bitmap[] bitmaps = new Bitmap[3];
     private int bmpIndex = 0;
-    private long lastTs = 0;
+
+    // AI state
     private volatile boolean inFlight = false;
     private volatile long inFlightSince = 0;
+    private long lastTs = 0;
+    private final ByteBuffer[] mnInputs = {
+            ByteBuffer.allocateDirect(MN * MN * 3).order(ByteOrder.nativeOrder()),
+            ByteBuffer.allocateDirect(MN * MN * 3).order(ByteOrder.nativeOrder())};
+    private final byte[] mnBytes = new byte[MN * MN * 3];
+    private final float[][][][] mnOutput = new float[1][1][17][3];
     private final java.util.concurrent.ConcurrentHashMap<Long, Bitmap> pending = new java.util.concurrent.ConcurrentHashMap<>();
     private final java.util.concurrent.ConcurrentHashMap<Long, Long> sentAt = new java.util.concurrent.ConcurrentHashMap<>();
+
+    // 1-player follow crop, in camera pixels (square: left, top, side)
+    private volatile float cropX, cropY, cropS;
+    private volatile boolean following = false;
 
     // stats
     private int camFrames = 0, aiFrames = 0, dropped = 0;
@@ -213,26 +225,18 @@ class PoseEngine {
         ai = new Handler(aiThread.getLooper());
         final int myGen = ++gen;
         bg.post(() -> {
-            buildLandmarker();
+            buildEngine();
             openCamera(myGen);
         });
     }
 
     synchronized void stop() {
         gen++;
-        final HandlerThread th = thread;
-        final Handler h = bg;
-        thread = null;
-        bg = null;
-        final HandlerThread at = aiThread;
-        final Handler ah = ai;
-        aiThread = null;
-        ai = null;
+        final HandlerThread th = thread, at = aiThread;
+        final Handler h = bg, ah = ai;
+        thread = null; bg = null; aiThread = null; ai = null;
         if (ah != null) ah.post(() -> {
-            synchronized (mnLock) {
-                try { if (movenet != null) movenet.close(); } catch (Throwable ignored) { }
-                movenet = null;
-            }
+            closeMoveNet();
             at.quitSafely();
         });
         if (h == null) return;
@@ -243,14 +247,16 @@ class PoseEngine {
             try { if (landmarker != null) landmarker.close(); } catch (Throwable ignored) { }
             session = null; device = null; reader = null; landmarker = null;
             inFlight = false;
+            fresh = false;
             pending.clear(); sentAt.clear();
             th.quitSafely();
         });
     }
 
-    void setPlayers(int n) { players = n; rebuild(); }
-    void cycleEngine() { engineType = (engineType + 1) % 3; fullModel = engineType == 2; rebuild(); }
+    void setPlayers(int n) { players = n; resetCrop(); rebuild(); }
+    void cycleEngine() { engineType = (engineType + 1) % 3; rebuild(); }
     void setGpu(boolean g) { gpu = g; rebuild(); }
+    boolean isMoveNet() { return engineType == 0; }
 
     synchronized void changeSize(int delta) {
         sizeIndex = Math.max(0, Math.min(INPUT_WIDTHS.length - 1, sizeIndex + delta));
@@ -261,24 +267,28 @@ class PoseEngine {
     private synchronized void rebuild() {
         if (bg == null) return;
         bg.post(() -> {
-            try { if (landmarker != null) landmarker.close(); } catch (Throwable ignored) { }
-            landmarker = null;
             inFlight = false;
             pending.clear(); sentAt.clear();
-            buildLandmarker();
+            buildEngine();
         });
     }
 
-    private String settingsText() {
-        if (engineType == 0) return "MoveNet Lightning · CPU 4 threads · 1P";
-        return outW + "x" + outH + " · " + (fullModel ? "Full" : "Lite") + " · " + (gpu ? "GPU" : "CPU") + " · "
-                + players + "P";
+    private void closeMoveNet() {
+        synchronized (mnLock) {
+            try { if (movenet != null) movenet.close(); } catch (Throwable ignored) { }
+            movenet = null;
+        }
+    }
+
+    private void buildEngine() {
+        try { if (landmarker != null) landmarker.close(); } catch (Throwable ignored) { }
+        landmarker = null;
+        closeMoveNet();
+        if (engineType == 0) buildMoveNet(); else buildLandmarker();
     }
 
     private void buildMoveNet() {
         view.setStatus("Loading MoveNet…");
-        try { if (landmarker != null) landmarker.close(); } catch (Throwable ignored) { }
-        landmarker = null;
         try {
             android.content.res.AssetFileDescriptor fd = ctx.getAssets().openFd("movenet_lightning.tflite");
             MappedByteBuffer model;
@@ -288,7 +298,6 @@ class PoseEngine {
             Interpreter.Options o = new Interpreter.Options();
             o.setNumThreads(4);
             synchronized (mnLock) {
-                if (movenet != null) movenet.close();
                 movenet = new Interpreter(model, o);
             }
             view.setStatus(null);
@@ -298,16 +307,11 @@ class PoseEngine {
     }
 
     private void buildLandmarker() {
-        if (engineType == 0) { buildMoveNet(); return; }
-        synchronized (mnLock) {
-            try { if (movenet != null) movenet.close(); } catch (Throwable ignored) { }
-            movenet = null;
-        }
-        String model = fullModel ? "pose_landmarker_full.task" : "pose_landmarker_lite.task";
-        view.setStatus("Loading body tracking (" + (fullModel ? "Full" : "Lite") + ", " + (gpu ? "GPU" : "CPU") + ")…");
+        boolean full = engineType == 2;
+        view.setStatus("Loading MediaPipe (" + (full ? "Full" : "Lite") + ", " + (gpu ? "GPU" : "CPU") + ")…");
         try {
             BaseOptions base = BaseOptions.builder()
-                    .setModelAssetPath(model)
+                    .setModelAssetPath(full ? "pose_landmarker_full.task" : "pose_landmarker_lite.task")
                     .setDelegate(gpu ? Delegate.GPU : Delegate.CPU)
                     .build();
             PoseLandmarker.PoseLandmarkerOptions opts = PoseLandmarker.PoseLandmarkerOptions.builder()
@@ -317,16 +321,24 @@ class PoseEngine {
                     .setMinPoseDetectionConfidence(0.5f)
                     .setMinPosePresenceConfidence(0.5f)
                     .setMinTrackingConfidence(0.5f)
-                    .setResultListener(this::onResult)
-                    .setErrorListener(e -> { inFlight = false; view.setStatus("AI error: " + e.getMessage()); })
+                    .setResultListener(this::onMediaPipeResult)
+                    .setErrorListener(e -> { aiDone(); view.setStatus("AI error: " + e.getMessage()); })
                     .build();
             landmarker = PoseLandmarker.createFromOptions(ctx, opts);
             view.setStatus(null);
         } catch (Throwable t) {
             landmarker = null;
-            view.setStatus("Body tracking failed to load: " + t.getMessage()
+            view.setStatus("MediaPipe failed to load: " + t.getMessage()
                     + (gpu ? "  → press Fast-forward to go back to CPU" : ""));
         }
+    }
+
+    private String settingsText() {
+        String eng = engineType == 0 ? "MoveNet" : engineType == 1 ? "MediaPipe Lite" : "MediaPipe Full";
+        String mode = engineType == 0
+                ? (players == 2 ? "2P split" : (following ? "1P follow" : "1P searching"))
+                : (gpu ? "GPU" : "CPU") + " · " + players + "P";
+        return eng + " · " + mode;
     }
 
     private String pickCamera() throws Exception {
@@ -338,7 +350,7 @@ class PoseEngine {
         return ids.length > 0 ? ids[0] : null;
     }
 
-    /** (Re)creates the shrunk frame buffers for the current input size. Runs on the camera thread. */
+    /** (Re)creates the on-screen picture buffers. Runs on the camera thread. */
     private void allocBuffers() {
         if (camW == 0) return;
         outW = Math.min(INPUT_WIDTHS[sizeIndex], camW);
@@ -359,8 +371,8 @@ class PoseEngine {
                 view.setStatus("No camera found. Plug in the USB webcam (close Zoom), then reopen MoveTV.");
                 return;
             }
-            StreamConfigurationMap map = manager().getCameraCharacteristics(id)
-                    .get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP);
+            CameraCharacteristics cc = manager().getCameraCharacteristics(id);
+            StreamConfigurationMap map = cc.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP);
             // Smallest supported size that is at least 480 wide (fast for the webcam, enough detail).
             Size best = null;
             if (map != null) {
@@ -372,6 +384,22 @@ class PoseEngine {
             if (best == null) best = new Size(640, 480);
             camW = best.getWidth();
             camH = best.getHeight();
+            resetCrop();
+
+            // Ask for 30 fps: prefer a fixed 30-30 range, otherwise the range reaching highest.
+            fpsRange = null;
+            android.util.Range<Integer>[] ranges = cc.get(CameraCharacteristics.CONTROL_AE_AVAILABLE_TARGET_FPS_RANGES);
+            if (ranges != null) {
+                for (android.util.Range<Integer> r : ranges) {
+                    if (r.getUpper() > 30) continue;
+                    if (fpsRange == null || r.getUpper() > fpsRange.getUpper()
+                            || (r.getUpper().equals(fpsRange.getUpper()) && r.getLower() > fpsRange.getLower())) {
+                        fpsRange = r;
+                    }
+                }
+            }
+            fpsText = fpsRange == null ? "" : " asked " + fpsRange.getLower() + "-" + fpsRange.getUpper();
+
             allocBuffers();
             reader = ImageReader.newInstance(camW, camH, ImageFormat.YUV_420_888, 2);
             reader.setOnImageAvailableListener(this::onImage, bg);
@@ -389,6 +417,7 @@ class PoseEngine {
                                         try {
                                             CaptureRequest.Builder rb = d.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW);
                                             rb.addTarget(myReader.getSurface());
+                                            if (fpsRange != null) rb.set(CaptureRequest.CONTROL_AE_TARGET_FPS_RANGE, fpsRange);
                                             s.setRepeatingRequest(rb.build(), null, bg);
                                         } catch (Throwable t) { view.setStatus("Camera start failed: " + t.getMessage()); }
                                     }
@@ -409,68 +438,138 @@ class PoseEngine {
         }
     }
 
+    /** Camera thread: copy the newest frame, then start the AI on it if the AI is free. */
     private void onImage(ImageReader r) {
         Image img = null;
         try {
             img = r.acquireLatestImage();
             if (img == null || r != reader) return;
             camFrames++;
-            long now = SystemClock.uptimeMillis();
-            PoseLandmarker lm = landmarker;
-            boolean useMn = engineType == 0;
-            // Skip this frame entirely if the AI is still busy (no conversion work wasted).
-            if ((useMn ? movenet == null : lm == null) || (inFlight && now - inFlightSince < 1000)) {
-                dropped++;
-                updateStats(now);
-                return;
-            }
-            long t0 = now;
-            Bitmap bmp = bitmaps[bmpIndex];
-            bmpIndex = (bmpIndex + 1) % bitmaps.length;
-            convertShrink(img, bmp);
+            if (fresh) dropped++; // previous frame was never used
+            Image.Plane[] p = img.getPlanes();
+            ByteBuffer yb = p[0].getBuffer(), ub = p[1].getBuffer(), vb = p[2].getBuffer();
+            if (yBuf == null || yBuf.length < yb.remaining()) yBuf = new byte[yb.remaining()];
+            if (uBuf == null || uBuf.length < ub.remaining()) uBuf = new byte[ub.remaining()];
+            if (vBuf == null || vBuf.length < vb.remaining()) vBuf = new byte[vb.remaining()];
+            yb.get(yBuf, 0, yb.remaining());
+            ub.get(uBuf, 0, ub.remaining());
+            vb.get(vBuf, 0, vb.remaining());
+            sYRow = p[0].getRowStride(); sYPix = p[0].getPixelStride();
+            sUvRow = p[1].getRowStride(); sUvPix = p[1].getPixelStride();
             img.close();
             img = null;
+            fresh = true;
+            if (inFlight && SystemClock.uptimeMillis() - inFlightSince > 2000) inFlight = false; // safety
+            tryLaunch();
+            updateStats(SystemClock.uptimeMillis());
+        } catch (Throwable t) {
+            view.setStatus("Camera frame error: " + t.getMessage());
+        } finally {
+            if (img != null) img.close();
+        }
+    }
+
+    /** Camera thread: start the AI on the newest frame, if there is one and the AI is free. */
+    private void tryLaunch() {
+        if (!fresh || inFlight || camW == 0 || argb == null) return;
+        Handler a = ai;
+        boolean mn = engineType == 0;
+        if (mn ? (movenet == null || a == null) : landmarker == null) return;
+        fresh = false;
+
+        long t0 = SystemClock.uptimeMillis();
+        final Bitmap bmp = bitmaps[bmpIndex];
+        bmpIndex = (bmpIndex + 1) % bitmaps.length;
+        convertShrink(bmp);
+
+        if (mn) {
+            final int np = players;
+            final float[][] crops = new float[np][];
+            if (np == 1) {
+                crops[0] = new float[]{cropX, cropY, cropS};
+            } else {
+                float s = Math.max(camW / 2f, camH);
+                // The screen is a mirror: the camera's right half is the player on the screen's left.
+                crops[0] = new float[]{camW * 0.75f - s / 2f, camH / 2f - s / 2f, s};
+                crops[1] = new float[]{camW * 0.25f - s / 2f, camH / 2f - s / 2f, s};
+            }
+            for (int i = 0; i < np; i++) fillMoveNetInput(crops[i], mnInputs[i]);
+            final long sent = SystemClock.uptimeMillis();
+            convertMs = (convertMs * 7 + (sent - t0)) / 8;
+            inFlight = true;
+            inFlightSince = sent;
+            a.post(() -> runMoveNet(bmp, crops, np, sent));
+        } else {
             long t1 = SystemClock.uptimeMillis();
             convertMs = (convertMs * 7 + (t1 - t0)) / 8;
-
-            if (useMn) {
-                final int padTop = fillMoveNetInput();
-                final float contentH = MN * (float) camH / camW;
-                final Bitmap shownBmp = bmp;
-                final long sent = SystemClock.uptimeMillis();
-                Handler a = ai;
-                if (a == null) return;
-                inFlight = true;
-                inFlightSince = sent;
-                a.post(() -> runMoveNet(shownBmp, padTop, contentH, sent));
-                updateStats(sent);
-                return;
-            }
-
             long ts = Math.max(t1, lastTs + 1);
             lastTs = ts;
             pending.put(ts, bmp);
             sentAt.put(ts, t1);
             inFlight = true;
             inFlightSince = t1;
-            lm.detectAsync(new BitmapImageBuilder(bmp).build(), ts);
-            updateStats(t1);
-        } catch (Throwable t) {
-            inFlight = false;
-            view.setStatus("Tracking error: " + t.getMessage());
-        } finally {
-            if (img != null) img.close();
+            try {
+                landmarker.detectAsync(new BitmapImageBuilder(bmp).build(), ts);
+            } catch (Throwable t) {
+                inFlight = false;
+                view.setStatus("MediaPipe error: " + t.getMessage());
+            }
         }
     }
 
-    private void onResult(PoseLandmarkerResult res, MPImage input) {
+    /** Called when the AI finishes: start on the newest frame straight away. */
+    private void aiDone() {
+        inFlight = false;
+        Handler h = bg;
+        if (h != null) h.post(this::tryLaunch);
+    }
+
+    private void runMoveNet(Bitmap bmp, float[][] crops, int np, long sent) {
+        try {
+            List<float[]> poses = new ArrayList<>();
+            float[] xs = new float[17], ys = new float[17], sc = new float[17];
+            for (int n = 0; n < np; n++) {
+                synchronized (mnLock) {
+                    if (movenet == null) return;
+                    movenet.run(mnInputs[n], mnOutput);
+                }
+                float[] p = new float[33 * 3];
+                int good = 0;
+                for (int k = 0; k < 17; k++) {
+                    float y = mnOutput[0][0][k][0], x = mnOutput[0][0][k][1], s = mnOutput[0][0][k][2];
+                    float px = crops[n][0] + x * crops[n][2];
+                    float py = crops[n][1] + y * crops[n][2];
+                    xs[k] = px; ys[k] = py; sc[k] = s;
+                    int m = COCO_TO_MP[k];
+                    p[m * 3] = px / camW;
+                    p[m * 3 + 1] = py / camH;
+                    p[m * 3 + 2] = s > MIN_SCORE ? 1f : 0f;
+                    if (s > MIN_SCORE) good++;
+                }
+                if (np == 1) {
+                    if (good >= 5) { poses.add(p); updateCrop(xs, ys, sc); } else resetCrop();
+                } else {
+                    poses.add(good >= 5 ? p : new float[33 * 3]);
+                }
+            }
+            long now = SystemClock.uptimeMillis();
+            aiMs = (aiMs * 7 + (now - sent)) / 8;
+            aiFrames++;
+            view.update(bmp, poses, statsText(), np == 2);
+        } catch (Throwable t) {
+            view.setStatus("MoveNet error: " + t.getMessage());
+        } finally {
+            aiDone();
+        }
+    }
+
+    private void onMediaPipeResult(PoseLandmarkerResult res, MPImage input) {
         long now = SystemClock.uptimeMillis();
         long ts = res.timestampMs();
         Bitmap bmp = pending.remove(ts);
         Long sent = sentAt.remove(ts);
         if (sent != null) aiMs = (aiMs * 7 + (now - sent)) / 8;
         aiFrames++;
-        inFlight = false;
         List<float[]> poses = new ArrayList<>();
         for (List<NormalizedLandmark> lmk : res.landmarks()) {
             float[] p = new float[lmk.size() * 3];
@@ -482,39 +581,71 @@ class PoseEngine {
             }
             poses.add(p);
         }
-        view.update(bmp, poses, statsText());
+        view.update(bmp, poses, statsText(), false);
+        aiDone();
     }
 
-    private synchronized void updateStats(long now) {
-        if (statStart == 0) statStart = now;
-        if (now - statStart >= 1000) {
-            float secs = (now - statStart) / 1000f;
-            camFps = camFrames / secs;
-            aiFps = aiFrames / secs;
-            dropPct = camFrames == 0 ? 0 : 100f * dropped / camFrames;
-            camFrames = 0; aiFrames = 0; dropped = 0; statStart = now;
+    /** Whole picture, letterboxed into a square. */
+    private void resetCrop() {
+        following = false;
+        if (camW == 0) return;
+        float s = Math.max(camW, camH);
+        cropX = (camW - s) / 2f;
+        cropY = (camH - s) / 2f;
+        cropS = s;
+    }
+
+    /** Next crop: a square around the person (torso x1.9, whole body x1.2), gliding to avoid jitter. */
+    private void updateCrop(float[] xs, float[] ys, float[] sc) {
+        int[] torso = {5, 6, 11, 12};
+        float cx = 0, cy = 0;
+        int nt = 0;
+        for (int k : torso) if (sc[k] > 0.2f) { cx += xs[k]; cy += ys[k]; nt++; }
+        if (nt < 2) { resetCrop(); return; }
+        cx /= nt;
+        cy /= nt;
+        float torsoRange = 0, bodyRange = 0;
+        for (int k : torso) if (sc[k] > 0.2f) {
+            torsoRange = Math.max(torsoRange, Math.max(Math.abs(xs[k] - cx), Math.abs(ys[k] - cy)));
         }
+        for (int k = 0; k < 17; k++) if (sc[k] > MIN_SCORE) {
+            bodyRange = Math.max(bodyRange, Math.max(Math.abs(xs[k] - cx), Math.abs(ys[k] - cy)));
+        }
+        float half = Math.max(torsoRange * 1.9f, bodyRange * 1.2f);
+        half = Math.max(half, camH * 0.2f);
+        half = Math.min(half, Math.max(camW, camH) / 2f);
+        float tx = cx - half, ty = cy - half, ts = half * 2f;
+        if (!following) {
+            cropX = tx; cropY = ty; cropS = ts;
+        } else {
+            cropX += (tx - cropX) * 0.6f;
+            cropY += (ty - cropY) * 0.6f;
+            cropS += (ts - cropS) * 0.6f;
+        }
+        following = true;
     }
 
-    private String statsText() {
-        return String.format(java.util.Locale.US,
-                "AI %.0f fps (%d ms) · camera %.0f fps (%dx%d) · convert %d ms · skipped %.0f%% · %s",
-                aiFps, aiMs, camFps, camW, camH, convertMs, dropPct, settingsText());
-    }
-
-    /** Builds MoveNet's 192x192 RGB input (letterboxed, keeps proportions) from the last camera frame. */
-    private int fillMoveNetInput() {
-        int ch = Math.max(1, Math.round(MN * (float) camH / camW));
-        int padTop = (MN - ch) / 2;
+    /** Builds MoveNet's 192x192 RGB input from a square crop of the newest frame (outside = black). */
+    private void fillMoveNetInput(float[] crop, ByteBuffer dst) {
         byte[] out = mnBytes;
-        java.util.Arrays.fill(out, (byte) 0);
-        int sx = (camW << 16) / MN, sy = (camH << 16) / ch;
-        for (int j = 0; j < ch; j++) {
-            int srcY = (j * sy) >> 16;
-            int yo = srcY * sYRow, uvo = (srcY >> 1) * sUvRow, o = (j + padTop) * MN * 3;
-            int fx = 0;
-            for (int i = 0; i < MN; i++, fx += sx) {
+        int step = (int) (crop[2] / MN * 65536f);
+        int bx = (int) (crop[0] * 65536f), by = (int) (crop[1] * 65536f);
+        int o = 0;
+        for (int j = 0; j < MN; j++) {
+            int srcY = (by + j * step) >> 16;
+            if (srcY < 0 || srcY >= camH) {
+                java.util.Arrays.fill(out, o, o + MN * 3, (byte) 0);
+                o += MN * 3;
+                continue;
+            }
+            int yo = srcY * sYRow, uvo = (srcY >> 1) * sUvRow;
+            int fx = bx;
+            for (int i = 0; i < MN; i++, fx += step) {
                 int srcX = fx >> 16;
+                if (srcX < 0 || srcX >= camW) {
+                    out[o++] = 0; out[o++] = 0; out[o++] = 0;
+                    continue;
+                }
                 int y = (yBuf[yo + srcX * sYPix] & 0xff) - 16;
                 if (y < 0) y = 0;
                 int uvi = uvo + (srcX >> 1) * sUvPix;
@@ -532,66 +663,42 @@ class PoseEngine {
                 out[o++] = (byte) (b >> 10);
             }
         }
-        mnInput.rewind();
-        mnInput.put(out);
-        mnInput.rewind();
-        return padTop;
+        dst.rewind();
+        dst.put(out);
+        dst.rewind();
     }
 
-    private void runMoveNet(Bitmap bmp, int padTop, float contentH, long sent) {
-        try {
-            synchronized (mnLock) {
-                if (movenet == null) return;
-                movenet.run(mnInput, mnOutput);
-            }
-            float[] p = new float[33 * 3];
-            int good = 0;
-            for (int k = 0; k < 17; k++) {
-                float y = mnOutput[0][0][k][0], x = mnOutput[0][0][k][1], sc = mnOutput[0][0][k][2];
-                int m = COCO_TO_MP[k];
-                p[m * 3] = x;
-                p[m * 3 + 1] = (y * MN - padTop) / contentH;
-                p[m * 3 + 2] = sc > 0.3f ? 1f : 0f;
-                if (sc > 0.3f) good++;
-            }
-            long now = SystemClock.uptimeMillis();
-            aiMs = (aiMs * 7 + (now - sent)) / 8;
-            aiFrames++;
-            List<float[]> poses = new ArrayList<>();
-            if (good >= 4) poses.add(p);
-            view.update(bmp, poses, statsText());
-        } catch (Throwable t) {
-            view.setStatus("MoveNet error: " + t.getMessage());
-        } finally {
-            inFlight = false;
+    private synchronized void updateStats(long now) {
+        if (statStart == 0) statStart = now;
+        if (now - statStart >= 1000) {
+            float secs = (now - statStart) / 1000f;
+            camFps = camFrames / secs;
+            aiFps = aiFrames / secs;
+            dropPct = camFrames == 0 ? 0 : 100f * dropped / camFrames;
+            camFrames = 0; aiFrames = 0; dropped = 0; statStart = now;
         }
     }
 
-    /** YUV_420_888 -> ARGB while shrinking to outW x outH (nearest pixel), integer math. */
-    private void convertShrink(Image img, Bitmap out) {
-        Image.Plane[] p = img.getPlanes();
-        ByteBuffer yb = p[0].getBuffer(), ub = p[1].getBuffer(), vb = p[2].getBuffer();
-        if (yBuf == null || yBuf.length < yb.remaining()) yBuf = new byte[yb.remaining()];
-        if (uBuf == null || uBuf.length < ub.remaining()) uBuf = new byte[ub.remaining()];
-        if (vBuf == null || vBuf.length < vb.remaining()) vBuf = new byte[vb.remaining()];
-        yb.get(yBuf, 0, yb.remaining());
-        ub.get(uBuf, 0, ub.remaining());
-        vb.get(vBuf, 0, vb.remaining());
-        int yRow = p[0].getRowStride(), yPix = p[0].getPixelStride();
-        int uvRow = p[1].getRowStride(), uvPix = p[1].getPixelStride();
-        sYRow = yRow; sYPix = yPix; sUvRow = uvRow; sUvPix = uvPix;
+    private String statsText() {
+        return String.format(java.util.Locale.US,
+                "AI %.0f fps (%d ms) · camera %.0f fps%s (%dx%d) · convert %d ms · unused %.0f%% · %s",
+                aiFps, aiMs, camFps, fpsText, camW, camH, convertMs, dropPct, settingsText());
+    }
+
+    /** YUV (newest frame) -> ARGB picture for the screen, shrunk to outW x outH. */
+    private void convertShrink(Bitmap out) {
         int ow = outW, oh = outH;
         int sx = (camW << 16) / ow, sy = (camH << 16) / oh; // 16.16 fixed-point step
         int[] dst = argb;
         for (int j = 0; j < oh; j++) {
             int srcY = (j * sy) >> 16;
-            int yo = srcY * yRow, uvo = (srcY >> 1) * uvRow, o = j * ow;
+            int yo = srcY * sYRow, uvo = (srcY >> 1) * sUvRow, o = j * ow;
             int fx = 0;
             for (int i = 0; i < ow; i++, fx += sx) {
                 int srcX = fx >> 16;
-                int y = (yBuf[yo + srcX * yPix] & 0xff) - 16;
+                int y = (yBuf[yo + srcX * sYPix] & 0xff) - 16;
                 if (y < 0) y = 0;
-                int uvi = uvo + (srcX >> 1) * uvPix;
+                int uvi = uvo + (srcX >> 1) * sUvPix;
                 int u = (uBuf[uvi] & 0xff) - 128;
                 int v = (vBuf[uvi] & 0xff) - 128;
                 int y1192 = 1192 * y;
@@ -632,6 +739,8 @@ class PoseView extends View {
     private volatile String stats = "";
     private volatile String status = "Starting…";
     private boolean showCamera = true;
+    private volatile boolean split = false;
+    private final Paint divider = new Paint(Paint.ANTI_ALIAS_FLAG);
 
     private final Paint bone = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint joint = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -661,11 +770,14 @@ class PoseView extends View {
         text.setColor(Color.WHITE);
         text.setTextSize(28f);
         panel.setColor(Color.argb(170, 0, 0, 0));
+        divider.setColor(Color.argb(200, 255, 255, 255));
+        divider.setStrokeWidth(6f);
         setFocusable(true);
     }
 
-    void update(Bitmap bmp, List<float[]> p, String s) {
+    void update(Bitmap bmp, List<float[]> p, String s, boolean splitScreen) {
         if (bmp != null) frame = bmp;
+        split = splitScreen;
         target = p;
         stats = s;
     }
@@ -703,6 +815,19 @@ class PoseView extends View {
             c.scale(-1f, 1f, vw / 2f, vh / 2f); // mirror, like looking in a mirror
             c.drawBitmap(f, null, dst, camPaint);
             c.restore();
+        }
+
+        // 2 players: each owns one half of the screen
+        if (split) {
+            float mid = left + dw / 2f;
+            c.drawLine(mid, top, mid, top + dh, divider);
+            text.setTextSize(40f);
+            text.setColor(COLORS[0]);
+            c.drawText("P1", left + 24, top + 100, text);
+            text.setColor(COLORS[1]);
+            c.drawText("P2", mid + 24, top + 100, text);
+            text.setColor(Color.WHITE);
+            text.setTextSize(28f);
         }
 
         // glide shown skeletons toward the latest AI result
@@ -770,7 +895,7 @@ class PoseView extends View {
         text.setTextSize(44f);
         c.drawText("🎈 " + score, vw - 180, 110, text);
         text.setTextSize(28f);
-        String help = "OK: camera on/off   ⏪: AI engine   ▲▼: image size   ⏩: CPU/GPU   ≡: 1/2 players (MediaPipe)";
+        String help = "≡: 1/2 players   OK: camera on/off   ⏪: AI engine   ▲▼: picture size   ⏩: CPU/GPU (MediaPipe)";
         c.drawRect(0, vh - 52, vw, vh, panel);
         c.drawText(help, 16, vh - 16, text);
         String s = status;
