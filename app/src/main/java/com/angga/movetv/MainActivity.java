@@ -2,6 +2,7 @@ package com.angga.movetv;
 
 import android.Manifest;
 import android.app.Activity;
+import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Bundle;
@@ -11,38 +12,81 @@ import android.view.KeyEvent;
 import android.view.MotionEvent;
 import android.view.WindowManager;
 
+import com.angga.movetv.audio.Music;
+import com.angga.movetv.audio.Sfx;
+import com.angga.movetv.core.DemoScene;
+import com.angga.movetv.core.GameView;
+import com.angga.movetv.core.PerfOverlay;
+import com.angga.movetv.core.Scene;
+import com.angga.movetv.core.SceneManager;
+import com.angga.movetv.core.SpriteCache;
 import com.angga.movetv.debug.DebugPoseView;
 import com.angga.movetv.pose.PoseFrame;
 import com.angga.movetv.pose.PoseHub;
 
 /**
- * MoveTV proof of concept.
- * USB webcam (or the no-camera test body) -> PoseHub -> skeleton + a balloon to pop.
+ * MoveTV. USB webcam (or the no-camera test body) -> PoseHub -> the game screen.
  * Nothing leaves the TV: the app has no internet permission.
  *
  * Remote:
- *   OK            camera picture on/off (skeleton only)
- *   Left          light boost on/off (brightens dark rooms for the AI)
+ *   OK, hold 2 s  switch between the game screen (DemoScene) and the old debug view
+ *   OK            DemoScene: play the chosen sound effect (debug view: camera picture on/off)
+ *   Up/Down       DemoScene: choose a sound effect
+ *   Right         DemoScene: next song
+ *   Left          light boost on/off (brightens dark rooms for the AI);  hold 2 s = performance overlay on/off
  *   Menu (≡)      1 player (AI follows you) or 2 players (one per half of the screen);
  *                 hold it for 2 seconds to switch test mode on or off
  *
- * Keyboard (emulator): T toggles test mode. In test mode: mouse drag moves the right hand,
- * W jump, S duck, A/D lean, Space arms out, 1-9 poses, Tab switches player.
+ * Keyboard (emulator): P overlay, M song, F1-F12 and Z X C V sound effects, T test mode. In test mode:
+ * mouse drag moves the right hand, W jump, S duck, A/D lean, Space arms out, 1-9 poses, Tab switches player.
  */
 public class MainActivity extends Activity {
 
     private static final int REQ_CAMERA = 7;
     private static final long LONG_PRESS_MS = 2000;
 
-    private DebugPoseView view;
+    private GameView gameView;
+    private DebugPoseView debugView;
+    private boolean debugMode = false;
     private PoseHub hub;
+    private PerfOverlay perf;
+    private Sfx sfx;
+    private Music music;
+
+    // debug view feed
     private final PoseFrame frame = new PoseFrame();
     private String statsText = "";
     private long statsAt = 0;
     private boolean ticking = false;
 
-    private long menuDownTime = -1;
-    private boolean menuLongDone = false;
+    private final Hold menuKey = new Hold(), okKey = new Hold(), leftKey = new Hold();
+
+    /** Tells a short press of a key from a 2-second hold. */
+    private static final class Hold {
+        private long downTime = -1;
+        private boolean longDone = false;
+
+        /** @return true at the moment a hold reaches 2 seconds */
+        boolean down(KeyEvent e) {
+            if (e.getRepeatCount() == 0) {
+                downTime = e.getDownTime();
+                longDone = false;
+                return false;
+            }
+            if (!longDone && downTime >= 0 && e.getEventTime() - downTime >= LONG_PRESS_MS) {
+                longDone = true;
+                return true;
+            }
+            return false;
+        }
+
+        /** @return true if the key was released before the 2 seconds were up */
+        boolean up() {
+            boolean shortPress = downTime >= 0 && !longDone;
+            downTime = -1;
+            return shortPress;
+        }
+    }
 
     private final Choreographer.FrameCallback ticker = new Choreographer.FrameCallback() {
         @Override
@@ -54,7 +98,7 @@ public class MainActivity extends Activity {
                 statsText = hub.statsText();
                 statsAt = now;
             }
-            view.update(hub.cameraPicture(), frame, statsText);
+            debugView.update(hub.cameraPicture(), frame, statsText);
             Choreographer.getInstance().postFrameCallback(this);
         }
     };
@@ -64,10 +108,18 @@ public class MainActivity extends Activity {
         super.onCreate(savedInstanceState);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
                 | WindowManager.LayoutParams.FLAG_FULLSCREEN);
-        view = new DebugPoseView(this);
-        setContentView(view);
         hub = new PoseHub();
-        hub.setStatusListener(view::setStatus);
+        boolean debuggable = (getApplicationInfo().flags & ApplicationInfo.FLAG_DEBUGGABLE) != 0;
+        perf = new PerfOverlay(debuggable);
+        sfx = new Sfx(this);
+        music = new Music();
+        SceneManager scenes = new SceneManager();
+        scenes.register("demo", new DemoScene(perf, sfx, music));
+        gameView = new GameView(this, hub, scenes, perf);
+        debugView = new DebugPoseView(this);
+        hub.setStatusListener(debugView::setStatus);
+        setContentView(gameView);
+        scenes.go("demo", Scene.SceneArgs.EMPTY);
     }
 
     @Override
@@ -77,18 +129,31 @@ public class MainActivity extends Activity {
         hub.start(this);
         if (Build.VERSION.SDK_INT >= 23
                 && checkSelfPermission(Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
-            view.setStatus("Waiting for camera permission…");
+            debugView.setStatus("Waiting for camera permission…");
             requestPermissions(new String[]{Manifest.permission.CAMERA}, REQ_CAMERA);
         }
-        ticking = true;
-        Choreographer.getInstance().postFrameCallback(ticker);
+        if (debugMode) startTicker();
     }
 
     @Override
     protected void onPause() {
         ticking = false;
+        music.stop(0);
         hub.stop(); // releases the webcam so Zoom etc. can use it
         super.onPause();
+    }
+
+    @Override
+    protected void onDestroy() {
+        sfx.release();
+        music.release();
+        super.onDestroy();
+    }
+
+    @Override
+    public void onTrimMemory(int level) {
+        super.onTrimMemory(level);
+        SpriteCache.shared().clear();
     }
 
     @Override
@@ -96,39 +161,52 @@ public class MainActivity extends Activity {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
         if (requestCode == REQ_CAMERA) {
             if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                view.setStatus(null);
+                debugView.setStatus(null);
                 hub.start(this);
             } else {
-                view.setStatus("Camera permission denied: test mode. Allow it in Settings > Applications > MoveTV.");
-                view.postDelayed(() -> view.setStatus(null), 6000);
+                debugView.setStatus("Camera permission denied: test mode. Allow it in Settings > Applications > MoveTV.");
+                debugView.postDelayed(() -> debugView.setStatus(null), 6000);
             }
+        }
+    }
+
+    private void startTicker() {
+        ticking = true;
+        Choreographer.getInstance().postFrameCallback(ticker);
+    }
+
+    /** Switches between the game screen and the old debug view. */
+    private void setDebugMode(boolean on) {
+        debugMode = on;
+        if (on) {
+            music.stop(200);
+            setContentView(debugView);
+            startTicker();
+        } else {
+            ticking = false;
+            setContentView(gameView);
         }
     }
 
     @Override
     public boolean onKeyDown(int keyCode, KeyEvent event) {
         if (hub.handleKey(event)) return true;
-        if (keyCode == KeyEvent.KEYCODE_MENU) {
-            if (event.getRepeatCount() == 0) {
-                menuDownTime = event.getDownTime();
-                menuLongDone = false;
-            } else if (!menuLongDone && menuDownTime >= 0
-                    && event.getEventTime() - menuDownTime >= LONG_PRESS_MS) {
-                menuLongDone = true;
-                hub.toggleTestMode();
-            }
-            return true;
-        }
-        if (event.getRepeatCount() > 0) return super.onKeyDown(keyCode, event);
         switch (keyCode) {
+            case KeyEvent.KEYCODE_MENU:
+                if (menuKey.down(event)) hub.toggleTestMode();
+                return true;
             case KeyEvent.KEYCODE_DPAD_CENTER:
             case KeyEvent.KEYCODE_ENTER:
-                view.toggleCamera();
+                if (okKey.down(event)) setDebugMode(!debugMode);
                 return true;
             case KeyEvent.KEYCODE_DPAD_LEFT:
-                hub.toggleLightBoost();
+                if (leftKey.down(event)) gameView.togglePerf();
+                return true;
+            case KeyEvent.KEYCODE_P:
+                if (event.getRepeatCount() == 0) gameView.togglePerf();
                 return true;
             default:
+                if (!debugMode) gameView.input().keyDown(keyCode);
                 return super.onKeyDown(keyCode, event);
         }
     }
@@ -136,17 +214,36 @@ public class MainActivity extends Activity {
     @Override
     public boolean onKeyUp(int keyCode, KeyEvent event) {
         if (hub.handleKey(event)) return true;
-        if (keyCode == KeyEvent.KEYCODE_MENU) {
-            if (!menuLongDone && menuDownTime >= 0) hub.setMode(hub.players() == 1 ? 2 : 1);
-            menuDownTime = -1;
-            return true;
+        switch (keyCode) {
+            case KeyEvent.KEYCODE_MENU:
+                if (menuKey.up()) hub.setMode(hub.players() == 1 ? 2 : 1);
+                return true;
+            case KeyEvent.KEYCODE_DPAD_CENTER:
+            case KeyEvent.KEYCODE_ENTER:
+                if (okKey.up()) {
+                    if (debugMode) {
+                        debugView.toggleCamera();
+                    } else { // a short press reaches the scene as one press
+                        gameView.input().keyDown(keyCode);
+                        gameView.input().keyUp(keyCode);
+                    }
+                }
+                return true;
+            case KeyEvent.KEYCODE_DPAD_LEFT:
+                if (leftKey.up()) hub.toggleLightBoost();
+                return true;
+            case KeyEvent.KEYCODE_P:
+                return true;
+            default:
+                if (!debugMode) gameView.input().keyUp(keyCode);
+                return super.onKeyUp(keyCode, event);
         }
-        return super.onKeyUp(keyCode, event);
     }
 
     @Override
     public boolean onTouchEvent(MotionEvent event) {
-        if (hub.handleTouch(event, view.getWidth(), view.getHeight())) return true;
+        // the game screen handles touches itself; this is for the debug view
+        if (hub.handleTouch(event, debugView.getWidth(), debugView.getHeight())) return true;
         return super.onTouchEvent(event);
     }
 }
