@@ -1,0 +1,64 @@
+name: Build MoveTV APK
+
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.7"
+
+      # The signing key lives only in GitHub's private build cache (never in the public repo),
+      # so updates install over each other. If the cache ever expires, uninstall MoveTV once.
+      - uses: actions/cache@v4
+        with:
+          path: app/movetv.keystore
+          key: movetv-signing-key-v1
+
+      - name: Create signing key if missing
+        run: |
+          [ -f app/movetv.keystore ] || keytool -genkeypair -keystore app/movetv.keystore -alias movetv \
+            -keyalg RSA -keysize 2048 -validity 10000 -storepass movetv123 -keypass movetv123 \
+            -dname "CN=MoveTV, O=Personal, C=CA"
+
+      - name: Download body-tracking models (stored inside the app, used offline)
+        run: |
+          mkdir -p app/src/main/assets
+          curl -fL -o app/src/main/assets/pose_landmarker_lite.task https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/latest/pose_landmarker_lite.task
+          curl -fL -o app/src/main/assets/pose_landmarker_full.task https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_full/float16/latest/pose_landmarker_full.task
+          ls -la app/src/main/assets
+
+      - name: Build APK
+        run: gradle assembleRelease --no-daemon
+
+      - name: Rename APK
+        run: cp app/build/outputs/apk/release/app-release.apk movetv.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: movetv-apk
+          path: movetv.apk
+
+      # Fixed link for Downloader:
+      # https://github.com/<you>/<repo>/releases/latest/download/movetv.apk
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: build-${{ github.run_number }}
+          name: MoveTV build ${{ github.run_number }}
+          files: movetv.apk
+          make_latest: true
