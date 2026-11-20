@@ -9,11 +9,15 @@ import android.view.MotionEvent;
  *
  * Keys: W or Up = jump, S or Down = duck (held), A or Left = lean left (held), D or Right = lean right
  * (held), Space = arms out (held), 1-9 = preset poses (held), Tab = switch player in 2 players.
+ * Remote only (T-06): Play/Pause switches arms out (T-pose) on and off; Rewind and Fast-forward step
+ * through the preset poses (none, 1 Star ... 9 Lean-left, then round again).
  * Touch or mouse: the position moves the right wrist.
  */
 public final class TestPoseInput {
 
     private final TestPoseSource source;
+    private boolean armsOutLatched;
+    private int stepPreset; // preset chosen with Rewind / Fast-forward: 0 = none, 1..9
 
     /**
      * Creates the adapter.
@@ -57,6 +61,18 @@ public final class TestPoseInput {
             case KeyEvent.KEYCODE_TAB:
                 if (first) source.switchPlayer();
                 return true;
+            case KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE:
+            case KeyEvent.KEYCODE_MEDIA_PLAY:
+            case KeyEvent.KEYCODE_MEDIA_PAUSE:
+                if (first) {
+                    armsOutLatched = !armsOutLatched;
+                    source.setHeld(TestPoseSource.CTRL_ARMS_OUT, armsOutLatched);
+                }
+                return true;
+            case KeyEvent.KEYCODE_MEDIA_FAST_FORWARD:
+            case KeyEvent.KEYCODE_MEDIA_REWIND:
+                if (first) stepPreset(code == KeyEvent.KEYCODE_MEDIA_FAST_FORWARD ? 1 : -1);
+                return true;
             default:
                 if (code >= KeyEvent.KEYCODE_1 && code <= KeyEvent.KEYCODE_9) {
                     source.setPreset(code - KeyEvent.KEYCODE_1 + 1, down);
@@ -64,6 +80,13 @@ public final class TestPoseInput {
                 }
                 return false;
         }
+    }
+
+    /** Steps the remote's preset pose: 0 (none), 1 Star ... 9 Lean-left, then round again. */
+    private void stepPreset(int dir) {
+        if (stepPreset > 0) source.setPreset(stepPreset, false);
+        stepPreset = (stepPreset + dir + 10) % 10;
+        if (stepPreset > 0) source.setPreset(stepPreset, true);
     }
 
     /**

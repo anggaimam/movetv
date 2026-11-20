@@ -14,31 +14,45 @@ import android.view.WindowManager;
 
 import com.angga.movetv.audio.Music;
 import com.angga.movetv.audio.Sfx;
+import com.angga.movetv.audio.Voice;
 import com.angga.movetv.core.DemoScene;
 import com.angga.movetv.core.GameView;
 import com.angga.movetv.core.PerfOverlay;
+import com.angga.movetv.core.Profile;
 import com.angga.movetv.core.Scene;
 import com.angga.movetv.core.SceneManager;
 import com.angga.movetv.core.SpriteCache;
 import com.angga.movetv.debug.DebugPoseView;
+import com.angga.movetv.games.GameRegistry;
 import com.angga.movetv.pose.PoseFrame;
 import com.angga.movetv.pose.PoseHub;
+import com.angga.movetv.scenes.AttractScene;
+import com.angga.movetv.scenes.GameSelectScene;
+import com.angga.movetv.scenes.LevelSelectScene;
+import com.angga.movetv.scenes.PlaceholderGameScene;
+import com.angga.movetv.scenes.PlayersScene;
+import com.angga.movetv.scenes.SettingsOverlay;
+import com.angga.movetv.scenes.SetupScene;
+import com.angga.movetv.ui.TileMenu;
 
 /**
- * MoveTV. USB webcam (or the no-camera test body) -> PoseHub -> the game screen.
- * Nothing leaves the TV: the app has no internet permission.
+ * MoveTV. USB webcam (or the no-camera test body) -> PoseHub -> the screens. Nothing leaves the TV: the app
+ * has no internet permission. The app starts at the attract screen.
  *
- * Remote:
- *   OK, hold 2 s  switch between the game screen (DemoScene) and the old debug view
- *   OK            DemoScene: play the chosen sound effect (debug view: camera picture on/off)
- *   Up/Down       DemoScene: choose a sound effect
- *   Right         DemoScene: next song
- *   Left          light boost on/off (brightens dark rooms for the AI);  hold 2 s = performance overlay on/off
- *   Menu (≡)      1 player (AI follows you) or 2 players (one per half of the screen);
- *                 hold it for 2 seconds to switch test mode on or off
+ * Fire TV remote (every screen works with these keys only):
+ *   Arrows        menus: move the focus highlight; games in test mode: jump / duck / lean (test body)
+ *   OK            select; hold 2 s = switch between the screens and the old debug view
+ *   Play/Pause    menus: select; games: pause music (camera) or arms out on/off (test mode)
+ *   Back          back one screen (attract: nothing); during a round: end it, go to level select
+ *   Menu (≡)      short press = settings (a game pauses); hold 2 s = test mode on/off
+ *   Left (◀)      hold 2 s = performance overlay on/off
+ *   Rewind (⏪)    menus: hold 2 s = sound and speed test screen (the old DemoScene; Back leaves it)
+ *   Rewind/Fast-forward  games in test mode: previous/next preset dance pose
+ * DemoScene keeps its old quick keys: Left = light boost, Menu = 1 or 2 players.
  *
- * Keyboard (emulator): P overlay, M song, F1-F12 and Z X C V sound effects, T test mode. In test mode:
- * mouse drag moves the right hand, W jump, S duck, A/D lean, Space arms out, 1-9 poses, Tab switches player.
+ * Keyboard (emulator extras): Enter = OK, Esc = Back, P overlay, T test mode; DemoScene: M song, F1-F12 and
+ * Z X C V sound effects. In test mode: mouse drag moves the right hand, W jump, S duck, A/D lean, Space arms
+ * out, 1-9 poses, Tab switches player.
  */
 public class MainActivity extends Activity {
 
@@ -52,6 +66,12 @@ public class MainActivity extends Activity {
     private PerfOverlay perf;
     private Sfx sfx;
     private Music music;
+    private Voice voice;
+    private Profile profile;
+    private SceneManager scenes;
+    private TileMenu.Env env;
+    private SettingsOverlay settings;
+    private boolean savedApplied;
 
     // debug view feed
     private final PoseFrame frame = new PoseFrame();
@@ -59,7 +79,7 @@ public class MainActivity extends Activity {
     private long statsAt = 0;
     private boolean ticking = false;
 
-    private final Hold menuKey = new Hold(), okKey = new Hold(), leftKey = new Hold();
+    private final Hold menuKey = new Hold(), okKey = new Hold(), leftKey = new Hold(), rewindKey = new Hold();
 
     /** Tells a short press of a key from a 2-second hold. */
     private static final class Hold {
@@ -113,13 +133,28 @@ public class MainActivity extends Activity {
         perf = new PerfOverlay(debuggable);
         sfx = new Sfx(this);
         music = new Music();
-        SceneManager scenes = new SceneManager();
+        voice = new Voice(this);
+        profile = new Profile(this);
+        scenes = new SceneManager();
+        env = new TileMenu.Env(hub, sfx, music, voice, profile, perf);
+        env.scenes = scenes;
+        settings = new SettingsOverlay(env);
+        env.settings = settings;
+        hub.setMode(env.players);
+        // every home-flow screen is wrapped so the menu key opens the settings over it
+        scenes.register("attract", settings.host(new AttractScene(env)));
+        scenes.register("setup", settings.host(new SetupScene(env)));
+        scenes.register("players", settings.host(new PlayersScene(env)));
+        scenes.register("gameselect", settings.host(new GameSelectScene(env)));
+        scenes.register("levelselect", settings.host(new LevelSelectScene(env)));
+        scenes.register(GameRegistry.PLACEHOLDER_SCENE, settings.host(new PlaceholderGameScene(env)));
+        // the sound and speed test keeps its own quick keys, so it is not wrapped
         scenes.register("demo", new DemoScene(perf, sfx, music));
         gameView = new GameView(this, hub, scenes, perf);
         debugView = new DebugPoseView(this);
         hub.setStatusListener(debugView::setStatus);
         setContentView(gameView);
-        scenes.go("demo", Scene.SceneArgs.EMPTY);
+        scenes.go("attract", Scene.SceneArgs.EMPTY);
     }
 
     @Override
@@ -127,6 +162,10 @@ public class MainActivity extends Activity {
         super.onResume();
         // Always start the hub: without the camera permission it runs in test mode until the permission is granted.
         hub.start(this);
+        if (!savedApplied) { // the light boost lives in the camera engine, which exists once the hub has started
+            savedApplied = true;
+            env.applySaved();
+        }
         if (Build.VERSION.SDK_INT >= 23
                 && checkSelfPermission(Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
             debugView.setStatus("Waiting for camera permission…");
@@ -147,6 +186,7 @@ public class MainActivity extends Activity {
     protected void onDestroy() {
         sfx.release();
         music.release();
+        voice.release();
         super.onDestroy();
     }
 
@@ -188,10 +228,66 @@ public class MainActivity extends Activity {
         }
     }
 
+    private static boolean isRemoteKey(int k) {
+        switch (k) {
+            case KeyEvent.KEYCODE_DPAD_UP:
+            case KeyEvent.KEYCODE_DPAD_DOWN:
+            case KeyEvent.KEYCODE_DPAD_LEFT:
+            case KeyEvent.KEYCODE_DPAD_RIGHT:
+            case KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE:
+            case KeyEvent.KEYCODE_MEDIA_PLAY:
+            case KeyEvent.KEYCODE_MEDIA_PAUSE:
+            case KeyEvent.KEYCODE_MEDIA_FAST_FORWARD:
+            case KeyEvent.KEYCODE_MEDIA_REWIND:
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    private boolean inDemo() {
+        return "demo".equals(scenes.currentName());
+    }
+
+    /**
+     * True while the arrows and media keys belong to the game (in test mode they drive the test body there):
+     * in game screens and the sound test, but never while the settings panel is open and never in menus,
+     * where the arrows always move the focus.
+     */
+    private boolean gameKeys() {
+        if (settings.isOpen()) return false;
+        return inDemo() || GameRegistry.isGameScene(scenes.currentName());
+    }
+
+    /** Gives the test body the keys it owns right now. */
+    private boolean testBodyTakes(int keyCode, KeyEvent event) {
+        if (keyCode == KeyEvent.KEYCODE_T || !isRemoteKey(keyCode) || gameKeys()) return hub.handleKey(event);
+        return false;
+    }
+
+    /** One short press reaches the scene as a press and a release. */
+    private void tap(int keyCode) {
+        if (debugMode) return;
+        gameView.input().keyDown(keyCode);
+        gameView.input().keyUp(keyCode);
+    }
+
     @Override
     public boolean onKeyDown(int keyCode, KeyEvent event) {
-        if (hub.handleKey(event)) return true;
+        if (testBodyTakes(keyCode, event)) return true;
         switch (keyCode) {
+            case KeyEvent.KEYCODE_BACK:
+            case KeyEvent.KEYCODE_ESCAPE:
+                if (event.getRepeatCount() == 0) {
+                    if (debugMode) {
+                        setDebugMode(false);
+                    } else if (inDemo()) {
+                        scenes.go("attract", Scene.SceneArgs.EMPTY);
+                    } else {
+                        gameView.input().keyDown(KeyEvent.KEYCODE_BACK);
+                    }
+                }
+                return true;
             case KeyEvent.KEYCODE_MENU:
                 if (menuKey.down(event)) hub.toggleTestMode();
                 return true;
@@ -205,11 +301,19 @@ public class MainActivity extends Activity {
             case KeyEvent.KEYCODE_P:
                 if (event.getRepeatCount() == 0) gameView.togglePerf();
                 return true;
+            case KeyEvent.KEYCODE_MEDIA_REWIND:
+                if (debugMode) return true;
+                if (gameKeys()) {
+                    if (event.getRepeatCount() == 0) gameView.input().keyDown(keyCode);
+                } else if (rewindKey.down(event)) { // menus: hold 2 s opens the sound and speed test
+                    env.leaveMenus();
+                    scenes.go("demo", Scene.SceneArgs.EMPTY);
+                }
+                return true;
             case KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE:
             case KeyEvent.KEYCODE_MEDIA_PLAY:
             case KeyEvent.KEYCODE_MEDIA_PAUSE:
             case KeyEvent.KEYCODE_MEDIA_FAST_FORWARD:
-            case KeyEvent.KEYCODE_MEDIA_REWIND:
                 if (!debugMode && event.getRepeatCount() == 0) gameView.input().keyDown(keyCode);
                 return true;
             default:
@@ -220,10 +324,17 @@ public class MainActivity extends Activity {
 
     @Override
     public boolean onKeyUp(int keyCode, KeyEvent event) {
-        if (hub.handleKey(event)) return true;
+        if (testBodyTakes(keyCode, event)) return true;
         switch (keyCode) {
+            case KeyEvent.KEYCODE_BACK:
+            case KeyEvent.KEYCODE_ESCAPE:
+                if (!debugMode) gameView.input().keyUp(KeyEvent.KEYCODE_BACK);
+                return true; // never let Back close the app
             case KeyEvent.KEYCODE_MENU:
-                if (menuKey.up()) hub.setMode(hub.players() == 1 ? 2 : 1);
+                if (menuKey.up()) {
+                    if (debugMode || inDemo()) hub.setMode(hub.players() == 1 ? 2 : 1); // old quick key
+                    else tap(KeyEvent.KEYCODE_MENU);
+                }
                 return true;
             case KeyEvent.KEYCODE_DPAD_CENTER:
             case KeyEvent.KEYCODE_ENTER:
@@ -231,21 +342,27 @@ public class MainActivity extends Activity {
                     if (debugMode) {
                         debugView.toggleCamera();
                     } else { // a short press reaches the scene as one press
-                        gameView.input().keyDown(keyCode);
-                        gameView.input().keyUp(keyCode);
+                        tap(keyCode);
                     }
                 }
                 return true;
             case KeyEvent.KEYCODE_DPAD_LEFT:
-                if (leftKey.up()) hub.toggleLightBoost();
+                if (leftKey.up()) {
+                    if (debugMode || inDemo()) env.toggleLightBoost(); // old quick key
+                    else tap(KeyEvent.KEYCODE_DPAD_LEFT);              // menus: move the focus
+                }
                 return true;
             case KeyEvent.KEYCODE_P:
+                return true;
+            case KeyEvent.KEYCODE_MEDIA_REWIND:
+                if (debugMode) return true;
+                if (gameKeys()) gameView.input().keyUp(keyCode);
+                else if (rewindKey.up()) tap(keyCode);
                 return true;
             case KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE:
             case KeyEvent.KEYCODE_MEDIA_PLAY:
             case KeyEvent.KEYCODE_MEDIA_PAUSE:
             case KeyEvent.KEYCODE_MEDIA_FAST_FORWARD:
-            case KeyEvent.KEYCODE_MEDIA_REWIND:
                 if (!debugMode) gameView.input().keyUp(keyCode);
                 return true;
             default:

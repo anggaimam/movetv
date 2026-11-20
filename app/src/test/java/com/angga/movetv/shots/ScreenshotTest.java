@@ -6,8 +6,17 @@ import android.view.KeyEvent;
 
 import com.angga.movetv.audio.Music;
 import com.angga.movetv.core.DemoScene;
+import com.angga.movetv.core.Input;
 import com.angga.movetv.core.PerfOverlay;
 import com.angga.movetv.core.Scene;
+import com.angga.movetv.scenes.AttractScene;
+import com.angga.movetv.scenes.GameSelectScene;
+import com.angga.movetv.scenes.LevelSelectScene;
+import com.angga.movetv.scenes.PlaceholderGameScene;
+import com.angga.movetv.scenes.PlayersScene;
+import com.angga.movetv.scenes.SettingsOverlay;
+import com.angga.movetv.scenes.SetupScene;
+import com.angga.movetv.ui.TileMenu;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -56,6 +65,70 @@ public class ScreenshotTest {
                 (frame, now, body, input) -> {
                     if (frame == 10 || frame == 12) input.keyDown(KeyEvent.KEYCODE_DPAD_DOWN);
                     if (frame == 11 || frame == 13) input.keyUp(KeyEvent.KEYCODE_DPAD_DOWN);
+                });
+        check(f);
+    }
+
+    // ---- T-06: the home flow (menus use the test body: the pointer is the cursor) ----
+
+    private static TileMenu.Env env() {
+        return new TileMenu.Env(null, null, null, null, null, new PerfOverlay(false));
+    }
+
+    @Test
+    public void menuAttract() throws Exception {
+        File f = ShotRig.shoot("menu_attract", new AttractScene(env()), Scene.SceneArgs.EMPTY, 1, 40, null);
+        check(f);
+    }
+
+    @Test
+    public void menuSetup() throws Exception {
+        File f = ShotRig.shoot("menu_setup", new SetupScene(env()), Scene.SceneArgs.of("back", 1), 1, 30, null);
+        check(f);
+    }
+
+    @Test
+    public void menuPlayersCursorFilling() throws Exception {
+        File f = ShotRig.shoot("menu_players_cursor", new PlayersScene(env()), Scene.SceneArgs.EMPTY, 1, 45,
+                (frame, now, body, input) -> {
+                    if (frame == 0) input.touch(Input.TOUCH_DOWN, 640f, 520f);
+                });
+        check(f);
+    }
+
+    @Test
+    public void menuGameSelectRemoteFocus() throws Exception {
+        File f = ShotRig.shoot("menu_gameselect_focus", new GameSelectScene(env()), Scene.SceneArgs.EMPTY, 1, 40,
+                (frame, now, body, input) -> {
+                    if (frame == 5 || frame == 9) input.keyDown(KeyEvent.KEYCODE_DPAD_RIGHT);
+                    if (frame == 6 || frame == 10) input.keyUp(KeyEvent.KEYCODE_DPAD_RIGHT);
+                });
+        check(f);
+    }
+
+    @Test
+    public void menuLevelSelect() throws Exception {
+        File f = ShotRig.shoot("menu_levelselect", new LevelSelectScene(env()), Scene.SceneArgs.of("gameId", "fruit"),
+                1, 40, null);
+        check(f);
+    }
+
+    @Test
+    public void menuPlaceholderGame() throws Exception {
+        File f = ShotRig.shoot("menu_placeholder", new PlaceholderGameScene(env()),
+                Scene.SceneArgs.of("gameId", "jungle", "level", 2, "players", 2), 2, 30, null);
+        check(f);
+    }
+
+    @Test
+    public void menuSettingsOverlay() throws Exception {
+        TileMenu.Env e = env();
+        SettingsOverlay overlay = new SettingsOverlay(e);
+        e.settings = overlay;
+        File f = ShotRig.shoot("menu_settings", overlay.host(new PlayersScene(e)), Scene.SceneArgs.EMPTY, 1, 40,
+                (frame, now, body, input) -> {
+                    if (frame == 3) input.keyDown(KeyEvent.KEYCODE_MENU);
+                    if (frame == 4) input.keyUp(KeyEvent.KEYCODE_MENU);
                 });
         check(f);
     }
