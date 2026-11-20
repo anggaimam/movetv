@@ -205,6 +205,13 @@ public class MainActivity extends Activity {
             case KeyEvent.KEYCODE_P:
                 if (event.getRepeatCount() == 0) gameView.togglePerf();
                 return true;
+            case KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE:
+            case KeyEvent.KEYCODE_MEDIA_PLAY:
+            case KeyEvent.KEYCODE_MEDIA_PAUSE:
+            case KeyEvent.KEYCODE_MEDIA_FAST_FORWARD:
+            case KeyEvent.KEYCODE_MEDIA_REWIND:
+                if (!debugMode && event.getRepeatCount() == 0) gameView.input().keyDown(keyCode);
+                return true;
             default:
                 if (!debugMode) gameView.input().keyDown(keyCode);
                 return super.onKeyDown(keyCode, event);
@@ -233,6 +240,13 @@ public class MainActivity extends Activity {
                 if (leftKey.up()) hub.toggleLightBoost();
                 return true;
             case KeyEvent.KEYCODE_P:
+                return true;
+            case KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE:
+            case KeyEvent.KEYCODE_MEDIA_PLAY:
+            case KeyEvent.KEYCODE_MEDIA_PAUSE:
+            case KeyEvent.KEYCODE_MEDIA_FAST_FORWARD:
+            case KeyEvent.KEYCODE_MEDIA_REWIND:
+                if (!debugMode) gameView.input().keyUp(keyCode);
                 return true;
             default:
                 if (!debugMode) gameView.input().keyUp(keyCode);

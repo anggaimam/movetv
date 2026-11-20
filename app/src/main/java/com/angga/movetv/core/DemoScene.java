@@ -55,9 +55,11 @@ public final class DemoScene implements Scene {
     private static final int[] PLAYER_COLOURS = {0xFF29B6F6, 0xFFFF6EC7};
     private static final float GLIDE = 0.65f;
     private static final float MIN_DRAW = 0.2f;
+    private static final int EFFECTS_N = 16;
+    private static final float ROW_H = 44f;
     private static final int PAPER = 0xFFF3EBDD;
     private static final String HELP =
-            "REMOTE   Up/Down: effect   OK: play   Right: song   Menu \u2261: 1 or 2 players   Left: light   hold Left: fps";
+            "UP/DOWN: choose   OK or PLAY: sound   RIGHT or FAST-FORWARD: next song   REWIND: song back   MENU: players   LEFT: light   hold LEFT: fps";
 
     /** One floating bubble (pooled). */
     private static final class Bubble {
@@ -85,6 +87,7 @@ public final class DemoScene implements Scene {
     private final Paint dotPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint textPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint panelPaint = new Paint();
+    private final Paint rowPaint = new Paint();
     private final Paint beatPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
 
     // sound test
@@ -111,6 +114,7 @@ public final class DemoScene implements Scene {
         textPaint.setColor(Color.WHITE);
         textPaint.setTextSize(32f);
         panelPaint.setColor(Color.argb(170, 0, 0, 0));
+        rowPaint.setColor(Color.argb(220, 41, 182, 246));
         paperPaint.setColor(PAPER);
         dotPaint.setColor(Color.WHITE);
         updateLabels();
@@ -212,24 +216,21 @@ public final class DemoScene implements Scene {
         int n = Synth.EFFECTS.length;
         if (in.pressed(KeyEvent.KEYCODE_DPAD_UP)) { fxIndex = (fxIndex + n - 1) % n; updateLabels(); }
         if (in.pressed(KeyEvent.KEYCODE_DPAD_DOWN)) { fxIndex = (fxIndex + 1) % n; updateLabels(); }
-        if (in.pressed(KeyEvent.KEYCODE_DPAD_CENTER) || in.pressed(KeyEvent.KEYCODE_ENTER)) {
-            sfx.play(Synth.EFFECTS[fxIndex]);
+        if (in.pressed(KeyEvent.KEYCODE_DPAD_CENTER) || in.pressed(KeyEvent.KEYCODE_ENTER)
+                || in.pressed(KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE) || in.pressed(KeyEvent.KEYCODE_MEDIA_PLAY)
+                || in.pressed(KeyEvent.KEYCODE_MEDIA_PAUSE)) {
+            if (sfx != null) sfx.play(Synth.EFFECTS[fxIndex]);
         }
-        if (in.pressed(KeyEvent.KEYCODE_DPAD_RIGHT) || in.pressed(KeyEvent.KEYCODE_M)) nextTrack();
-        for (int i = 0; i < 12 && i < n; i++) {
-            if (in.pressed(KeyEvent.KEYCODE_F1 + i)) sfx.play(Synth.EFFECTS[i]);
-        }
-        if (n > 12 && in.pressed(KeyEvent.KEYCODE_Z)) sfx.play(Synth.EFFECTS[12]);
-        if (n > 13 && in.pressed(KeyEvent.KEYCODE_X)) sfx.play(Synth.EFFECTS[13]);
-        if (n > 14 && in.pressed(KeyEvent.KEYCODE_C)) sfx.play(Synth.EFFECTS[14]);
-        if (n > 15 && in.pressed(KeyEvent.KEYCODE_V)) sfx.play(Synth.EFFECTS[15]);
+        if (in.pressed(KeyEvent.KEYCODE_DPAD_RIGHT) || in.pressed(KeyEvent.KEYCODE_MEDIA_FAST_FORWARD)) nextTrack(1);
+        if (in.pressed(KeyEvent.KEYCODE_MEDIA_REWIND)) nextTrack(-1);
     }
 
-    private void nextTrack() {
+    private void nextTrack(int dir) {
         String[] names = Tracks.names();
-        trackIndex++;
-        if (trackIndex >= names.length) {
-            trackIndex = -1;
+        trackIndex += dir;
+        if (trackIndex >= names.length) trackIndex = -1;
+        if (trackIndex < -1) trackIndex = names.length - 1;
+        if (trackIndex < 0) {
             music.stop(400);
         } else {
             music.play(names[trackIndex]);
@@ -283,6 +284,13 @@ public final class DemoScene implements Scene {
             if (rw.s >= MIN_DRAW) c.drawCircle(rw.x, rw.y, 14f, dotPaint);
         }
 
+        // effect list: the highlighted row is the sound that OK / PLAY will make
+        c.drawRect(24f, 90f, 330f, 90f + EFFECTS_N * ROW_H + 16f, panelPaint);
+        for (int i = 0; i < EFFECTS_N; i++) {
+            float y = 90f + 8f + i * ROW_H;
+            if (i == fxIndex) c.drawRect(24f, y, 330f, y + ROW_H, rowPaint);
+            c.drawText(Synth.EFFECTS[i], 40f, y + ROW_H - 12f, textPaint);
+        }
         // sound test panel
         c.drawRect(0f, Stage.H - 130f, Stage.W, Stage.H, panelPaint);
         c.drawText(HELP, 24f, Stage.H - 86f, textPaint);
