@@ -78,10 +78,11 @@ public class HandCursor {
     /** @return cursor speed in px/s */
     public float speed() { return speed; }
 
-    private static boolean raised(PlayerPose p, int h) {
+    private boolean raised(PlayerPose p, int h) {
         Keypoint w = p.kps[h == 0 ? Kp.L_WRIST : Kp.R_WRIST];
         Keypoint e = p.kps[h == 0 ? Kp.L_ELBOW : Kp.R_ELBOW];
-        return w.s >= MIN_WRIST_S && e.s >= MIN_ELBOW_S && w.y < e.y;
+        if (w.s >= MIN_WRIST_S && e.s >= MIN_ELBOW_S && w.y < e.y) return true;
+        return mapping.reaching(p, h);
     }
 
     /**

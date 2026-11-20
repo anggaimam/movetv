@@ -265,6 +265,9 @@ public final class TileMenu {
     private final ReachMapping[] reach = {new ReachMapping(1f), new ReachMapping(1f)};
     private final PointerCursor pointer = new PointerCursor(0);
     private final HandCursor[] active = new HandCursor[2];
+    private final HandCursor[] forDwell = new HandCursor[2];
+    private final boolean[] wasShown = new boolean[2];
+    private final String[] blockedTile = new String[2];
     private final List<DwellEvent> events = new ArrayList<>();
     private int owner = -1;
     private boolean focusShown;
@@ -293,6 +296,10 @@ public final class TileMenu {
         owner = -1;
         focusShown = false;
         cursorVisible = false;
+        wasShown[0] = false;
+        wasShown[1] = false;
+        blockedTile[0] = null;
+        blockedTile[1] = null;
         defaultFocus = defaultFocusId != null ? defaultFocusId : (tiles.isEmpty() ? null : tiles.get(0).id);
         List<Target> targets = new ArrayList<>();
         for (Tile t : tiles) {
@@ -325,7 +332,8 @@ public final class TileMenu {
         if (!tiles.isEmpty()) handleRemote(f.input);
 
         events.clear();
-        dwell.update(dt, active, f.nowMs, events);
+        gateDwell(!"test".equals(f.pose.source));
+        dwell.update(dt, forDwell, f.nowMs, events);
         String selected = null;
         for (int i = 0; i < events.size(); i++) {
             DwellEvent e = events.get(i);
@@ -368,6 +376,40 @@ public final class TileMenu {
             if (t.hover < 0.002f) t.hover = 0f;
         }
         return selected;
+    }
+
+    /**
+     * A hand that is already resting on a tile when it first shows (for example the hand was still up from
+     * the last screen) may not select that tile until it has left it once.
+     */
+    private void gateDwell(boolean camera) {
+        for (int i = 0; i < 2; i++) {
+            HandCursor cur = active[i];
+            boolean shown = cur != null && cur.visible();
+            if (!camera) {
+                forDwell[i] = cur;
+                continue;
+            }
+            if (shown && !wasShown[i]) {
+                blockedTile[i] = null;
+                for (int t = 0; t < tiles.size(); t++) {
+                    if (tiles.get(t).contains(cur.x(), cur.y())) {
+                        blockedTile[i] = tiles.get(t).id;
+                        break;
+                    }
+                }
+            }
+            wasShown[i] = shown;
+            if (blockedTile[i] != null) {
+                boolean still = false;
+                for (int t = 0; shown && t < tiles.size(); t++) {
+                    Tile tl = tiles.get(t);
+                    if (tl.id.equals(blockedTile[i]) && tl.contains(cur.x(), cur.y())) still = true;
+                }
+                if (!still) blockedTile[i] = null;
+            }
+            forDwell[i] = blockedTile[i] == null ? cur : null;
+        }
     }
 
     private void updateCursors(float dt, Scene.Frame f) {

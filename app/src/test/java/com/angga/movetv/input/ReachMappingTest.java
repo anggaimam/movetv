@@ -199,4 +199,29 @@ public class ReachMappingTest {
         assertEquals(a.x(), b.x(), 0.001f);
         assertNotEquals(1200f, a.x(), 50f);
     }
+
+    @Test
+    public void armHeldOutLowCountsAsPointingButHangingArmsDoNot() {
+        HandCursor c = new HandCursor(0);
+        c.setMapping(new ReachMapping(1f));
+        // right arm out to the side, wrist below the elbow
+        PlayerPose out = pose(1300, 650);
+        set(out, Kp.R_ELBOW, 1170, 520, 0.9f);
+        long t = 0;
+        for (int i = 0; i < 60; i++) {
+            t += 17;
+            c.update(DT, out, t);
+        }
+        assertTrue(c.visible());
+        assertEquals(650f, c.y(), 3f);
+
+        HandCursor h = new HandCursor(0);
+        h.setMapping(new ReachMapping(1f));
+        PlayerPose hang = pose(1070, 640);
+        for (int i = 0; i < 120; i++) {
+            t += 17;
+            h.update(DT, hang, t);
+            assertFalse(h.visible());
+        }
+    }
 }

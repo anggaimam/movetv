@@ -58,6 +58,18 @@ public final class ReachMapping implements CursorMapping {
         nowMs = now;
     }
 
+    /** An arm held out sideways at least this many shoulder widths from its own shoulder counts as pointing. */
+    static final float OUT = 0.9f;
+
+    @Override
+    public boolean reaching(PlayerPose p, int hand) {
+        Keypoint wr = p.kps[hand == 0 ? Kp.L_WRIST : Kp.R_WRIST];
+        Keypoint own = p.kps[hand == 0 ? Kp.L_SHOULDER : Kp.R_SHOULDER];
+        float sw = PoseFrame.shoulderWidth(p);
+        if (sw <= 0f || wr.s < MIN_S || own.s < MIN_S) return false;
+        return Math.abs(wr.x - own.x) >= OUT * sw;
+    }
+
     @Override
     public void reset() {
         prevPoseMs = -1;

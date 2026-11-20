@@ -16,6 +16,15 @@ public interface CursorMapping {
      */
     default void timing(long poseTimeMs, long nowMs) { }
 
+    /**
+     * Lets a mapping count a hand as "in use" even when the wrist is not above the elbow (an arm held out
+     * to the side, pointing at the lower part of the screen).
+     * @param p the player's pose
+     * @param hand 0 for the left hand, 1 for the right hand
+     * @return true if the hand should show a cursor although it is not raised
+     */
+    default boolean reaching(PlayerPose p, int hand) { return false; }
+
     /** Forgets anything remembered about the hand's movement (the hand was lowered or switched). */
     default void reset() { }
 
