@@ -284,6 +284,11 @@ public final class Theme {
             drawCentered(c, text, cx, baseline, size, colour);
             return;
         }
+        float shrunk = size * maxW / TEXT.measureText(text);
+        if (shrunk >= 48f) { // a little smaller on one line reads better than two lines
+            drawCentered(c, text, cx, baseline, shrunk, colour);
+            return;
+        }
         int mid = text.length() / 2, split = -1;
         for (int d = 0; d < text.length(); d++) {
             if (mid - d >= 0 && text.charAt(mid - d) == ' ') { split = mid - d; break; }
