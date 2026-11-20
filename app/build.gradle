@@ -1,0 +1,58 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'com.angga.movetv'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId 'com.angga.movetv'
+        minSdk 24
+        targetSdk 34
+        versionCode 1
+        versionName '0.1'
+        ndk {
+            abiFilters 'armeabi-v7a', 'arm64-v8a'
+        }
+    }
+
+    // Fixed personal key (decoded from keystore.b64 by the build) so updates install over old versions.
+    signingConfigs {
+        personal {
+            storeFile file('movetv.keystore')
+            storePassword 'movetv123'
+            keyAlias 'movetv'
+            keyPassword 'movetv123'
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            signingConfig signingConfigs.personal
+        }
+        debug {
+            signingConfig signingConfigs.personal
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    androidResources {
+        noCompress 'task'
+    }
+
+    lint {
+        checkReleaseBuilds false
+        abortOnError false
+    }
+}
+
+dependencies {
+    // Google MediaPipe body tracking. Runs fully on the device, no Google services needed.
+    implementation 'com.google.mediapipe:tasks-vision:0.10.14'
+}
