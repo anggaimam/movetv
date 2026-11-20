@@ -39,6 +39,11 @@ import com.google.mediapipe.tasks.vision.poselandmarker.PoseLandmarker;
 import com.google.mediapipe.tasks.vision.poselandmarker.PoseLandmarkerResult;
 
 import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+import java.nio.MappedByteBuffer;
+import java.nio.channels.FileChannel;
+
+import org.tensorflow.lite.Interpreter;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -53,7 +58,7 @@ import java.util.Random;
  *   OK            camera picture on/off (skeleton only)
  *   Up / Down     bigger / smaller image for the AI (speed vs accuracy)
  *   Menu (≡)      1 or 2 players
- *   Rewind        Lite or Full tracking model
+ *   Rewind        AI engine: MoveNet (fast) / MediaPipe Lite / MediaPipe Full
  *   Fast-forward  CPU or GPU
  */
 public class MainActivity extends Activity {
@@ -120,7 +125,7 @@ public class MainActivity extends Activity {
                 engine.setPlayers(engine.players == 1 ? 2 : 1);
                 return true;
             case KeyEvent.KEYCODE_MEDIA_REWIND:
-                engine.setFullModel(!engine.fullModel);
+                engine.cycleEngine();
                 return true;
             case KeyEvent.KEYCODE_MEDIA_FAST_FORWARD:
                 engine.setGpu(!engine.gpu);
@@ -148,6 +153,19 @@ class PoseEngine {
 
     volatile int players = 1;
     volatile boolean fullModel = false;
+    /** 0 = MoveNet Lightning (fast), 1 = MediaPipe Lite, 2 = MediaPipe Full */
+    volatile int engineType = 0;
+    private volatile Interpreter movenet;
+    private final Object mnLock = new Object();
+    private HandlerThread aiThread;
+    private Handler ai;
+    private static final int MN = 192;
+    private final ByteBuffer mnInput = ByteBuffer.allocateDirect(MN * MN * 3).order(ByteOrder.nativeOrder());
+    private final byte[] mnBytes = new byte[MN * MN * 3];
+    private final float[][][][] mnOutput = new float[1][1][17][3];
+    /** MoveNet's 17 points -> the MediaPipe numbering the drawing code uses */
+    private static final int[] COCO_TO_MP = {0, 2, 5, 7, 8, 11, 12, 13, 14, 15, 16, 23, 24, 25, 26, 27, 28};
+    private int sYRow, sYPix, sUvRow, sUvPix;
     volatile boolean gpu = false;
     volatile int sizeIndex = 2; // 320
 
@@ -190,6 +208,9 @@ class PoseEngine {
         thread = new HandlerThread("movetv-cam");
         thread.start();
         bg = new Handler(thread.getLooper());
+        aiThread = new HandlerThread("movetv-ai");
+        aiThread.start();
+        ai = new Handler(aiThread.getLooper());
         final int myGen = ++gen;
         bg.post(() -> {
             buildLandmarker();
@@ -203,6 +224,17 @@ class PoseEngine {
         final Handler h = bg;
         thread = null;
         bg = null;
+        final HandlerThread at = aiThread;
+        final Handler ah = ai;
+        aiThread = null;
+        ai = null;
+        if (ah != null) ah.post(() -> {
+            synchronized (mnLock) {
+                try { if (movenet != null) movenet.close(); } catch (Throwable ignored) { }
+                movenet = null;
+            }
+            at.quitSafely();
+        });
         if (h == null) return;
         h.post(() -> {
             try { if (session != null) session.close(); } catch (Throwable ignored) { }
@@ -217,7 +249,7 @@ class PoseEngine {
     }
 
     void setPlayers(int n) { players = n; rebuild(); }
-    void setFullModel(boolean f) { fullModel = f; rebuild(); }
+    void cycleEngine() { engineType = (engineType + 1) % 3; fullModel = engineType == 2; rebuild(); }
     void setGpu(boolean g) { gpu = g; rebuild(); }
 
     synchronized void changeSize(int delta) {
@@ -238,11 +270,39 @@ class PoseEngine {
     }
 
     private String settingsText() {
+        if (engineType == 0) return "MoveNet Lightning · CPU 4 threads · 1P";
         return outW + "x" + outH + " · " + (fullModel ? "Full" : "Lite") + " · " + (gpu ? "GPU" : "CPU") + " · "
                 + players + "P";
     }
 
+    private void buildMoveNet() {
+        view.setStatus("Loading MoveNet…");
+        try { if (landmarker != null) landmarker.close(); } catch (Throwable ignored) { }
+        landmarker = null;
+        try {
+            android.content.res.AssetFileDescriptor fd = ctx.getAssets().openFd("movenet_lightning.tflite");
+            MappedByteBuffer model;
+            try (java.io.FileInputStream in = new java.io.FileInputStream(fd.getFileDescriptor())) {
+                model = in.getChannel().map(FileChannel.MapMode.READ_ONLY, fd.getStartOffset(), fd.getDeclaredLength());
+            }
+            Interpreter.Options o = new Interpreter.Options();
+            o.setNumThreads(4);
+            synchronized (mnLock) {
+                if (movenet != null) movenet.close();
+                movenet = new Interpreter(model, o);
+            }
+            view.setStatus(null);
+        } catch (Throwable t) {
+            view.setStatus("MoveNet failed to load: " + t.getMessage());
+        }
+    }
+
     private void buildLandmarker() {
+        if (engineType == 0) { buildMoveNet(); return; }
+        synchronized (mnLock) {
+            try { if (movenet != null) movenet.close(); } catch (Throwable ignored) { }
+            movenet = null;
+        }
         String model = fullModel ? "pose_landmarker_full.task" : "pose_landmarker_lite.task";
         view.setStatus("Loading body tracking (" + (fullModel ? "Full" : "Lite") + ", " + (gpu ? "GPU" : "CPU") + ")…");
         try {
@@ -357,8 +417,9 @@ class PoseEngine {
             camFrames++;
             long now = SystemClock.uptimeMillis();
             PoseLandmarker lm = landmarker;
+            boolean useMn = engineType == 0;
             // Skip this frame entirely if the AI is still busy (no conversion work wasted).
-            if (lm == null || (inFlight && now - inFlightSince < 1000)) {
+            if ((useMn ? movenet == null : lm == null) || (inFlight && now - inFlightSince < 1000)) {
                 dropped++;
                 updateStats(now);
                 return;
@@ -371,6 +432,20 @@ class PoseEngine {
             img = null;
             long t1 = SystemClock.uptimeMillis();
             convertMs = (convertMs * 7 + (t1 - t0)) / 8;
+
+            if (useMn) {
+                final int padTop = fillMoveNetInput();
+                final float contentH = MN * (float) camH / camW;
+                final Bitmap shownBmp = bmp;
+                final long sent = SystemClock.uptimeMillis();
+                Handler a = ai;
+                if (a == null) return;
+                inFlight = true;
+                inFlightSince = sent;
+                a.post(() -> runMoveNet(shownBmp, padTop, contentH, sent));
+                updateStats(sent);
+                return;
+            }
 
             long ts = Math.max(t1, lastTs + 1);
             lastTs = ts;
@@ -427,6 +502,71 @@ class PoseEngine {
                 aiFps, aiMs, camFps, camW, camH, convertMs, dropPct, settingsText());
     }
 
+    /** Builds MoveNet's 192x192 RGB input (letterboxed, keeps proportions) from the last camera frame. */
+    private int fillMoveNetInput() {
+        int ch = Math.max(1, Math.round(MN * (float) camH / camW));
+        int padTop = (MN - ch) / 2;
+        byte[] out = mnBytes;
+        java.util.Arrays.fill(out, (byte) 0);
+        int sx = (camW << 16) / MN, sy = (camH << 16) / ch;
+        for (int j = 0; j < ch; j++) {
+            int srcY = (j * sy) >> 16;
+            int yo = srcY * sYRow, uvo = (srcY >> 1) * sUvRow, o = (j + padTop) * MN * 3;
+            int fx = 0;
+            for (int i = 0; i < MN; i++, fx += sx) {
+                int srcX = fx >> 16;
+                int y = (yBuf[yo + srcX * sYPix] & 0xff) - 16;
+                if (y < 0) y = 0;
+                int uvi = uvo + (srcX >> 1) * sUvPix;
+                int u = (uBuf[uvi] & 0xff) - 128;
+                int v = (vBuf[uvi] & 0xff) - 128;
+                int y1192 = 1192 * y;
+                int r = y1192 + 1634 * v;
+                int g = y1192 - 833 * v - 400 * u;
+                int b = y1192 + 2066 * u;
+                if (r < 0) r = 0; else if (r > 262143) r = 262143;
+                if (g < 0) g = 0; else if (g > 262143) g = 262143;
+                if (b < 0) b = 0; else if (b > 262143) b = 262143;
+                out[o++] = (byte) (r >> 10);
+                out[o++] = (byte) (g >> 10);
+                out[o++] = (byte) (b >> 10);
+            }
+        }
+        mnInput.rewind();
+        mnInput.put(out);
+        mnInput.rewind();
+        return padTop;
+    }
+
+    private void runMoveNet(Bitmap bmp, int padTop, float contentH, long sent) {
+        try {
+            synchronized (mnLock) {
+                if (movenet == null) return;
+                movenet.run(mnInput, mnOutput);
+            }
+            float[] p = new float[33 * 3];
+            int good = 0;
+            for (int k = 0; k < 17; k++) {
+                float y = mnOutput[0][0][k][0], x = mnOutput[0][0][k][1], sc = mnOutput[0][0][k][2];
+                int m = COCO_TO_MP[k];
+                p[m * 3] = x;
+                p[m * 3 + 1] = (y * MN - padTop) / contentH;
+                p[m * 3 + 2] = sc > 0.3f ? 1f : 0f;
+                if (sc > 0.3f) good++;
+            }
+            long now = SystemClock.uptimeMillis();
+            aiMs = (aiMs * 7 + (now - sent)) / 8;
+            aiFrames++;
+            List<float[]> poses = new ArrayList<>();
+            if (good >= 4) poses.add(p);
+            view.update(bmp, poses, statsText());
+        } catch (Throwable t) {
+            view.setStatus("MoveNet error: " + t.getMessage());
+        } finally {
+            inFlight = false;
+        }
+    }
+
     /** YUV_420_888 -> ARGB while shrinking to outW x outH (nearest pixel), integer math. */
     private void convertShrink(Image img, Bitmap out) {
         Image.Plane[] p = img.getPlanes();
@@ -439,6 +579,7 @@ class PoseEngine {
         vb.get(vBuf, 0, vb.remaining());
         int yRow = p[0].getRowStride(), yPix = p[0].getPixelStride();
         int uvRow = p[1].getRowStride(), uvPix = p[1].getPixelStride();
+        sYRow = yRow; sYPix = yPix; sUvRow = uvRow; sUvPix = uvPix;
         int ow = outW, oh = outH;
         int sx = (camW << 16) / ow, sy = (camH << 16) / oh; // 16.16 fixed-point step
         int[] dst = argb;
@@ -629,7 +770,7 @@ class PoseView extends View {
         text.setTextSize(44f);
         c.drawText("🎈 " + score, vw - 180, 110, text);
         text.setTextSize(28f);
-        String help = "OK: camera on/off   ▲▼: AI image size   ≡: 1/2 players   ⏪: Lite/Full   ⏩: CPU/GPU";
+        String help = "OK: camera on/off   ⏪: AI engine   ▲▼: image size   ⏩: CPU/GPU   ≡: 1/2 players (MediaPipe)";
         c.drawRect(0, vh - 52, vw, vh, panel);
         c.drawText(help, 16, vh - 16, text);
         String s = status;
