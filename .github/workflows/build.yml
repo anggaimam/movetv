@@ -41,7 +41,9 @@ jobs:
           mkdir -p app/src/main/assets
           curl -fL -o app/src/main/assets/pose_landmarker_lite.task https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/latest/pose_landmarker_lite.task
           curl -fL -o app/src/main/assets/pose_landmarker_full.task https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_full/float16/latest/pose_landmarker_full.task
+          curl -fL -o app/src/main/assets/movenet_lightning.tflite "https://tfhub.dev/google/lite-model/movenet/singlepose/lightning/tflite/int8/4?lite-format=tflite"
           ls -la app/src/main/assets
+          [ $(stat -c%s app/src/main/assets/movenet_lightning.tflite) -gt 1000000 ] || { echo "MoveNet download is not a model file"; head -c 300 app/src/main/assets/movenet_lightning.tflite; exit 1; }
 
       - name: Build APK
         run: gradle assembleRelease --no-daemon
