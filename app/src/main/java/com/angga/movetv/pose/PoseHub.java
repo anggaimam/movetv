@@ -166,6 +166,38 @@ public final class PoseHub {
     // ---- small additions used by the debug screen (T-01 view) and later screens ----
 
     /**
+     * Makes the 1-player camera forget the person it follows, so whoever stands in the middle gets control.
+     * Does nothing in test mode or with 2 players.
+     */
+    public void releaseLock() {
+        synchronized (lock) {
+            if (engine != null) engine.releaseLock();
+        }
+    }
+
+    /**
+     * Whether the 1-player camera is locked onto a person.
+     * @return NONE (test mode or 2 players), SEARCHING or LOCKED
+     */
+    public PersonLock.State lockState() {
+        synchronized (lock) {
+            if (testActive() || engine == null) return PersonLock.State.NONE;
+            return engine.lockState();
+        }
+    }
+
+    /**
+     * How many poses were dropped because they looked like another person.
+     * @return the count since the app started (0 in test mode)
+     */
+    public int lockRejections() {
+        synchronized (lock) {
+            if (testActive() || engine == null) return 0;
+            return engine.lockRejections();
+        }
+    }
+
+    /**
      * Sets who hears about loading and error messages from the camera engine.
      * @param l the listener, or null for none
      */

@@ -81,6 +81,7 @@ public final class SetupScene implements Scene {
     @Override
     public void enter(SceneArgs args) {
         env.menuMusic();
+        if (env.hub != null) env.hub.releaseLock();   // "stand in the middle" hands over control
         fromBack = args.getInt("back", 0) == 1;
         goodMs = 0f;
         lowConfMs = 0f;

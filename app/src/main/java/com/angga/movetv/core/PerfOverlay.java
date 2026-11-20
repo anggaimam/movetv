@@ -26,6 +26,10 @@ public final class PerfOverlay {
     private long dbgNs = 0;
     private String pointerText = "";
 
+    // person lock line: state (0 none, 1 searching, 2 locked) and rejected switches
+    private int lockState = 0, lockRejected = 0;
+    private String lockText = "";
+
     // frame timing
     private long lastNanos = 0;
     private long secStartNanos = 0;
@@ -75,6 +79,16 @@ public final class PerfOverlay {
         dbgCx = cx;
         dbgCy = cy;
         dbgNs = System.nanoTime();
+    }
+
+    /**
+     * Reports the person lock for the debug line (call every frame).
+     * @param state 0 off, 1 searching, 2 locked
+     * @param rejected how many poses were dropped as "someone else"
+     */
+    public void setLock(int state, int rejected) {
+        lockState = state;
+        lockRejected = rejected;
     }
 
     /** Removes the pointer debug line (no hand is showing). */
@@ -148,6 +162,12 @@ public final class PerfOverlay {
                     .append(" ms  AI ").append((int) (aiFps + 0.5f)).append(" fps  ")
                     .append(quality == GameView.LOW ? "LOW" : "HIGH");
             text = sb.toString();
+            sb.setLength(0);
+            if (lockState == 1) sb.append("lock SEARCHING");
+            else if (lockState == 2) sb.append("lock LOCKED");
+            else sb.append("lock off");
+            sb.append("  rejected ").append(lockRejected);
+            lockText = sb.toString();
             boolean fresh = dbgNs != 0 && System.nanoTime() - dbgNs < 300_000_000L;
             if (fresh) {
                 sb.setLength(0);
@@ -160,8 +180,10 @@ public final class PerfOverlay {
             }
         }
         boolean line2 = pointerText.length() > 0;
-        c.drawRect(0f, 0f, line2 ? 900f : 760f, line2 ? 96f : 52f, panelPaint);
+        float bottom = line2 ? 140f : 96f;
+        c.drawRect(0f, 0f, line2 ? 900f : 760f, bottom, panelPaint);
         c.drawText(text, 16f, 38f, textPaint);
-        if (line2) c.drawText(pointerText, 16f, 82f, textPaint);
+        c.drawText(lockText, 16f, 82f, textPaint);
+        if (line2) c.drawText(pointerText, 16f, 126f, textPaint);
     }
 }

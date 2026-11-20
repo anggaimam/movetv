@@ -107,6 +107,7 @@ public final class GameView extends View {
         frame.nowMs = SystemClock.uptimeMillis();
         hub.latest(frame.pose);
         frame.camera = hub.cameraPicture();
+        if (perf.isVisible()) perf.setLock(hub.lockState().ordinal(), hub.lockRejections());
         input.beginFrame();
         scenes.update(dt, frame);
 

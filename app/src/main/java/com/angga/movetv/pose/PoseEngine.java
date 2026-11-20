@@ -120,6 +120,8 @@ public final class PoseEngine {
     // 1-player follow crop, in camera pixels (square: left, top, side)
     private volatile float cropX, cropY, cropS;
     private volatile boolean following = false;
+    // 1-player: which person we stay with (switched off in 2 players)
+    private final PersonLock lock = new PersonLock();
 
     // Light boost: stretches dark and bright parts of the picture (helps dark rooms and backlight).
     private volatile boolean lightBoost = true;
@@ -145,6 +147,7 @@ public final class PoseEngine {
     public PoseEngine(Context ctx, Listener listener) {
         this.ctx = ctx.getApplicationContext();
         this.listener = listener;
+        lock.setEnabled(players == 1);
     }
 
     /**
@@ -207,7 +210,30 @@ public final class PoseEngine {
      * Switches between 1 player (AI follows you) and 2 players (one per half of the screen).
      * @param n 1 or 2
      */
-    public void setPlayers(int n) { players = n; resetCrop(); rebuild(); }
+    public void setPlayers(int n) {
+        players = n;
+        lock.setEnabled(n == 1);
+        resetCrop();
+        rebuild();
+    }
+
+    /** Forgets the person we are following; the next person in the middle of the picture is picked up. */
+    public void releaseLock() {
+        lock.release();
+        resetCrop();
+    }
+
+    /**
+     * Whether the AI is locked onto a person (1 player only).
+     * @return NONE (2 players), SEARCHING or LOCKED
+     */
+    public PersonLock.State lockState() { return lock.state(); }
+
+    /**
+     * How many poses were dropped because they looked like another person.
+     * @return the count since the app started
+     */
+    public int lockRejections() { return lock.rejections(); }
 
     /**
      * Current number of players.
@@ -475,16 +501,20 @@ public final class PoseEngine {
                     movenet.run(mnInputs[n], mnOutput);
                 }
                 PlayerPose pp = f.players[n];
+                for (int k = 0; k < Kp.COUNT; k++) {
+                    xs[k] = crops[n][0] + mnOutput[0][0][k][1] * crops[n][2];
+                    ys[k] = crops[n][1] + mnOutput[0][0][k][0] * crops[n][2];
+                    sc[k] = mnOutput[0][0][k][2];
+                }
+                // 1 player: a pose that looks like another person is dropped (the 400 ms hold covers the gap)
+                boolean accepted = np != 1 || lock.offer(xs, ys, sc, SystemClock.uptimeMillis());
                 int good = 0;
                 for (int k = 0; k < Kp.COUNT; k++) {
-                    float y = mnOutput[0][0][k][0], x = mnOutput[0][0][k][1], s = mnOutput[0][0][k][2];
-                    float px = crops[n][0] + x * crops[n][2];
-                    float py = crops[n][1] + y * crops[n][2];
-                    xs[k] = px; ys[k] = py; sc[k] = s;
+                    float s = sc[k];
                     float need = k >= Kp.L_KNEE ? LEG_SCORE : MIN_SCORE; // knees and ankles are harder to see
-                    float nx = px / uw, ny = py / uh;
+                    float nx = xs[k] / uw, ny = ys[k] / uh;
                     long now0 = SystemClock.uptimeMillis();
-                    if (s > need) {
+                    if (accepted && s > need) {
                         if (now0 - jSeen[n][k] > HOLD_MS) {
                             jx[n][k] = nx; jy[n][k] = ny;
                         } else {
@@ -505,14 +535,21 @@ public final class PoseEngine {
                     kp.y = jy[n][k] * PoseFrame.STAGE_H;
                     kp.s = visible ? jScore[n][k] : 0f;
                 }
-                if (good < 5) {
+                if (accepted && good < 5) {
                     for (int k = 0; k < Kp.COUNT; k++) pp.kps[k].s = 0f;
                 }
                 int strong = 0;
                 for (int k = 0; k < Kp.COUNT; k++) if (pp.kps[k].s >= MIN_SCORE) strong++;
-                pp.present = good >= 5 && strong >= 5;
+                pp.present = (!accepted || good >= 5) && strong >= 5;
                 if (np == 1) {
-                    if (good >= 5) updateCrop(xs, ys, sc); else resetCrop();
+                    if (accepted && good >= 5) {
+                        updateCrop(xs, ys, sc);
+                    } else if (lock.state() == PersonLock.State.SEARCHING) {
+                        if (following || !accepted) resetCrop();   // back to the centre of the picture
+                    } else if (lock.state() == PersonLock.State.NONE) {
+                        resetCrop();
+                    }
+                    // LOCKED and not accepted: the crop stays where the locked person was last seen
                 }
             }
             for (int n = np; n < f.players.length; n++) {
@@ -541,6 +578,8 @@ public final class PoseEngine {
         following = false;
         if (uw == 0) return;
         float s = Math.max(uw, uh);
+        // 1 player with nobody locked: look at the middle 60% so the person standing in the middle is found first
+        if (players == 1 && lock.state() == PersonLock.State.SEARCHING) s *= 0.6f;
         cropX = (uw - s) / 2f;
         cropY = (uh - s) / 2f;
         cropS = s;
