@@ -52,6 +52,20 @@ android {
         }
     }
 
+    testOptions {
+        unitTests {
+            includeAndroidResources = true
+            all {
+                // Screenshot tests (Robolectric) only run when asked for: gradle testReleaseUnitTest -Pshots
+                if (project.hasProperty('shots')) {
+                    filter.includeTestsMatching '*ScreenshotTest'
+                } else {
+                    filter.excludeTestsMatching '*ScreenshotTest'
+                }
+            }
+        }
+    }
+
     lint {
         checkReleaseBuilds false
         abortOnError false
@@ -62,4 +76,5 @@ dependencies {
     // TensorFlow Lite for MoveNet Lightning (fast 17-point body tracking)
     implementation 'org.tensorflow:tensorflow-lite:2.16.1'
     testImplementation 'junit:junit:4.13.2'
+    testImplementation 'org.robolectric:robolectric:4.13'
 }

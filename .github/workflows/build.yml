@@ -49,6 +49,33 @@ jobs:
           echo "Unit test results:"
           grep -H -o '<testsuite name="[^"]*" tests="[0-9]*" skipped="[0-9]*" failures="[0-9]*" errors="[0-9]*"' app/build/test-results/testReleaseUnitTest/*.xml
 
+      # Pictures of the scenes, drawn on the build machine (no TV needed). Never blocks the APK.
+      - name: Take screenshots
+        continue-on-error: true
+        run: |
+          gradle testReleaseUnitTest -Pshots --no-daemon
+          ls -l app/build/screenshots
+
+      - name: Publish screenshots to the screenshots branch
+        if: always()
+        continue-on-error: true
+        run: |
+          if ls app/build/screenshots/*.png >/dev/null 2>&1; then
+            d=$(mktemp -d)
+            cp app/build/screenshots/*.png "$d"/
+            echo "build ${{ github.run_number }}, commit ${{ github.sha }}" > "$d"/README.txt
+            cd "$d"
+            git init -q -b screenshots
+            git config user.name github-actions
+            git config user.email actions@github.com
+            git add -A
+            git commit -q -m "Screenshots for build ${{ github.run_number }}"
+            git push -q -f "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" screenshots
+            echo "Pushed: https://github.com/${{ github.repository }}/tree/screenshots"
+          else
+            echo "No screenshots were produced"
+          fi
+
       - name: Build APK
         run: gradle assembleRelease --no-daemon
 
