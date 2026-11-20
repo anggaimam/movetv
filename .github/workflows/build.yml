@@ -39,17 +39,23 @@ jobs:
       - name: Download body-tracking models (stored inside the app, used offline)
         run: |
           mkdir -p app/src/main/assets
-          curl -fL -o app/src/main/assets/pose_landmarker_lite.task https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/latest/pose_landmarker_lite.task
-          curl -fL -o app/src/main/assets/pose_landmarker_full.task https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_full/float16/latest/pose_landmarker_full.task
           curl -fL -o app/src/main/assets/movenet_lightning.tflite "https://tfhub.dev/google/lite-model/movenet/singlepose/lightning/tflite/int8/4?lite-format=tflite"
           ls -la app/src/main/assets
           [ $(stat -c%s app/src/main/assets/movenet_lightning.tflite) -gt 1000000 ] || { echo "MoveNet download is not a model file"; head -c 300 app/src/main/assets/movenet_lightning.tflite; exit 1; }
+
+      - name: Run unit tests
+        run: gradle testReleaseUnitTest --no-daemon
 
       - name: Build APK
         run: gradle assembleRelease --no-daemon
 
       - name: Rename APK
         run: cp app/build/outputs/apk/release/app-release.apk movetv.apk
+
+      - name: Print APK permissions
+        run: |
+          ls -l movetv.apk
+          $ANDROID_HOME/build-tools/$(ls $ANDROID_HOME/build-tools | sort -V | tail -1)/aapt dump permissions movetv.apk
 
       - uses: actions/upload-artifact@v4
         with:
