@@ -32,6 +32,9 @@ import java.util.Collections;
  *  - 1 player: the AI looks at a square crop that follows the person, so they appear big.
  *  - 2 players: the left and right halves of the picture are checked separately (one player each).
  *  - The webcam is asked for 30 frames per second.
+ *  - Camera choice: an external (USB) camera, else the front camera, else the first one. The picture
+ *    is turned upright using the camera's SENSOR_ORIENTATION while it is sampled (no extra copy), so
+ *    keypoints, crops and the preview all live in the upright picture.
  */
 public final class PoseEngine {
 
@@ -52,6 +55,15 @@ public final class PoseEngine {
          */
         void onStatus(String status);
     }
+
+    /** Camera state: still starting up. */
+    public static final int CAM_STARTING = 0;
+    /** Camera state: opened and delivering frames. */
+    public static final int CAM_OK = 1;
+    /** Camera state: no camera found, or the camera failed in some other way. */
+    public static final int CAM_NONE = 2;
+    /** Camera state: another app (Zoom etc.) is using the camera. */
+    public static final int CAM_BUSY = 3;
 
     /** Width of the camera picture kept for the screen. */
     private static final int PICTURE_W = 320;
@@ -75,8 +87,12 @@ public final class PoseEngine {
     private String fpsText = "";
     private android.util.Range<Integer> fpsRange;
 
-    // newest camera frame (camera thread only)
-    private int camW, camH;
+    private volatile int camState = CAM_STARTING;
+    private String camDesc = "";
+
+    // newest camera frame (camera thread only). camW x camH is the raw sensor picture; rot is the
+    // clockwise turn (0/90/180/270) that makes it upright; uw x uh is the upright picture.
+    private int camW, camH, rot, uw, uh;
     private byte[] yBuf, uBuf, vBuf;
     private int sYRow, sYPix, sUvRow, sUvPix;
     private boolean fresh = false;
@@ -158,6 +174,7 @@ public final class PoseEngine {
         aiThread.start();
         ai = new Handler(aiThread.getLooper());
         final int myGen = ++gen;
+        camState = CAM_STARTING;
         bg.post(() -> {
             buildMoveNet();
             openCamera(myGen);
@@ -207,6 +224,12 @@ public final class PoseEngine {
      */
     public Bitmap cameraPicture() { return picture; }
 
+    /**
+     * What the camera is doing right now.
+     * @return one of CAM_STARTING, CAM_OK, CAM_NONE, CAM_BUSY
+     */
+    public int cameraState() { return camState; }
+
     private synchronized void rebuild() {
         if (bg == null) return;
         bg.post(() -> {
@@ -244,23 +267,35 @@ public final class PoseEngine {
 
     private String settingsText() {
         String mode = players == 2 ? "2P split" : (following ? "1P follow" : "1P searching");
-        return "MoveNet · " + mode + (lightBoost ? " · light boost" : "");
+        return "MoveNet · " + mode + (lightBoost ? " · light boost" : "") + camDesc;
     }
 
+    /** External (USB) camera first, then the front camera, then the first one. */
     private String pickCamera() throws Exception {
         String[] ids = manager().getCameraIdList();
+        String front = null;
         for (String id : ids) {
             Integer f = manager().getCameraCharacteristics(id).get(CameraCharacteristics.LENS_FACING);
-            if (f != null && f == CameraCharacteristics.LENS_FACING_EXTERNAL) return id;
+            if (f == null) continue;
+            if (f == CameraCharacteristics.LENS_FACING_EXTERNAL) return id;
+            if (f == CameraCharacteristics.LENS_FACING_FRONT && front == null) front = id;
         }
+        if (front != null) return front;
         return ids.length > 0 ? ids[0] : null;
+    }
+
+    private static String facingName(Integer f) {
+        if (f == null) return "?";
+        if (f == CameraCharacteristics.LENS_FACING_EXTERNAL) return "external";
+        if (f == CameraCharacteristics.LENS_FACING_FRONT) return "front";
+        return "back";
     }
 
     /** (Re)creates the on-screen picture buffers. Runs on the camera thread. */
     private void allocBuffers() {
         if (camW == 0) return;
-        outW = Math.min(PICTURE_W, camW);
-        outH = Math.round(outW * (float) camH / camW);
+        outW = Math.min(PICTURE_W, uw);
+        outH = Math.round(outW * (float) uh / uw);
         argb = new int[outW * outH];
         for (int i = 0; i < bitmaps.length; i++) {
             bitmaps[i] = Bitmap.createBitmap(outW, outH, Bitmap.Config.ARGB_8888);
@@ -273,10 +308,14 @@ public final class PoseEngine {
         try {
             String id = pickCamera();
             if (id == null) {
+                camState = CAM_NONE;
                 status("No camera found. Plug in the USB webcam (close Zoom), then reopen MoveTV.");
                 return;
             }
             CameraCharacteristics cc = manager().getCameraCharacteristics(id);
+            Integer so = cc.get(CameraCharacteristics.SENSOR_ORIENTATION);
+            rot = so == null ? 0 : (((Math.round(so / 90f) * 90) % 360) + 360) % 360;
+            Integer facing = cc.get(CameraCharacteristics.LENS_FACING);
             StreamConfigurationMap map = cc.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP);
             // Smallest supported size that is at least 480 wide (fast for the webcam, enough detail).
             Size best = null;
@@ -289,6 +328,12 @@ public final class PoseEngine {
             if (best == null) best = new Size(640, 480);
             camW = best.getWidth();
             camH = best.getHeight();
+            boolean turned = rot == 90 || rot == 270;
+            uw = turned ? camH : camW;
+            uh = turned ? camW : camH;
+            // Nothing is added to the stats bar for the TV's USB camera (external, rotation 0).
+            camDesc = (facing != null && facing == CameraCharacteristics.LENS_FACING_EXTERNAL && rot == 0)
+                    ? "" : " · " + facingName(facing) + " rot" + (so == null ? "?" : String.valueOf(rot));
             resetCrop();
 
             // Ask for 30 fps: prefer a fixed 30-30 range, otherwise the range reaching highest.
@@ -314,6 +359,7 @@ public final class PoseEngine {
                 @Override public void onOpened(CameraDevice d) {
                     if (myGen != gen) { d.close(); return; }
                     device = d;
+                    camState = CAM_OK;
                     try {
                         d.createCaptureSession(Collections.singletonList(myReader.getSurface()),
                                 new CameraCaptureSession.StateCallback() {
@@ -332,13 +378,19 @@ public final class PoseEngine {
                                 }, bg);
                     } catch (Throwable t) { status("Camera error: " + t.getMessage()); }
                 }
-                @Override public void onDisconnected(CameraDevice d) { d.close(); status("Webcam disconnected"); }
+                @Override public void onDisconnected(CameraDevice d) {
+                    d.close();
+                    camState = CAM_NONE;
+                    status("Webcam disconnected");
+                }
                 @Override public void onError(CameraDevice d, int e) {
                     d.close();
+                    camState = (e == ERROR_CAMERA_IN_USE || e == ERROR_MAX_CAMERAS_IN_USE) ? CAM_BUSY : CAM_NONE;
                     status("Webcam error " + e + " — is Zoom or another app using it?");
                 }
             }, bg);
         } catch (Throwable t) {
+            camState = CAM_NONE;
             status("Camera error: " + t.getMessage());
         }
     }
@@ -392,10 +444,10 @@ public final class PoseEngine {
         if (np == 1) {
             crops[0] = new float[]{cropX, cropY, cropS};
         } else {
-            float s = Math.max(camW / 2f, camH);
+            float s = Math.max(uw / 2f, uh);
             // The screen is a mirror: the camera's right half is the player on the screen's left.
-            crops[0] = new float[]{camW * 0.75f - s / 2f, camH / 2f - s / 2f, s};
-            crops[1] = new float[]{camW * 0.25f - s / 2f, camH / 2f - s / 2f, s};
+            crops[0] = new float[]{uw * 0.75f - s / 2f, uh / 2f - s / 2f, s};
+            crops[1] = new float[]{uw * 0.25f - s / 2f, uh / 2f - s / 2f, s};
         }
         for (int i = 0; i < np; i++) fillMoveNetInput(crops[i], mnInputs[i]);
         final long sent = SystemClock.uptimeMillis();
@@ -430,7 +482,7 @@ public final class PoseEngine {
                     float py = crops[n][1] + y * crops[n][2];
                     xs[k] = px; ys[k] = py; sc[k] = s;
                     float need = k >= Kp.L_KNEE ? LEG_SCORE : MIN_SCORE; // knees and ankles are harder to see
-                    float nx = px / camW, ny = py / camH;
+                    float nx = px / uw, ny = py / uh;
                     long now0 = SystemClock.uptimeMillis();
                     if (s > need) {
                         if (now0 - jSeen[n][k] > HOLD_MS) {
@@ -487,10 +539,10 @@ public final class PoseEngine {
     /** Whole picture, letterboxed into a square. */
     private void resetCrop() {
         following = false;
-        if (camW == 0) return;
-        float s = Math.max(camW, camH);
-        cropX = (camW - s) / 2f;
-        cropY = (camH - s) / 2f;
+        if (uw == 0) return;
+        float s = Math.max(uw, uh);
+        cropX = (uw - s) / 2f;
+        cropY = (uh - s) / 2f;
         cropS = s;
     }
 
@@ -511,8 +563,8 @@ public final class PoseEngine {
             bodyRange = Math.max(bodyRange, Math.max(Math.abs(xs[k] - cx), Math.abs(ys[k] - cy)));
         }
         float half = Math.max(torsoRange * 1.9f, bodyRange * 1.2f);
-        half = Math.max(half, camH * 0.2f);
-        half = Math.min(half, Math.max(camW, camH) / 2f);
+        half = Math.max(half, uh * 0.2f);
+        half = Math.min(half, Math.max(uw, uh) / 2f);
         float tx = cx - half, ty = cy - half, ts = half * 2f;
         if (!following) {
             cropX = tx; cropY = ty; cropS = ts;
@@ -550,6 +602,7 @@ public final class PoseEngine {
 
     /** Builds MoveNet's 192x192 RGB input from a square crop of the newest frame (outside = black). */
     private void fillMoveNetInput(float[] crop, ByteBuffer dst) {
+        if (rot != 0) { fillMoveNetInputRotated(crop, dst); return; }
         byte[] out = mnBytes;
         boolean boost = lightBoost;
         int[] lut = yLut;
@@ -593,6 +646,64 @@ public final class PoseEngine {
         dst.rewind();
     }
 
+    /**
+     * Same as {@link #fillMoveNetInput} for a camera that must be turned (rotation 90/180/270): the crop
+     * is in upright coordinates and every pixel is read from its turned place in the raw frame.
+     */
+    private void fillMoveNetInputRotated(float[] crop, ByteBuffer dst) {
+        byte[] out = mnBytes;
+        boolean boost = lightBoost;
+        int[] lut = yLut;
+        int step = (int) (crop[2] / MN * 65536f);
+        int bx = (int) (crop[0] * 65536f), by = (int) (crop[1] * 65536f);
+        int o = 0;
+        for (int j = 0; j < MN; j++) {
+            int uy = (by + j * step) >> 16;
+            if (uy < 0 || uy >= uh) {
+                java.util.Arrays.fill(out, o, o + MN * 3, (byte) 0);
+                o += MN * 3;
+                continue;
+            }
+            int fx = bx;
+            for (int i = 0; i < MN; i++, fx += step) {
+                int ux = fx >> 16;
+                if (ux < 0 || ux >= uw) {
+                    out[o++] = 0; out[o++] = 0; out[o++] = 0;
+                    continue;
+                }
+                int rgb = rgbAtUpright(ux, uy, boost, lut);
+                out[o++] = (byte) (rgb >> 16);
+                out[o++] = (byte) (rgb >> 8);
+                out[o++] = (byte) rgb;
+            }
+        }
+        dst.rewind();
+        dst.put(out);
+        dst.rewind();
+    }
+
+    /** Colour (0xRRGGBB) of the upright picture at (ux, uy), read from the raw frame turned back by rot. */
+    private int rgbAtUpright(int ux, int uy, boolean boost, int[] lut) {
+        int sx, sy;
+        if (rot == 90) { sx = uy; sy = camH - 1 - ux; }
+        else if (rot == 180) { sx = camW - 1 - ux; sy = camH - 1 - uy; }
+        else { sx = camW - 1 - uy; sy = ux; } // 270
+        int raw = yBuf[sy * sYRow + sx * sYPix] & 0xff;
+        int y = (boost ? lut[raw] : raw) - 16;
+        if (y < 0) y = 0;
+        int uvi = (sy >> 1) * sUvRow + (sx >> 1) * sUvPix;
+        int u = (uBuf[uvi] & 0xff) - 128;
+        int v = (vBuf[uvi] & 0xff) - 128;
+        int y1192 = 1192 * y;
+        int r = y1192 + 1634 * v;
+        int g = y1192 - 833 * v - 400 * u;
+        int b = y1192 + 2066 * u;
+        if (r < 0) r = 0; else if (r > 262143) r = 262143;
+        if (g < 0) g = 0; else if (g > 262143) g = 262143;
+        if (b < 0) b = 0; else if (b > 262143) b = 262143;
+        return ((r << 6) & 0xff0000) | ((g >> 2) & 0xff00) | ((b >> 10) & 0xff);
+    }
+
     private synchronized void updateStats(long now) {
         if (statStart == 0) statStart = now;
         if (now - statStart >= 1000) {
@@ -616,6 +727,7 @@ public final class PoseEngine {
 
     /** YUV (newest frame) -> ARGB picture for the screen, shrunk to outW x outH. */
     private void convertShrink(Bitmap out) {
+        if (rot != 0) { convertShrinkRotated(out); return; }
         int ow = outW, oh = outH;
         boolean boost = lightBoost;
         int[] lut = yLut;
@@ -640,6 +752,25 @@ public final class PoseEngine {
                 if (g < 0) g = 0; else if (g > 262143) g = 262143;
                 if (b < 0) b = 0; else if (b > 262143) b = 262143;
                 dst[o + i] = 0xff000000 | ((r << 6) & 0xff0000) | ((g >> 2) & 0xff00) | ((b >> 10) & 0xff);
+            }
+        }
+        out.setPixels(dst, 0, ow, 0, 0, ow, oh);
+    }
+
+    /** Same as {@link #convertShrink} for a camera that must be turned: the picture is written upright. */
+    private void convertShrinkRotated(Bitmap out) {
+        int ow = outW, oh = outH;
+        boolean boost = lightBoost;
+        int[] lut = yLut;
+        int sx = (uw << 16) / ow, sy = (uh << 16) / oh; // 16.16 fixed-point step over the upright picture
+        int[] dst = argb;
+        for (int j = 0; j < oh; j++) {
+            int uy = Math.min(uh - 1, (j * sy) >> 16);
+            int o = j * ow;
+            int fx = 0;
+            for (int i = 0; i < ow; i++, fx += sx) {
+                int ux = Math.min(uw - 1, fx >> 16);
+                dst[o + i] = 0xff000000 | rgbAtUpright(ux, uy, boost, lut);
             }
         }
         out.setPixels(dst, 0, ow, 0, 0, ow, oh);
