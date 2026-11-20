@@ -38,7 +38,7 @@ public final class SettingsOverlay {
     public SettingsOverlay(TileMenu.Env env) {
         this.env = env;
         this.menu = new TileMenu(env);
-        dim.setColor(0xD92F3A45);
+        dim.setColor(0xF52F3A45);
     }
 
     /**
@@ -53,21 +53,21 @@ public final class SettingsOverlay {
     public void open() {
         if (open) return;
         List<TileMenu.Tile> tiles = new ArrayList<>();
-        float w = 440f, h = 320f, gap = 56f, x0 = (Stage.W - 3f * w - 2f * gap) / 2f;
+        float w = 440f, h = 380f, gap = 56f, x0 = (Stage.W - 3f * w - 2f * gap) / 2f;
         int[] ms = {700, 1000, 1400};
         String[] names = {"0.7 s", "1.0 s", "1.4 s"};
         String[] subs = {"Quick", "Normal", "Slow"};
         holdTiles.clear();
         for (int i = 0; i < 3; i++) {
             TileMenu.Tile t = new TileMenu.Tile("hold" + ms[i], names[i], subs[i], Theme.MUSTARD,
-                    Theme.clockPainter(i + 1), x0 + i * (w + gap), 190f, w, h);
+                    Theme.clockPainter(i + 1), x0 + i * (w + gap), 170f, w, h);
             holdTiles.add(t);
             tiles.add(t);
         }
-        tBoost = new TileMenu.Tile("boost", "Light boost", null, Theme.ORANGE, Theme::paintSun, x0, 560f, w, h);
-        tPerf = new TileMenu.Tile("perf", "Speed meter", null, Theme.BLUE, Theme::paintGauge, x0 + w + gap, 560f, w, h);
+        tBoost = new TileMenu.Tile("boost", "Light boost", null, Theme.ORANGE, Theme::paintSun, x0, 600f, w, h);
+        tPerf = new TileMenu.Tile("perf", "Speed meter", null, Theme.BLUE, Theme::paintGauge, x0 + w + gap, 600f, w, h);
         TileMenu.Tile done = new TileMenu.Tile("done", "Done", null, Theme.SAGE, Theme::paintDone,
-                x0 + 2f * (w + gap), 560f, w, h);
+                x0 + 2f * (w + gap), 600f, w, h);
         tiles.add(tBoost);
         tiles.add(tPerf);
         tiles.add(done);
@@ -89,7 +89,7 @@ public final class SettingsOverlay {
     private void refresh() {
         int cur = currentHold();
         int[] ms = {700, 1000, 1400};
-        for (int i = 0; i < holdTiles.size(); i++) holdTiles.get(i).badge = ms[i] == cur ? Theme.checkBadge() : null;
+        for (int i = 0; i < holdTiles.size(); i++) holdTiles.get(i).cornerBadge = ms[i] == cur ? Theme.checkBadge() : null;
         tBoost.badge = Theme.onOffBadge(env.lightBoost());
         tPerf.badge = Theme.onOffBadge(env.perf.isVisible());
     }
@@ -144,7 +144,7 @@ public final class SettingsOverlay {
     public void draw(Canvas c) {
         if (!open) return;
         c.drawRect(0f, 0f, Stage.W, Stage.H, dim);
-        Theme.drawBanner(c, T_TITLE, Stage.W / 2f, 100f, 72f, 0xFFF3EBDD, Theme.INK);
+        Theme.drawBanner(c, T_TITLE, Stage.W / 2f, 90f, 72f, 0xFFF3EBDD, Theme.INK);
         menu.draw(c);
     }
 

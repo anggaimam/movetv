@@ -191,6 +191,8 @@ public final class TileMenu {
         public int holdMs;
         /** Extra picture near the bottom of the icon area (stars, ON/OFF, tick), or null. May change any time. */
         public Bitmap badge;
+        /** Small picture in the top-right corner (a tick for the chosen option), or null. May change any time. */
+        public Bitmap cornerBadge;
 
         Bitmap body, shadow, iconBmp;
         float hover;
@@ -424,7 +426,7 @@ public final class TileMenu {
     public void draw(Canvas c) {
         for (int i = 0; i < tiles.size(); i++) {
             Tile t = tiles.get(i);
-            Theme.drawTile(c, t.shadow, t.body, t.iconBmp, t.badge, t.x, t.y, t.hover, time);
+            Theme.drawTile(c, t.shadow, t.body, t.iconBmp, t.badge, t.cornerBadge, t.x, t.y, t.hover, time);
         }
         if (focusShown) {
             String fid = dwell.focusId();

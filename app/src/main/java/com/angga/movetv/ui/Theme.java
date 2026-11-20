@@ -264,13 +264,41 @@ public final class Theme {
             c.drawPath(p, LINE);
             int ink = isLight(colour) ? INK : 0xFFFFFFFF;
             float titleSize = Math.max(38f, Math.min(64f, bh * 0.14f));
+            float maxW = bw * 0.88f;
             if (subtitle == null) {
-                drawCentered(c, title, bw / 2f, bh * 0.88f, titleSize, ink);
+                drawFitted(c, title, bw / 2f, bh * 0.88f, titleSize, maxW, ink);
             } else {
-                drawCentered(c, title, bw / 2f, bh * 0.78f, titleSize, ink);
-                drawCentered(c, subtitle, bw / 2f, bh * 0.92f, Math.max(36f, bh * 0.09f), ink);
+                drawFitted(c, title, bw / 2f, bh * 0.78f, titleSize, maxW, ink);
+                drawFitted(c, subtitle, bw / 2f, bh * 0.92f, Math.max(36f, bh * 0.09f), maxW, ink);
             }
         });
+    }
+
+    /**
+     * Draws a title that always fits the tile: it shrinks (not below 36) and, if that is not enough and the
+     * text has a space, it goes onto two lines. Used while painting a tile once, so it may allocate.
+     */
+    private static void drawFitted(Canvas c, String text, float cx, float baseline, float size, float maxW, int colour) {
+        TEXT.setTextSize(size);
+        if (TEXT.measureText(text) <= maxW) {
+            drawCentered(c, text, cx, baseline, size, colour);
+            return;
+        }
+        int mid = text.length() / 2, split = -1;
+        for (int d = 0; d < text.length(); d++) {
+            if (mid - d >= 0 && text.charAt(mid - d) == ' ') { split = mid - d; break; }
+            if (mid + d < text.length() && text.charAt(mid + d) == ' ') { split = mid + d; break; }
+        }
+        if (split < 0) { // one word: shrink only
+            float sz = Math.max(36f, size * maxW / TEXT.measureText(text));
+            drawCentered(c, text, cx, baseline, sz, colour);
+            return;
+        }
+        String a = text.substring(0, split), b = text.substring(split + 1);
+        float wide = Math.max(TEXT.measureText(a), TEXT.measureText(b));
+        float sz = Math.max(36f, Math.min(size, size * maxW / wide));
+        drawCentered(c, a, cx, baseline - sz * 1.05f, sz, colour);
+        drawCentered(c, b, cx, baseline, sz, colour);
     }
 
     /**
@@ -297,12 +325,13 @@ public final class Theme {
      * @param body body bitmap from {@link #tileBody}
      * @param icon icon bitmap (square), or null
      * @param badge extra bitmap drawn near the bottom of the icon area (stars, ON/OFF), or null
+     * @param corner small bitmap drawn in the top-right corner (a tick for the chosen option), or null
      * @param x left
      * @param y top
      * @param hover 0..1 hover amount
      * @param time seconds, drives the icon wobble
      */
-    public static void drawTile(Canvas c, Bitmap shadow, Bitmap body, Bitmap icon, Bitmap badge,
+    public static void drawTile(Canvas c, Bitmap shadow, Bitmap body, Bitmap icon, Bitmap badge, Bitmap corner,
                                 float x, float y, float hover, float time) {
         float w = body.getWidth(), h = body.getHeight();
         float cx = x + w / 2f, cy = y + h / 2f;
@@ -333,6 +362,9 @@ public final class Theme {
         }
         if (badge != null) {
             c.drawBitmap(badge, cx - badge.getWidth() / 2f, y + h * 0.66f - badge.getHeight() / 2f, null);
+        }
+        if (corner != null) {
+            c.drawBitmap(corner, x + w - corner.getWidth() - 20f, y + 20f, null);
         }
         c.restore();
     }
