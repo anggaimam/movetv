@@ -72,6 +72,7 @@ public final class GameSelectScene implements Scene {
         List<GameInfo> games = GameRegistry.forPlayers(env.players);
         List<TileMenu.Tile> tiles = new ArrayList<>(layout(games));
         tiles.add(0, RoundButton.back());
+        tiles.add(RoundButton.settings());
         menu.setTiles(tiles, games.isEmpty() ? "back" : games.get(0).id);
     }
 
@@ -86,6 +87,11 @@ public final class GameSelectScene implements Scene {
         if (f.input.pressed(KeyEvent.KEYCODE_BACK) || "back".equals(sel)) {
             env.sfx("back");
             env.go("players", SceneArgs.EMPTY);
+            return;
+        }
+        if ("settings".equals(sel)) {
+            env.sfx("select");
+            if (env.settings != null) env.settings.open();
             return;
         }
         if (sel != null) env.go("levelselect", SceneArgs.of("gameId", sel));

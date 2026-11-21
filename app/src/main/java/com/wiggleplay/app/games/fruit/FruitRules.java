@@ -17,7 +17,7 @@ import com.wiggleplay.app.ui.Theme;
  */
 final class FruitRules implements Hud.RulesPainter {
 
-    private static final float PW = 400f, GAP = 30f, TOP = 300f, PH = 340f;
+    private static final float PW = 400f, GAP = 30f, TOP = 470f, PH = 340f;
     private static final float LOOP = 3.0f;
 
     private final int level;

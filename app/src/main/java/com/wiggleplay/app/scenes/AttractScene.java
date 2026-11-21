@@ -24,7 +24,6 @@ public final class AttractScene implements Scene {
 
     private final TileMenu.Env env;
     private final TileMenu menu;
-    private Bitmap camera;
     private boolean test;
     private float time;
     private float visibleMs;
@@ -44,10 +43,10 @@ public final class AttractScene implements Scene {
         env.menuMusic();
         menu.setTiles(Collections.<TileMenu.Tile>emptyList(), null);
         visibleMs = 0f;
-        logo = SpriteCache.shared().get("attract_logo", 1000, 280, (c, w, h) -> {
-            Theme.drawCentered(c, "Wiggle Play", w / 2f + 10f, h * 0.80f + 10f, 230f, Theme.darker(Theme.ORANGE));
-            Theme.drawCentered(c, "Wiggle Play", w / 2f, h * 0.80f, 230f, Theme.ORANGE);
-            Theme.drawCentered(c, "Wiggle Play", w / 2f - 4f, h * 0.80f - 4f, 230f, 0x33FFFFFF);
+        logo = SpriteCache.shared().get("attract_logo", 1500, 280, (c, w, h) -> {
+            Theme.drawCentered(c, "Wiggle Play", w / 2f + 10f, h * 0.80f + 10f, 200f, Theme.darker(Theme.ORANGE));
+            Theme.drawCentered(c, "Wiggle Play", w / 2f, h * 0.80f, 200f, Theme.ORANGE);
+            Theme.drawCentered(c, "Wiggle Play", w / 2f - 4f, h * 0.80f - 4f, 200f, 0x33FFFFFF);
         });
     }
 
@@ -57,7 +56,6 @@ public final class AttractScene implements Scene {
     @Override
     public void update(float dt, Frame f) {
         time += dt;
-        camera = f.camera;
         test = "test".equals(f.pose.source);
         menu.update(dt, f);
         visibleMs = menu.cursorVisible() ? visibleMs + dt * 1000f : 0f;
@@ -72,7 +70,7 @@ public final class AttractScene implements Scene {
 
     @Override
     public void draw(Canvas c) {
-        Theme.drawBackdrop(c, camera, time);
+        Theme.drawBackdrop(c, null, time); // no camera picture on the home screen
         c.drawBitmap(logo, (Stage.W - logo.getWidth()) / 2f, 70f, null);
         Theme.drawBlinkingBoy(c, Stage.W / 2f, 865f, 480f, 360f, time, 0.5f + 0.5f * (float) Math.sin(time * 4f));
         float pulse = 1f + 0.05f * (float) Math.sin(time * 4f);

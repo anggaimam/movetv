@@ -64,6 +64,9 @@ public final class Hud {
     private boolean menuReady;
     private float time;
     private RulesPainter rules;
+    private float rulesMs;
+    private static final float GO_X = 1370f, GO_Y = 40f, GO_W = 380f, GO_H = 250f;
+    private static final float AUTO_START_MS = 5000f;
 
     /**
      * Creates the frame.
@@ -86,19 +89,20 @@ public final class Hud {
         rules = painter;
     }
 
-    /** Shows the "how to play" screen with a "Let's go!" button (the game starts a round when it returns "go"). */
+    /** Shows the "how to play" screen with an OK button at the top right (it starts by itself after 5 seconds) (the game starts a round when it returns "go"). */
     public void openRules() {
         phase = RULES;
         paused = false;
         if (env.music != null) env.music.stop(200);
         List<TileMenu.Tile> tiles = new ArrayList<>();
         tiles.add(RoundButton.back());
-        TileMenu.Tile go = new TileMenu.Tile("go", "Let's go!", null, Theme.SAGE, Theme::paintDone,
-                760f, 660f, 400f, 360f);
+        TileMenu.Tile go = new TileMenu.Tile("go", "OK", null, Theme.SAGE, Theme::paintDone,
+                GO_X, GO_Y, GO_W, GO_H);
         go.holdMs = 1000;
         tiles.add(go);
         menu.setTiles(tiles, "go");
         menuReady = true;
+        rulesMs = 0f;
         if (rules != null) env.say(rules.speech());
     }
 
@@ -188,6 +192,13 @@ public final class Hud {
             if (!menuReady) return null;
             String sel = menu.update(dt, f);
             if ("go".equals(sel)) env.sfx("select");
+            if (sel == null) {
+                rulesMs += dt * 1000f;
+                if (rulesMs >= AUTO_START_MS) {
+                    env.sfx("select");
+                    return "go"; // nobody chose: start by itself
+                }
+            }
             return sel;
         }
         if (phase == END) {
@@ -255,7 +266,14 @@ public final class Hud {
         if (phase == RULES) {
             Theme.drawBanner(c, "How to play", Stage.W / 2f, 150f, 80f, 0xE6F3EBDD, Theme.INK);
             if (rules != null) rules.draw(c);
-            if (menuReady) menu.draw(c);
+            if (menuReady) {
+                menu.draw(c);
+                int left = Math.max(1, (int) Math.ceil((AUTO_START_MS - rulesMs) / 1000f));
+                float bx = GO_X + GO_W - 40f, by = GO_Y + 40f;
+                FILL.setColor(Theme.INK);
+                c.drawCircle(bx, by, 40f, FILL);
+                Theme.drawCentered(c, NUM[Math.min(left, 9)], bx, by + 18f, 52f, 0xFFFFFFFF);
+            }
             return;
         }
         if (phase == END) {

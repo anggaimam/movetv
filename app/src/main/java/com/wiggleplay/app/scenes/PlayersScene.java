@@ -23,7 +23,7 @@ public final class PlayersScene implements Scene {
 
     static final long SETTINGS_MS = 3000;
     private static final String T_TITLE = "How many are playing?";
-    private static final String T_HINT = "Both hands up for 3 seconds: settings";
+    private static final String T_HINT = "Both hands up for 3 seconds, or the gear: settings";
 
     private final TileMenu.Env env;
     private final TileMenu menu;
@@ -46,6 +46,7 @@ public final class PlayersScene implements Scene {
         bothUpMs = 0f;
         List<TileMenu.Tile> tiles = new ArrayList<>();
         tiles.add(RoundButton.back());
+        tiles.add(RoundButton.settings());
         float w = 560f, h = 620f, gap = 80f, x0 = (Stage.W - 2f * w - gap) / 2f, y = 200f;
         tiles.add(new TileMenu.Tile("p1", "1 Player", null, Theme.SAGE, Theme::paintOneMascot, x0, y, w, h));
         tiles.add(new TileMenu.Tile("p2", "2 Players", null, Theme.PINK, Theme::paintTwoMascots, x0 + w + gap, y, w, h));
@@ -73,6 +74,11 @@ public final class PlayersScene implements Scene {
         if (f.input.pressed(KeyEvent.KEYCODE_BACK) || "back".equals(sel)) {
             env.sfx("back");
             env.go("setup", SceneArgs.of("back", 1));
+            return;
+        }
+        if ("settings".equals(sel)) {
+            env.sfx("select");
+            if (env.settings != null) env.settings.open();
             return;
         }
         if (sel != null) {

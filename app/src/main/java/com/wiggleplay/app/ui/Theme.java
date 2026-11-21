@@ -565,16 +565,31 @@ public final class Theme {
     }
 
     /**
+     * A round label with the current hold time, for the Hold time setting.
+     * @param ms 700, 1000 or 1400
+     * @return a 260x76 bitmap
+     */
+    public static Bitmap holdBadge(final int ms) {
+        final String txt = (ms / 1000) + "." + ((ms % 1000) / 100) + " s";
+        return SpriteCache.shared().get("theme_badge_hold_" + ms, 260, 76, (c, w, h) -> {
+            R.set(2f, 2f, w - 2f, h - 2f);
+            FILL.setColor(0xFF5B8DB8);
+            c.drawRoundRect(R, h / 2f, h / 2f, FILL);
+            drawCentered(c, txt, w / 2f, h * 0.70f, 46f, 0xFFFFFFFF);
+        });
+    }
+
+    /**
      * A round label for the pointer setting.
      * @param reach true for "Easy reach", false for "On my hand"
      * @return a 320x84 bitmap
      */
     public static Bitmap pointerBadge(final boolean reach) {
-        return SpriteCache.shared().get(reach ? "theme_badge_reach" : "theme_badge_hand", 320, 84, (c, w, h) -> {
+        return SpriteCache.shared().get(reach ? "theme_badge_reach" : "theme_badge_hand", 280, 76, (c, w, h) -> {
             R.set(2f, 2f, w - 2f, h - 2f);
             FILL.setColor(reach ? 0xFFE89A4C : 0xFF5B8DB8);
             c.drawRoundRect(R, h / 2f, h / 2f, FILL);
-            drawCentered(c, reach ? "Easy reach" : "On my hand", w / 2f, h * 0.68f, 44f, 0xFFFFFFFF);
+            drawCentered(c, reach ? "Easy reach" : "On my hand", w / 2f, h * 0.70f, 38f, 0xFFFFFFFF);
         });
     }
 

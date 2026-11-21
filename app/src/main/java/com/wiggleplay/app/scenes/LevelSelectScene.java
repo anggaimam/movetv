@@ -49,6 +49,7 @@ public final class LevelSelectScene implements Scene {
         title = game != null ? game.title + ": pick a level" : "Pick a level";
         List<TileMenu.Tile> tiles = new ArrayList<>();
         tiles.add(RoundButton.back());
+        tiles.add(RoundButton.settings());
         float w = 480f, h = 560f, gap = 64f, x0 = (Stage.W - 3f * w - 2f * gap) / 2f;
         int[] colours = {Theme.MUSTARD, Theme.ORANGE, Theme.PINK};
         com.wiggleplay.app.core.SpriteCache.Painter[] icons = {Theme::paintSprout, Theme::paintTree, Theme::paintMountain};
@@ -72,6 +73,11 @@ public final class LevelSelectScene implements Scene {
         if (f.input.pressed(KeyEvent.KEYCODE_BACK) || "back".equals(sel)) {
             env.sfx("back");
             env.go("gameselect", SceneArgs.EMPTY);
+            return;
+        }
+        if ("settings".equals(sel)) {
+            env.sfx("select");
+            if (env.settings != null) env.settings.open();
             return;
         }
         if (sel == null) return;

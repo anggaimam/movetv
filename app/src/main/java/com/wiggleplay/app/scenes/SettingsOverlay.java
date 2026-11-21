@@ -14,7 +14,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * The settings panel, drawn over any screen. It holds the hold time (0.7 / 1.0 / 1.4 s), the pointer (on my hand / easy reach), the camera's light
+ * The settings panel, drawn over any screen. It holds the hold time (one tile that cycles 0.7 / 1.0 / 1.4 s), the pointer (on my hand / easy reach), the camera's light
  * boost and the performance overlay, all as big tiles that work with a hand or with the remote. The menu key
  * (or Back, or the Done tile) closes it. While it is open the screen underneath is not updated, so a game
  * pauses. Wrap each scene with {@link #host(Scene)} to give it the overlay.
@@ -29,8 +29,7 @@ public final class SettingsOverlay {
     private final Paint dim = new Paint();
     private boolean open;
     private float ignoreMs;
-    private TileMenu.Tile tBoost, tPerf, tPointer;
-    private final List<TileMenu.Tile> holdTiles = new ArrayList<>();
+    private TileMenu.Tile tHold, tBoost, tPerf, tPointer;
 
     /**
      * Creates the overlay.
@@ -50,32 +49,30 @@ public final class SettingsOverlay {
         return open;
     }
 
-    /** Opens the panel. Selections are ignored for the first 1.5 s, so a raised hand does not pick a tile by accident. */
+    private static final int[] HOLD_MS = {700, 1000, 1400};
+
+    /**
+     * Opens the panel. Selections are ignored for the first 1.5 s, so a raised hand does not pick a tile by accident.
+     * Layout: OK at the top right (always the highest thing, easy to reach), then a grid of 5 columns by 2 rows;
+     * only the top row is used so nothing needs a low reach, the bottom row is kept free for future settings.
+     */
     public void open() {
         if (open) return;
         List<TileMenu.Tile> tiles = new ArrayList<>();
-        float w = 400f, h = 380f, gap = 40f, x0 = (Stage.W - 4f * w - 3f * gap) / 2f;
-        float x1 = (Stage.W - 3f * w - 2f * gap) / 2f;
-        int[] ms = {700, 1000, 1400};
-        String[] names = {"0.7 s", "1.0 s", "1.4 s"};
-        String[] subs = {"Quick", "Normal", "Slow"};
-        holdTiles.clear();
-        for (int i = 0; i < 3; i++) {
-            TileMenu.Tile t = new TileMenu.Tile("hold" + ms[i], names[i], subs[i], Theme.MUSTARD,
-                    Theme.clockPainter(i + 1), x0 + i * (w + gap), 170f, w, h);
-            holdTiles.add(t);
-            tiles.add(t);
-        }
+        float w = 320f, h = 300f, gap = 20f, x0 = (Stage.W - 5f * w - 4f * gap) / 2f, y = 340f;
+        tHold = new TileMenu.Tile("hold", "Hold time", null, Theme.MUSTARD, Theme.clockPainter(2), x0, y, w, h);
         tPointer = new TileMenu.Tile("pointer", "Pointer", null, Theme.PINK, Theme::paintPointer,
-                x0 + 3f * (w + gap), 170f, w, h);
+                x0 + (w + gap), y, w, h);
+        tBoost = new TileMenu.Tile("boost", "Light boost", null, Theme.ORANGE, Theme::paintSun,
+                x0 + 2f * (w + gap), y, w, h);
+        tPerf = new TileMenu.Tile("perf", "Speed meter", null, Theme.BLUE, Theme::paintGauge,
+                x0 + 3f * (w + gap), y, w, h);
+        TileMenu.Tile done = new TileMenu.Tile("done", "OK", null, Theme.SAGE, Theme::paintDone, 1370f, 40f, 380f, 250f);
+        tiles.add(done);
+        tiles.add(tHold);
         tiles.add(tPointer);
-        tBoost = new TileMenu.Tile("boost", "Light boost", null, Theme.ORANGE, Theme::paintSun, x1, 600f, w, h);
-        tPerf = new TileMenu.Tile("perf", "Speed meter", null, Theme.BLUE, Theme::paintGauge, x1 + w + gap, 600f, w, h);
-        TileMenu.Tile done = new TileMenu.Tile("done", "Done", null, Theme.SAGE, Theme::paintDone,
-                x1 + 2f * (w + gap), 600f, w, h);
         tiles.add(tBoost);
         tiles.add(tPerf);
-        tiles.add(done);
         refresh();
         menu.setTiles(tiles, "done");
         ignoreMs = IGNORE_MS;
@@ -92,9 +89,7 @@ public final class SettingsOverlay {
     }
 
     private void refresh() {
-        int cur = currentHold();
-        int[] ms = {700, 1000, 1400};
-        for (int i = 0; i < holdTiles.size(); i++) holdTiles.get(i).cornerBadge = ms[i] == cur ? Theme.checkBadge() : null;
+        tHold.badge = Theme.holdBadge(currentHold());
         tPointer.badge = Theme.pointerBadge(ProfileLogic.POINTER_REACH.equals(env.pointer()));
         tBoost.badge = Theme.onOffBadge(env.lightBoost());
         tPerf.badge = Theme.onOffBadge(env.perf.isVisible());
@@ -119,15 +114,12 @@ public final class SettingsOverlay {
         }
         if (sel == null) return;
         switch (sel) {
-            case "hold700":
-                if (env.profile != null) env.profile.setHoldMs(700);
+            case "hold": {
+                int cur = currentHold(), next = HOLD_MS[0];
+                for (int i = 0; i < HOLD_MS.length; i++) if (HOLD_MS[i] == cur) next = HOLD_MS[(i + 1) % HOLD_MS.length];
+                if (env.profile != null) env.profile.setHoldMs(next);
                 break;
-            case "hold1000":
-                if (env.profile != null) env.profile.setHoldMs(1000);
-                break;
-            case "hold1400":
-                if (env.profile != null) env.profile.setHoldMs(1400);
-                break;
+            }
             case "pointer":
                 env.togglePointer();
                 break;
@@ -153,7 +145,7 @@ public final class SettingsOverlay {
     public void draw(Canvas c) {
         if (!open) return;
         c.drawRect(0f, 0f, Stage.W, Stage.H, dim);
-        Theme.drawBanner(c, T_TITLE, Stage.W / 2f, 90f, 72f, 0xFFF3EBDD, Theme.INK);
+        Theme.drawBanner(c, T_TITLE, 760f, 150f, 72f, 0xFFF3EBDD, Theme.INK);
         menu.draw(c);
     }
 

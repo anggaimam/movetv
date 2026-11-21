@@ -58,6 +58,14 @@ public final class RoundButton {
         return make("home", "Home", "home", CORNER_X, CORNER_Y);
     }
 
+    /**
+     * A Settings (gear) button at the top-right corner, for children and adults who cannot hold both hands up.
+     * @return a tile with id "settings"
+     */
+    public static TileMenu.Tile settings() {
+        return make("settings", "Settings", "settings", 1920f - CORNER_X, CORNER_Y);
+    }
+
     private static TileMenu.Tile make(String id, String title, String kind, float cx, float cy) {
         TileMenu.Tile t = new TileMenu.Tile(id, title, null, Theme.INK, null, cx - HIT / 2f, cy - HIT / 2f, HIT, HIT);
         t.round = true;
@@ -68,19 +76,36 @@ public final class RoundButton {
     /** Builds the cached pictures of a round tile (called by the menu). */
     static void bake(TileMenu.Tile t) {
         final boolean home = "home".equals(t.id);
-        t.body = SpriteCache.shared().get("round_body_" + (home ? "home" : "back"), (int) DIAMETER, (int) DIAMETER,
+        final boolean gear = "settings".equals(t.id);
+        t.body = SpriteCache.shared().get("round_body_" + (home ? "home" : gear ? "settings" : "back"), (int) DIAMETER,
+                (int) DIAMETER,
                 (c, w, h) -> {
                     FILL.setColor(Theme.INK);
                     c.drawCircle(w / 2f, h / 2f, w / 2f - 3f, FILL);
                     LINE.setColor(0x33FFFFFF);
                     LINE.setStrokeWidth(5f);
                     c.drawCircle(w / 2f, h / 2f, w / 2f - 12f, LINE);
-                    if (home) paintHouse(c, w, h); else paintArrow(c, w, h);
+                    if (home) paintHouse(c, w, h); else if (gear) paintGear(c, w, h); else paintArrow(c, w, h);
                 });
         t.shadow = SpriteCache.shared().get("round_shadow", (int) DIAMETER, (int) DIAMETER, (c, w, h) -> {
             FILL.setColor(0xCC1B232B);
             c.drawCircle(w / 2f, h / 2f, w / 2f - 3f, FILL);
         });
+    }
+
+    private static void paintGear(Canvas c, int w, int h) {
+        float cx = w / 2f, cy = h / 2f;
+        FILL.setColor(Theme.PAPER);
+        for (int i = 0; i < 8; i++) {
+            c.save();
+            c.rotate(i * 45f, cx, cy);
+            R.set(cx - w * 0.06f, cy - w * 0.31f, cx + w * 0.06f, cy - w * 0.19f);
+            c.drawRoundRect(R, w * 0.02f, w * 0.02f, FILL);
+            c.restore();
+        }
+        c.drawCircle(cx, cy, w * 0.23f, FILL);
+        FILL.setColor(Theme.INK);
+        c.drawCircle(cx, cy, w * 0.09f, FILL);
     }
 
     private static void paintArrow(Canvas c, int w, int h) {
