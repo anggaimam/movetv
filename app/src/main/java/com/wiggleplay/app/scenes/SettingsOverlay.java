@@ -59,7 +59,7 @@ public final class SettingsOverlay {
     public void open() {
         if (open) return;
         List<TileMenu.Tile> tiles = new ArrayList<>();
-        float w = 320f, h = 300f, gap = 20f, x0 = (Stage.W - 5f * w - 4f * gap) / 2f, y = 340f;
+        float w = 320f, h = 370f, gap = 20f, x0 = (Stage.W - 5f * w - 4f * gap) / 2f, y = 320f;
         tHold = new TileMenu.Tile("hold", "Hold time", null, Theme.MUSTARD, Theme.clockPainter(2), x0, y, w, h);
         tPointer = new TileMenu.Tile("pointer", "Pointer", null, Theme.PINK, Theme::paintPointer,
                 x0 + (w + gap), y, w, h);
