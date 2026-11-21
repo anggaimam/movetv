@@ -1,7 +1,6 @@
 package com.angga.movetv.games.fruit;
 
 import com.angga.movetv.core.Pool;
-import com.angga.movetv.games.common.StarRules;
 
 import java.util.Random;
 
@@ -146,13 +145,17 @@ public final class FruitLogic {
     }
 
     /**
-     * Stars for a finished round, by the shared fair rule: 1 always, 2 at 40% and 3 at 70% of the points offered.
-     * @param scored points the player scored
-     * @param offered points offered to the player (see {@link #offered()})
+     * Stars for a score: 3 stars at 45, 2 at 25, 1 at 10 on Easy (Medium thresholds times 1.5, Hard times 2),
+     * and everyone gets at least 1.
+     * @param level 1..3
+     * @param score points
      * @return 1, 2 or 3
      */
-    public static int stars(int scored, int offered) {
-        return StarRules.stars(scored, offered);
+    public static int stars(int level, int score) {
+        float m = level == 3 ? 2f : (level == 2 ? 1.5f : 1f);
+        if (score >= Math.round(45f * m)) return 3;
+        if (score >= Math.round(25f * m)) return 2;
+        return 1;
     }
 
     private final Params p;
@@ -164,7 +167,7 @@ public final class FruitLogic {
     private final long[] sliceTimes = new long[3];
     private int sliceCount;
     private float spawnWait = 0.6f;
-    private int score, missStreak, helpSlices, offered;
+    private int score, missStreak, helpSlices;
 
     /**
      * Creates the logic for one player.
@@ -185,13 +188,6 @@ public final class FruitLogic {
 
     /** @return points so far */
     public int score() { return score; }
-
-    /**
-     * The points that were offered to this player: the positive value of every item launched in the area (a golden
-     * star fruit counts 5, an ordinary fruit 1, the grumpy coconut nothing, combo bonuses nothing).
-     * @return offered points so far
-     */
-    public int offered() { return offered; }
 
     /** @return number of fruit in the air */
     public int activeCount() { return pool.size(); }
@@ -286,8 +282,6 @@ public final class FruitLogic {
             if (f.kind == lastSpawnKind) f.kind = (f.kind + 1 + rnd.nextInt(FRUIT_KINDS - 1)) % FRUIT_KINDS;
         }
         lastSpawnKind = f.kind;
-        if (f.kind == STAR) offered += STAR_POINTS;
-        else if (f.kind != COCONUT) offered += 1;
         f.r = p.radius * (helpSlices > 0 ? HELP_RADIUS : 1f);
         f.rise = p.rise * (0.85f + rnd.nextFloat() * 0.30f);
         f.apex = (0.50f + rnd.nextFloat() * 0.35f) * STAGE_H;

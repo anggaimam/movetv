@@ -11,9 +11,6 @@ import com.angga.movetv.games.GameRegistry;
 import com.angga.movetv.ui.RoundButton;
 import com.angga.movetv.ui.Theme;
 import com.angga.movetv.ui.TileMenu;
-import com.angga.movetv.ui.puppet.Mascots;
-import com.angga.movetv.ui.puppet.Puppet;
-import com.angga.movetv.ui.puppet.PuppetPose;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -34,9 +31,6 @@ public final class LevelSelectScene implements Scene {
     private String gameId = "";
     private GameInfo game;
     private String title = "";
-    private Puppet kid;
-    private final float[] cur = new float[2];
-    private static final float KID_X = 90f, KID_FOOT = 1080f + 160f, KID_H = 440f;
 
     /**
      * Creates the screen.
@@ -55,8 +49,6 @@ public final class LevelSelectScene implements Scene {
         title = game != null ? game.title + ": pick a level" : "Pick a level";
         List<TileMenu.Tile> tiles = new ArrayList<>();
         tiles.add(RoundButton.back());
-        tiles.add(RoundButton.settings());
-        kid = Mascots.create(Mascots.nextKid());
         float w = 480f, h = 560f, gap = 64f, x0 = (Stage.W - 3f * w - 2f * gap) / 2f;
         int[] colours = {Theme.MUSTARD, Theme.ORANGE, Theme.PINK};
         com.angga.movetv.core.SpriteCache.Painter[] icons = {Theme::paintSprout, Theme::paintTree, Theme::paintMountain};
@@ -77,13 +69,6 @@ public final class LevelSelectScene implements Scene {
         time += dt;
         camera = f.camera;
         String sel = menu.update(dt, f);
-        kid.update(dt);
-        if (env.speaking()) kid.anim().talk(0.1f);
-        Mascots.look(kid, KID_X, KID_FOOT - KID_H * 0.8f, menu.cursorPosition(cur), cur[0], cur[1]);
-        if ("settings".equals(sel)) {
-            if (env.settings != null) env.settings.open();
-            return;
-        }
         if (f.input.pressed(KeyEvent.KEYCODE_BACK) || "back".equals(sel)) {
             env.sfx("back");
             env.go("gameselect", SceneArgs.EMPTY);
@@ -92,7 +77,6 @@ public final class LevelSelectScene implements Scene {
         if (sel == null) return;
         for (int i = 0; i < 3; i++) {
             if (IDS[i].equals(sel) && game != null) {
-                kid.anim().wave(PuppetPose.RIGHT);
                 env.go(game.sceneName, SceneArgs.of("gameId", gameId, "level", i + 1, "players", env.players));
                 return;
             }
@@ -103,7 +87,6 @@ public final class LevelSelectScene implements Scene {
     public void draw(Canvas c) {
         Theme.drawBackdrop(c, camera, time);
         Theme.drawBanner(c, title, Stage.W / 2f, 120f, 72f, 0xE6F3EBDD, Theme.INK);
-        kid.draw(c, KID_X, KID_FOOT, KID_H);   // peeks in from the bottom-left corner
         menu.draw(c);
     }
 }

@@ -108,49 +108,4 @@ public final class ProfileLogic {
     public static String starsKey(String gameId, int level) {
         return "stars_" + gameId + "_" + cleanLevel(level);
     }
-
-    /**
-     * Reads a saved yes/no value whatever type it was stored as.
-     * @param o the stored value: a Boolean, a Number (0 is no), the strings "true" / "false", or anything else (even null)
-     * @param def returned when the value is missing or not understood
-     * @return the yes/no value
-     */
-    public static boolean asBool(Object o, boolean def) {
-        if (o instanceof Boolean) return (Boolean) o;
-        if (o instanceof Number) return ((Number) o).intValue() != 0;
-        if (o instanceof String) {
-            String s = ((String) o).trim();
-            if ("true".equalsIgnoreCase(s)) return true;
-            if ("false".equalsIgnoreCase(s)) return false;
-        }
-        return def;
-    }
-
-    /**
-     * Checks the "camera picture" setting.
-     * @param o the saved value (anything, even null)
-     * @return the saved yes/no; a missing or damaged value means on
-     */
-    public static boolean cleanCamView(Object o) {
-        return asBool(o, true);
-    }
-
-    /**
-     * Checks a "rules already shown" flag.
-     * @param o the saved value (anything, even null)
-     * @return true only if a real "yes" was saved; a missing or damaged value means "not seen yet", so the rules show again
-     */
-    public static boolean cleanRulesSeen(Object o) {
-        return asBool(o, false);
-    }
-
-    /**
-     * The name under which "the rules of this game level were shown" is saved.
-     * @param gameId the game id, for example "fruit"
-     * @param level 1 to 3 (anything else is treated as 1)
-     * @return the key, for example "rulesSeen_fruit_2"
-     */
-    public static String rulesSeenKey(String gameId, int level) {
-        return "rulesSeen_" + gameId + "_" + cleanLevel(level);
-    }
 }

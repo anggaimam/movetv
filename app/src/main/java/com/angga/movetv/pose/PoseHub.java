@@ -152,22 +152,6 @@ public final class PoseHub {
     }
 
     /**
-     * The camera's picture size and speed, for the speed meter.
-     * @param out receives width, height and frames per second (rounded); all 0 in test mode or without a camera
-     */
-    public void cameraInfo(int[] out) {
-        out[0] = 0;
-        out[1] = 0;
-        out[2] = 0;
-        synchronized (lock) {
-            if (testActive() || engine == null) return;
-            out[0] = engine.cameraWidth();
-            out[1] = engine.cameraHeight();
-            out[2] = (int) (engine.cameraFps() + 0.5f);
-        }
-    }
-
-    /**
      * What the hub is doing.
      * @return "camera", "test", "no camera — test mode" or "camera busy (close Zoom)"
      */

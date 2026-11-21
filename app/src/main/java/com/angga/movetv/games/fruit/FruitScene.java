@@ -9,12 +9,10 @@ import com.angga.movetv.core.GameView;
 import com.angga.movetv.core.Pool;
 import com.angga.movetv.core.Scene;
 import com.angga.movetv.core.Stage;
-import com.angga.movetv.games.common.BodyShadow;
 import com.angga.movetv.games.common.Hud;
 import com.angga.movetv.pose.Kp;
 import com.angga.movetv.pose.Keypoint;
 import com.angga.movetv.pose.PlayerPose;
-import com.angga.movetv.pose.PoseFrame;
 import com.angga.movetv.ui.Theme;
 import com.angga.movetv.ui.TileMenu;
 
@@ -52,7 +50,7 @@ public final class FruitScene implements Scene {
     private static final float[] SPL_Y = {0f, 0.3f, -0.4f, -0.95f, 0.9f, -0.5f, 0.55f, 1.2f};
     private static final float[] SPL_R = {0.9f, 0.45f, 0.5f, 0.4f, 0.42f, 0.3f, 0.28f, 0.25f};
     private static final String[] NEG = {"Oops!", "-1", "-2", "-3", "-4", "-5"};
-    private static boolean rulesSeenOverride, rulesSeenFallback;
+    private static boolean rulesSeen;
 
     private static final class Popup {
         float x, y, life;
@@ -77,20 +75,16 @@ public final class FruitScene implements Scene {
     private int level = 1, players = 1;
     private FruitRules rules;
     private Bitmap camera;
-    private PoseFrame pose;
-    private final AuroraBackdrop aurora = new AuroraBackdrop();
-    private final BodyShadow shadow = new BodyShadow();
     private float time;
     private float lastDt = 0.016f;
     private int dropCap = 300;
 
     /**
-     * Lets tests skip (true) or show (false) the rules screen on the next entry, whatever the saved profile says.
-     * @param seen true to skip the rules screen
+     * Tells the game whether the rules screen has been shown already this session (tests use this).
+     * @param seen true to skip the rules screen on the next entry
      */
     public static void setRulesSeen(boolean seen) {
-        rulesSeenOverride = seen;
-        rulesSeenFallback = false;
+        rulesSeen = seen;
     }
 
     /**
@@ -119,16 +113,8 @@ public final class FruitScene implements Scene {
         players = args.getInt("players", env.players) == 2 ? 2 : 1;
         rules = new FruitRules(level);
         hud.setRules(rules);
-        // the rules show the first time each level is played, ever (saved in the profile)
-        boolean seen = rulesSeenOverride;
-        if (env.profile != null) {
-            seen |= env.profile.rulesSeen(GAME_ID, level);
-            env.profile.setRulesSeen(GAME_ID, level);
-        } else {
-            seen |= rulesSeenFallback;
-            rulesSeenFallback = true;
-        }
-        beginRound(!seen);
+        beginRound(!rulesSeen);
+        rulesSeen = true;
     }
 
     private void beginRound(boolean showRules) {
@@ -175,7 +161,6 @@ public final class FruitScene implements Scene {
         time += dt;
         lastDt = dt;
         camera = f.camera;
-        pose = f.pose;
         dropCap = GameView.quality == GameView.LOW ? 150 : 300;
         String sel = hud.update(dt, f);
         if (sel != null) {
@@ -211,8 +196,8 @@ public final class FruitScene implements Scene {
             for (int p = 0; p < players; p++) logic[p].update(dt, f.nowMs, hands[p], hud.spawning());
             animateEffects(dt);
             if (hud.readyToFinish(allEmpty())) {
-                int s0 = FruitLogic.stars(logic[0].score(), logic[0].offered());
-                int s1 = players == 2 ? FruitLogic.stars(logic[1].score(), logic[1].offered()) : 0;
+                int s0 = FruitLogic.stars(level, logic[0].score());
+                int s1 = players == 2 ? FruitLogic.stars(level, logic[1].score()) : 0;
                 if (env.profile != null) env.profile.recordStars(GAME_ID, level, Math.max(s0, s1));
                 hud.finish(s0, s1, logic[0].score(), players == 2 ? logic[1].score() : 0);
             }
@@ -340,15 +325,7 @@ public final class FruitScene implements Scene {
 
     @Override
     public void draw(Canvas c) {
-        boolean camOff = !env.camView();
-        if (camOff) {
-            aurora.draw(c, time, GameView.quality == GameView.LOW);
-            if (hud.phase() != Hud.END && hud.phase() != Hud.RULES && pose != null) {
-                for (int p = 0; p < players; p++) shadow.draw(c, pose.players[p], Theme.playerColour(p));
-            }
-        } else {
-            Theme.drawBackdrop(c, camera, time);
-        }
+        Theme.drawBackdrop(c, camera, time);
         if (hud.phase() == Hud.RULES) {
             hud.draw(c, 0, 0);
             return;

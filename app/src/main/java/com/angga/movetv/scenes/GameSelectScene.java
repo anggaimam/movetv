@@ -11,8 +11,6 @@ import com.angga.movetv.games.GameRegistry;
 import com.angga.movetv.ui.RoundButton;
 import com.angga.movetv.ui.Theme;
 import com.angga.movetv.ui.TileMenu;
-import com.angga.movetv.ui.puppet.Mascots;
-import com.angga.movetv.ui.puppet.Puppet;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -31,9 +29,6 @@ public final class GameSelectScene implements Scene {
     private final TileMenu menu;
     private Bitmap camera;
     private float time;
-    private Puppet kid;
-    private final float[] cur = new float[2];
-    private static final float KID_X = 130f, KID_FOOT = 1080f + 160f, KID_H = 440f;
 
     /**
      * Creates the screen.
@@ -77,8 +72,6 @@ public final class GameSelectScene implements Scene {
         List<GameInfo> games = GameRegistry.forPlayers(env.players);
         List<TileMenu.Tile> tiles = new ArrayList<>(layout(games));
         tiles.add(0, RoundButton.back());
-        tiles.add(1, RoundButton.settings());
-        kid = Mascots.create(Mascots.nextKid());
         menu.setTiles(tiles, games.isEmpty() ? "back" : games.get(0).id);
     }
 
@@ -90,14 +83,6 @@ public final class GameSelectScene implements Scene {
         time += dt;
         camera = f.camera;
         String sel = menu.update(dt, f);
-        kid.update(dt);
-        if (env.speaking()) kid.anim().talk(0.1f);
-        Mascots.look(kid, KID_X, KID_FOOT - KID_H * 0.8f, menu.cursorPosition(cur), cur[0], cur[1]);
-        if ("settings".equals(sel)) {
-            if (env.settings != null) env.settings.open();
-            return;
-        }
-        if (sel != null && !"back".equals(sel)) kid.anim().wave(com.angga.movetv.ui.puppet.PuppetPose.RIGHT);
         if (f.input.pressed(KeyEvent.KEYCODE_BACK) || "back".equals(sel)) {
             env.sfx("back");
             env.go("players", SceneArgs.EMPTY);
@@ -110,7 +95,6 @@ public final class GameSelectScene implements Scene {
     public void draw(Canvas c) {
         Theme.drawBackdrop(c, camera, time);
         Theme.drawBanner(c, T_TITLE, Stage.W / 2f, 120f, 72f, 0xE6F3EBDD, Theme.INK);
-        kid.draw(c, KID_X, KID_FOOT, KID_H);   // peeks in from the bottom-left corner, behind the tiles
         menu.draw(c);
     }
 }

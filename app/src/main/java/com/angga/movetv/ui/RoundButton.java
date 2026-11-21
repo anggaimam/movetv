@@ -9,7 +9,7 @@ import com.angga.movetv.core.Ease;
 import com.angga.movetv.core.SpriteCache;
 
 /**
- * The round corner buttons: Back (an arrow), Home (a layered flat house) and Settings (a gear). Each is drawn as a 200 px ink
+ * The round corner buttons: Back (an arrow) and Home (a layered flat house). Each is drawn as a 200 px ink
  * circle with a paper-coloured icon and a layered flat shadow, but its hit area is 260 x 260 px so it is easy
  * to hit (the one allowed exception to the "targets at least 240 px tall" rule). Hold time 1500 ms. They are
  * ordinary {@link TileMenu.Tile}s with {@code round} set, so hand, remote focus and sounds work like any tile.
@@ -50,17 +50,6 @@ public final class RoundButton {
         return make("back", "Back", "back", CORNER_X, CORNER_Y);
     }
 
-    /** Centre of the top-right corner button (the Settings gear). */
-    public static final float RIGHT_X = 1760f, RIGHT_Y = 150f;
-
-    /**
-     * A Settings gear button at the top-right corner. Selecting it (hold with a hand, or OK on the remote) opens Settings.
-     * @return a tile with id "settings"
-     */
-    public static TileMenu.Tile settings() {
-        return make("settings", "Settings", "settings", RIGHT_X, RIGHT_Y);
-    }
-
     /**
      * A Home button at the usual corner spot.
      * @return a tile with id "home"
@@ -79,15 +68,14 @@ public final class RoundButton {
     /** Builds the cached pictures of a round tile (called by the menu). */
     static void bake(TileMenu.Tile t) {
         final boolean home = "home".equals(t.id);
-        final boolean gear = "settings".equals(t.id);
-        t.body = SpriteCache.shared().get("round_body_" + (home ? "home" : gear ? "gear" : "back"), (int) DIAMETER, (int) DIAMETER,
+        t.body = SpriteCache.shared().get("round_body_" + (home ? "home" : "back"), (int) DIAMETER, (int) DIAMETER,
                 (c, w, h) -> {
                     FILL.setColor(Theme.INK);
                     c.drawCircle(w / 2f, h / 2f, w / 2f - 3f, FILL);
                     LINE.setColor(0x33FFFFFF);
                     LINE.setStrokeWidth(5f);
                     c.drawCircle(w / 2f, h / 2f, w / 2f - 12f, LINE);
-                    if (home) paintHouse(c, w, h); else if (gear) paintGear(c, w, h); else paintArrow(c, w, h);
+                    if (home) paintHouse(c, w, h); else paintArrow(c, w, h);
                 });
         t.shadow = SpriteCache.shared().get("round_shadow", (int) DIAMETER, (int) DIAMETER, (c, w, h) -> {
             FILL.setColor(0xCC1B232B);
@@ -104,21 +92,6 @@ public final class RoundButton {
         p.lineTo(w * 0.28f, h * 0.50f);
         p.lineTo(w * 0.47f, h * 0.72f);
         c.drawPath(p, LINE);
-    }
-
-    private static void paintGear(Canvas c, int w, int h) {
-        float cx = w / 2f, cy = h / 2f;
-        FILL.setColor(Theme.PAPER);
-        for (int i = 0; i < 8; i++) {
-            c.save();
-            c.rotate(i * 45f, cx, cy);
-            R.set(cx - w * 0.055f, cy - w * 0.36f, cx + w * 0.055f, cy - w * 0.22f);
-            c.drawRoundRect(R, w * 0.02f, w * 0.02f, FILL);
-            c.restore();
-        }
-        c.drawCircle(cx, cy, w * 0.25f, FILL);
-        FILL.setColor(Theme.INK);
-        c.drawCircle(cx, cy, w * 0.10f, FILL);
     }
 
     private static void paintHouse(Canvas c, int w, int h) {

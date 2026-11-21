@@ -65,7 +65,6 @@ public final class TileMenu {
         private boolean menuMusicOn;
         private boolean lightBoost = true; // the engine starts with light boost on
         private String pointer = ProfileLogic.DEFAULT_POINTER;
-        private boolean camView = true;
 
         /**
          * Creates the environment.
@@ -110,14 +109,6 @@ public final class TileMenu {
          */
         public void sfx(String name, float pitch) {
             if (sfx != null) sfx.play(name, pitch);
-        }
-
-        /**
-         * Whether a spoken phrase is playing right now.
-         * @return true while the voice speaks
-         */
-        public boolean speaking() {
-            return voice != null && voice.speaking();
         }
 
         /**
@@ -174,20 +165,6 @@ public final class TileMenu {
             if (profile != null) profile.setPointer(pointer);
         }
 
-        /**
-         * Whether games show the camera picture behind the play (the "Camera picture" setting).
-         * @return true for on
-         */
-        public boolean camView() {
-            return camView;
-        }
-
-        /** Switches the camera picture in games on or off and saves the choice. */
-        public void toggleCamView() {
-            camView = !camView;
-            if (profile != null) profile.setCamView(camView);
-        }
-
         /** Switches the camera light boost and saves the choice. */
         public void toggleLightBoost() {
             lightBoost = !lightBoost;
@@ -202,7 +179,6 @@ public final class TileMenu {
         public void applySaved() {
             if (profile == null) return;
             pointer = profile.pointer();
-            camView = profile.camView();
             if (!profile.lightBoost() && lightBoost) {
                 lightBoost = false;
                 if (hub != null) hub.toggleLightBoost();
@@ -225,9 +201,8 @@ public final class TileMenu {
         public final String subtitle;
         /** Flat fill colour. */
         public final int colour;
-        /** Paints the picture on the tile (painted once per picture), or null. Change it with {@link #setIcon}. */
-        public SpriteCache.Painter icon;
-        private String iconTag = "";
+        /** Paints the picture on the tile (painted once), or null. */
+        public final SpriteCache.Painter icon;
         /** Left, top, width and height in stage pixels. */
         public float x, y, w, h;
         /** Hold time in ms, or 0 for the default (Home tiles use 1500). */
@@ -267,17 +242,6 @@ public final class TileMenu {
             this.h = h;
         }
 
-        /**
-         * Swaps the picture on the tile (for a tile whose picture shows a setting, like the crossed-out camera).
-         * @param painter paints the new picture
-         * @param tag a short name for this picture, different for every picture the tile can show (pictures are cached by it)
-         */
-        public void setIcon(SpriteCache.Painter painter, String tag) {
-            icon = painter;
-            iconTag = tag;
-            if (body != null) bake();
-        }
-
         void bake() {
             if (round) {
                 RoundButton.bake(this);
@@ -289,16 +253,8 @@ public final class TileMenu {
             shadow = Theme.tileShadow(k + "_s", bw, bh, colour);
             if (icon != null) {
                 int isz = (int) Theme.iconSize(w, h);
-                iconBmp = Theme.icon("tileicon_" + id + "_" + title + "_" + iconTag + "_" + isz, isz, icon);
+                iconBmp = Theme.icon("tileicon_" + id + "_" + title + "_" + isz, isz, icon);
             }
-        }
-
-        /**
-         * How much the tile is lifted by hover or focus (0 = resting, 1 = fully lifted).
-         * @return 0..1
-         */
-        public float hoverAmount() {
-            return hover;
         }
 
         boolean contains(float px, float py) {
@@ -366,23 +322,6 @@ public final class TileMenu {
      */
     public boolean cursorVisible() {
         return cursorVisible;
-    }
-
-    /**
-     * Where the first visible cursor is (the kids' eyes follow it).
-     * @param out receives x and y in stage pixels
-     * @return true if a cursor is visible, false if out was left alone
-     */
-    public boolean cursorPosition(float[] out) {
-        for (int i = 0; i < active.length; i++) {
-            HandCursor cur = active[i];
-            if (cur != null && cur.visible()) {
-                out[0] = cur.x();
-                out[1] = cur.y();
-                return true;
-            }
-        }
-        return false;
     }
 
     /**

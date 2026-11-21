@@ -19,7 +19,6 @@ import com.angga.movetv.scenes.SettingsOverlay;
 import com.angga.movetv.scenes.SetupScene;
 import com.angga.movetv.ui.TileMenu;
 
-import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.robolectric.RobolectricTestRunner;
@@ -36,67 +35,6 @@ import java.io.File;
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 @Config(sdk = 34)
 public class ScreenshotTest {
-
-    @Before
-    public void loadPuppets() {
-        com.angga.movetv.ui.puppet.Puppet.init(org.robolectric.RuntimeEnvironment.getApplication());
-    }
-
-    /** A bare scene that shows one or two kid puppets on paper, to look at poses. */
-    private static final class PuppetScene implements Scene {
-        private final int mode;   // 0 rest, 1 wave, 2 cheer, 3 point
-        private final com.angga.movetv.ui.puppet.Puppet a = new com.angga.movetv.ui.puppet.Puppet(0, 3);
-        private final com.angga.movetv.ui.puppet.Puppet b = new com.angga.movetv.ui.puppet.Puppet(1, 4);
-
-        PuppetScene(int mode) {
-            this.mode = mode;
-        }
-
-        @Override public void enter(SceneArgs args) {
-            if (mode == 1) {
-                a.anim().wave(com.angga.movetv.ui.puppet.PuppetPose.RIGHT);
-                b.anim().wave(com.angga.movetv.ui.puppet.PuppetPose.LEFT);
-            } else if (mode == 2) {
-                a.anim().cheer();
-                b.anim().cheer();
-            } else if (mode == 3) {
-                a.anim().point(com.angga.movetv.ui.puppet.PuppetPose.RIGHT, 100f);
-                b.anim().point(com.angga.movetv.ui.puppet.PuppetPose.LEFT, 120f);
-            }
-        }
-
-        @Override public void exit() { }
-
-        @Override public void update(float dt, Frame f) {
-            a.update(dt);
-            b.update(dt);
-        }
-
-        @Override public void draw(android.graphics.Canvas c) {
-            c.drawColor(0xFFFBF5E9);
-            a.draw(c, 560f, 1020f, 900f);
-            b.draw(c, 1360f, 1020f, 900f);
-        }
-    }
-
-    @Test
-    public void puppetsAtRest() throws Exception {
-        check(ShotRig.shoot("puppet_rest", new PuppetScene(0), Scene.SceneArgs.EMPTY, 1, 1, null));
-    }
-
-    @Test
-    public void puppetWaveSequence() throws Exception {
-        int[] frames = {10, 24, 40, 56, 76, 96};
-        for (int i = 0; i < frames.length; i++) {
-            check(ShotRig.shoot("puppet_wave_" + (i + 1), new PuppetScene(1), Scene.SceneArgs.EMPTY, 1, frames[i], null));
-        }
-    }
-
-    @Test
-    public void puppetsCheerAndPoint() throws Exception {
-        check(ShotRig.shoot("puppet_cheer", new PuppetScene(2), Scene.SceneArgs.EMPTY, 1, 28, null));
-        check(ShotRig.shoot("puppet_point", new PuppetScene(3), Scene.SceneArgs.EMPTY, 1, 40, null));
-    }
 
     private static void check(File f) {
         assertTrue(f + " should be a real picture", f.length() > 5000);
@@ -214,101 +152,6 @@ public class ScreenshotTest {
                     if (frame == 0) body.pointerDown(300, 700);
                     float t = frame / 60f;
                     body.pointerMove(960 + (float) Math.sin(t * 5f) * 700f, 500 + (float) Math.cos(t * 7f) * 300f);
-                });
-        check(f);
-    }
-
-    /** A bare scene that shows the shared end screen of the Hud, to check the layout and the star animation. */
-    private static final class EndScene implements Scene {
-        private final TileMenu.Env env;
-        private final com.angga.movetv.games.common.Hud hud;
-        private final int players, s0, s1, score0, score1;
-
-        EndScene(TileMenu.Env env, int players, int s0, int s1, int score0, int score1) {
-            this.env = env;
-            this.hud = new com.angga.movetv.games.common.Hud(env, 75f, "fruit");
-            this.players = players;
-            this.s0 = s0;
-            this.s1 = s1;
-            this.score0 = score0;
-            this.score1 = score1;
-        }
-
-        @Override public void enter(SceneArgs args) {
-            hud.start(players, false);
-            hud.finish(s0, s1, score0, score1);
-        }
-
-        @Override public void exit() { }
-
-        @Override public void update(float dt, Frame f) {
-            hud.update(dt, f);
-        }
-
-        @Override public void draw(android.graphics.Canvas c) {
-            com.angga.movetv.ui.Theme.drawBackdrop(c, null, 0f);
-            hud.draw(c, 0, 0);
-        }
-    }
-
-    @Test
-    public void endScreenOnePlayer() throws Exception {
-        int[] frames = {45, 100, 140, 260};
-        for (int i = 0; i < frames.length; i++) {
-            check(ShotRig.shoot("end_1p_" + (i + 1), new EndScene(env(), 1, 3, 0, 102, 0), Scene.SceneArgs.EMPTY, 1,
-                    frames[i], null));
-        }
-    }
-
-    @Test
-    public void endScreenTwoPlayersFourDigits() throws Exception {
-        int[] frames = {45, 130, 260};
-        for (int i = 0; i < frames.length; i++) {
-            check(ShotRig.shoot("end_2p_" + (i + 1), new EndScene(env(), 2, 3, 2, 1234, 87), Scene.SceneArgs.EMPTY, 2,
-                    frames[i], null));
-        }
-    }
-
-    @Test
-    public void endScreenOneStar() throws Exception {
-        check(ShotRig.shoot("end_1star", new EndScene(env(), 1, 1, 0, 3, 0), Scene.SceneArgs.EMPTY, 1, 200, null));
-    }
-
-    @Test
-    public void fruitCameraOff() throws Exception {
-        FruitScene.initArt(org.robolectric.RuntimeEnvironment.getApplication());
-        FruitScene.setRulesSeen(true);
-        TileMenu.Env e = env();
-        e.toggleCamView();
-        File f = ShotRig.shoot("fruit_camera_off", new FruitScene(e), Scene.SceneArgs.of("level", 2, "players", 1), 1, 700,
-                (frame, now, body, input) -> {
-                    if (frame == 0) body.pointerDown(300, 700);
-                    float t = frame / 60f;
-                    body.pointerMove(960 + (float) Math.sin(t * 5f) * 700f, 500 + (float) Math.cos(t * 7f) * 300f);
-                });
-        check(f);
-    }
-
-    @Test
-    public void fruitCameraOffTwoPlayersRules() throws Exception {
-        FruitScene.initArt(org.robolectric.RuntimeEnvironment.getApplication());
-        FruitScene.setRulesSeen(false);
-        TileMenu.Env e = env();
-        e.toggleCamView();
-        check(ShotRig.shoot("fruit_rules_camera_off", new FruitScene(e), Scene.SceneArgs.of("level", 2, "players", 2), 2, 60,
-                null));
-    }
-
-    @Test
-    public void settingsShowsCameraTile() throws Exception {
-        TileMenu.Env e = env();
-        e.toggleCamView(); // off: the camera on the tile is crossed out
-        SettingsOverlay overlay = new SettingsOverlay(e);
-        e.settings = overlay;
-        File f = ShotRig.shoot("menu_settings_cam_off", overlay.host(new PlayersScene(e)), Scene.SceneArgs.EMPTY, 1, 40,
-                (frame, now, body, input) -> {
-                    if (frame == 3) input.keyDown(KeyEvent.KEYCODE_MENU);
-                    if (frame == 4) input.keyUp(KeyEvent.KEYCODE_MENU);
                 });
         check(f);
     }

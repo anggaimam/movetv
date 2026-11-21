@@ -93,8 +93,6 @@ public final class PoseEngine {
     // newest camera frame (camera thread only). camW x camH is the raw sensor picture; rot is the
     // clockwise turn (0/90/180/270) that makes it upright; uw x uh is the upright picture.
     private int camW, camH, rot, uw, uh;
-    // the same size, readable from the main thread (for the speed meter)
-    private volatile int shownCamW, shownCamH;
     private byte[] yBuf, uBuf, vBuf;
     private int sYRow, sYPix, sUvRow, sUvPix;
     private boolean fresh = false;
@@ -356,8 +354,6 @@ public final class PoseEngine {
             if (best == null) best = new Size(640, 480);
             camW = best.getWidth();
             camH = best.getHeight();
-            shownCamW = camW;
-            shownCamH = camH;
             boolean turned = rot == 90 || rot == 270;
             uw = turned ? camH : camW;
             uh = turned ? camW : camH;
@@ -757,15 +753,6 @@ public final class PoseEngine {
             camFrames = 0; aiFrames = 0; dropped = 0; statStart = now;
         }
     }
-
-    /** @return the camera picture width in pixels the camera delivers (0 before the camera opens) */
-    public int cameraWidth() { return shownCamW; }
-
-    /** @return the camera picture height in pixels (0 before the camera opens) */
-    public int cameraHeight() { return shownCamH; }
-
-    /** @return camera frames per second delivered, averaged over the last second (0 before the first second ends) */
-    public synchronized float cameraFps() { return camFps; }
 
     /**
      * One-line stats for the debug bar (AI speed, camera speed, settings).

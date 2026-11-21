@@ -131,7 +131,6 @@ public class MainActivity extends Activity {
                 | WindowManager.LayoutParams.FLAG_FULLSCREEN);
         com.angga.movetv.ui.Theme.init(this);
         com.angga.movetv.games.fruit.FruitScene.initArt(this);
-        com.angga.movetv.ui.puppet.Puppet.init(this);
         hub = new PoseHub();
         boolean debuggable = (getApplicationInfo().flags & ApplicationInfo.FLAG_DEBUGGABLE) != 0;
         perf = new PerfOverlay(debuggable);

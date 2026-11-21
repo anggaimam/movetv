@@ -7,14 +7,14 @@ import java.util.Map;
 
 /**
  * What the app remembers between runs, kept in SharedPreferences on the TV (nothing leaves the device):
- * the hold time, the last player count, the light boost switch, the pointer setting, the camera picture switch, which game rules were shown, and the stars
+ * the hold time, the last player count, the light boost switch, the pointer setting, and the stars
  * earned per game and level (0 to 3). Every read goes through {@link ProfileLogic}, so a missing or
  * damaged value turns into the default instead of a crash.
  */
 public final class Profile {
 
     private static final String FILE = "movetv_profile";
-    private static final String K_HOLD = "hold_ms", K_PLAYERS = "players", K_BOOST = "light_boost", K_POINTER = "pointer", K_CAM = "camView";
+    private static final String K_HOLD = "hold_ms", K_PLAYERS = "players", K_BOOST = "light_boost", K_POINTER = "pointer";
 
     private final SharedPreferences prefs;
 
@@ -32,7 +32,10 @@ public final class Profile {
     }
 
     private boolean readBool(String key, boolean def) {
-        return ProfileLogic.asBool(prefs.getAll().get(key), def);
+        Object o = prefs.getAll().get(key);
+        if (o instanceof Boolean) return (Boolean) o;
+        if (o instanceof Number) return ((Number) o).intValue() != 0;
+        return def;
     }
 
     /**
@@ -118,40 +121,5 @@ public final class Profile {
     public void recordStars(String gameId, int level, int stars) {
         int best = Math.max(stars(gameId, level), ProfileLogic.cleanStars(stars));
         prefs.edit().putInt(ProfileLogic.starsKey(gameId, level), best).apply();
-    }
-
-    /**
-     * Whether games show the camera picture behind the play (on unless the player turned it off).
-     * @return true for on
-     */
-    public boolean camView() {
-        return ProfileLogic.cleanCamView(prefs.getAll().get(K_CAM));
-    }
-
-    /**
-     * Saves the camera picture setting.
-     * @param on true to show the camera picture in games
-     */
-    public void setCamView(boolean on) {
-        prefs.edit().putBoolean(K_CAM, on).apply();
-    }
-
-    /**
-     * Whether the "how to play" pictures of a game level were shown before.
-     * @param gameId the game id
-     * @param level 1 to 3
-     * @return true if they were shown (a missing or damaged value counts as not shown)
-     */
-    public boolean rulesSeen(String gameId, int level) {
-        return ProfileLogic.cleanRulesSeen(prefs.getAll().get(ProfileLogic.rulesSeenKey(gameId, level)));
-    }
-
-    /**
-     * Remembers that the "how to play" pictures of a game level were shown.
-     * @param gameId the game id
-     * @param level 1 to 3
-     */
-    public void setRulesSeen(String gameId, int level) {
-        prefs.edit().putBoolean(ProfileLogic.rulesSeenKey(gameId, level), true).apply();
     }
 }

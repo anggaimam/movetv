@@ -17,9 +17,6 @@ import com.angga.movetv.pose.PoseFrame;
 import com.angga.movetv.ui.RoundButton;
 import com.angga.movetv.ui.Theme;
 import com.angga.movetv.ui.TileMenu;
-import com.angga.movetv.ui.puppet.Mascots;
-import com.angga.movetv.ui.puppet.Puppet;
-import com.angga.movetv.ui.puppet.PuppetPose;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -55,11 +52,6 @@ public final class SetupScene implements Scene {
     private final PoseFrame pose = new PoseFrame();
     private final Paint bone = new Paint(Paint.ANTI_ALIAS_FLAG);
     private Bitmap outlineWhite, outlineGreen;
-    private Puppet kid;
-    private float nextPoint;
-    private int prevState = NOBODY;
-    private final float[] cur = new float[2];
-    private static final float KID_X = 330f, KID_FOOT = 960f, KID_H = 600f;
 
     /**
      * Creates the screen.
@@ -95,9 +87,6 @@ public final class SetupScene implements Scene {
         goodMs = 0f;
         lowConfMs = 0f;
         state = NOBODY;
-        prevState = NOBODY;
-        kid = Mascots.create(Mascots.nextKid());
-        nextPoint = 0.8f;
         List<TileMenu.Tile> tiles = new ArrayList<>();
         tiles.add(RoundButton.back());
         tiles.add(new TileMenu.Tile("skip", "Skip", null, Theme.MUSTARD, Theme::paintSkip,
@@ -143,17 +132,7 @@ public final class SetupScene implements Scene {
         state = judge(p.present, PoseFrame.shoulderWidth(p), lowConfMs);
         goodMs = state == GOOD ? goodMs + dt * 1000f : 0f;
 
-        kid.update(dt);
-        if (env.speaking()) kid.anim().talk(0.1f);
-        if (state == GOOD && prevState != GOOD) kid.anim().cheer();
-        prevState = state;
-        nextPoint -= dt;
-        if (nextPoint <= 0f && state != GOOD && !kid.anim().busy()) {
-            kid.anim().point(PuppetPose.RIGHT, 95f);   // toward the body-outline guide
-            nextPoint = 5f;
-        }
         String sel = menu.update(dt, f);
-        Mascots.look(kid, KID_X, KID_FOOT - KID_H * 0.8f, menu.cursorPosition(cur), cur[0], cur[1]);
         if (f.input.pressed(KeyEvent.KEYCODE_BACK) || "back".equals(sel)) {
             env.sfx("back");
             env.go("attract", SceneArgs.EMPTY);
@@ -174,7 +153,6 @@ public final class SetupScene implements Scene {
         Bitmap o = state == GOOD ? outlineGreen : outlineWhite;
         c.drawBitmap(o, (Stage.W - o.getWidth()) / 2f, 150f, null);
         if (showSkeleton) drawSkeleton(c, pose.players[0]);
-        kid.draw(c, KID_X, KID_FOOT, KID_H);
         Theme.drawBanner(c, T_TITLE, Stage.W / 2f, 90f, 72f, 0xE6F3EBDD, Theme.INK);
         String msg;
         int bg = 0xE6F3EBDD;

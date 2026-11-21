@@ -39,7 +39,6 @@ public final class GameView extends View {
 
     private float scale = 1f, offX = 0f, offY = 0f;
     private long lastNanos = 0;
-    private final int[] camInfo = new int[3];
     private int slowSeconds = 0;
 
     /**
@@ -108,11 +107,7 @@ public final class GameView extends View {
         frame.nowMs = SystemClock.uptimeMillis();
         hub.latest(frame.pose);
         frame.camera = hub.cameraPicture();
-        if (perf.isVisible()) {
-            perf.setLock(hub.lockState().ordinal(), hub.lockRejections());
-            hub.cameraInfo(camInfo);
-            perf.setCamera(camInfo[0], camInfo[1], camInfo[2]);
-        }
+        if (perf.isVisible()) perf.setLock(hub.lockState().ordinal(), hub.lockRejections());
         input.beginFrame();
         scenes.update(dt, frame);
 
