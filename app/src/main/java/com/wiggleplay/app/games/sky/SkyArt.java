@@ -234,12 +234,12 @@ final class SkyArt {
         F.setColor(0xFFCFE1EE);
         for (float[] p : PUFFS) {
             float px = sx > 0 ? p[0] : 1f - p[0];
-            c.drawCircle(px * w, p[1] * h + 10f, p[2] * w * (0.9f + 0.1f * variant), F);
+            c.drawCircle(px * w, p[1] * h * 0.8f + 8f, p[2] * w * 0.75f * (0.9f + 0.1f * variant), F);
         }
         F.setColor(0xFFFFFFFF);
         for (float[] p : PUFFS) {
             float px = sx > 0 ? p[0] : 1f - p[0];
-            c.drawCircle(px * w, p[1] * h, p[2] * w * (0.9f + 0.1f * variant), F);
+            c.drawCircle(px * w, p[1] * h * 0.8f, p[2] * w * 0.75f * (0.9f + 0.1f * variant), F);
         }
     }
 

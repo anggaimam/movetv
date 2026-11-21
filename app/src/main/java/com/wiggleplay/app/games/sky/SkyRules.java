@@ -122,37 +122,37 @@ final class SkyRules implements Hud.RulesPainter {
     /** Panel 1: leaning to the right turns the plane right. */
     private void steer(Canvas c, float cx) {
         float s = (float) Math.sin(t * 1.5f);
-        kid(c, cx - 130f, TOP + 150f, 0.95f, s * 16f, 0f, Theme.P1);
-        plane(c, cx + 140f, TOP + 130f, 0.55f, s);
-        arrow(c, cx + 140f, TOP + 220f, s >= 0 ? 1f : -1f, 60f, Theme.ORANGE);
+        kid(c, cx - 130f, TOP + 110f, 0.78f, s * 16f, 0f, Theme.P1);
+        plane(c, cx + 140f, TOP + 100f, 0.55f, s);
+        arrow(c, cx + 140f, TOP + 190f, s >= 0 ? 1f : -1f, 60f, Theme.ORANGE);
         Theme.drawCentered(c, "Lean to steer", cx, TOP + PH - 36f, 44f, Theme.INK);
     }
 
     /** Panel 2: arms up climbs, arms down dives. */
     private void climb(Canvas c, float cx) {
         float s = (float) Math.sin(t * 1.5f);
-        kid(c, cx - 130f, TOP + 150f, 0.95f, 0f, s * 45f, Theme.P1);
-        float py = TOP + 130f - s * 40f;
+        kid(c, cx - 130f, TOP + 110f, 0.78f, 0f, s * 45f, Theme.P1);
+        float py = TOP + 110f - s * 36f;
         plane(c, cx + 140f, py, 0.55f, 0f);
-        arrowV(c, cx + 140f, TOP + 260f - (s >= 0 ? 0f : 0f), s >= 0 ? 1f : -1f, 60f, Theme.ORANGE);
+        arrowV(c, cx + 140f, TOP + 220f, s >= 0 ? 1f : -1f, 50f, Theme.ORANGE);
         Theme.drawCentered(c, "Arms up or down", cx, TOP + PH - 36f, 44f, Theme.INK);
     }
 
     /** Panel 3: fly through rings and pick up coins. */
     private void rings(Canvas c, float cx) {
         float k = (t % 3f) / 3f;
-        float rs = 150f;
-        r.set(cx - rs, TOP + 20f, cx + rs, TOP + 20f + rs * 2f);
+        float rs = 100f;
+        r.set(cx - rs, TOP + 30f, cx + rs, TOP + 30f + rs * 2f);
         c.drawBitmap(SkyArt.ring(), null, r, sprite);
-        float py = TOP + 330f - 40f - k * 150f, sc = 0.55f - 0.15f * k;
+        float py = TOP + 200f - k * 70f, sc = 0.42f - 0.12f * k;
         plane(c, cx, py, sc, 0f);
-        if (k > 0.55f) Theme.drawCentered(c, "+3", cx + 150f, TOP + 100f, 64f, Theme.ORANGE);
-        r.set(cx - 200f, TOP + 160f, cx - 140f, TOP + 220f);
+        if (k > 0.55f) Theme.drawCentered(c, "+3", cx + 120f, TOP + 70f, 56f, Theme.ORANGE);
+        r.set(cx - 215f, TOP + 110f, cx - 155f, TOP + 170f);
         c.drawBitmap(SkyArt.coin(), null, r, sprite);
-        Theme.drawCentered(c, "+1", cx - 170f, TOP + 250f, 40f, Theme.INK);
-        r.set(cx + 140f, TOP + 160f, cx + 210f, TOP + 230f);
+        Theme.drawCentered(c, "+1", cx - 185f, TOP + 215f, 40f, Theme.INK);
+        r.set(cx + 150f, TOP + 120f, cx + 220f, TOP + 190f);
         c.drawBitmap(SkyArt.star(), null, r, sprite);
-        Theme.drawCentered(c, "+5", cx + 175f, TOP + 262f, 40f, Theme.ORANGE);
+        Theme.drawCentered(c, "+5", cx + 185f, TOP + 232f, 40f, Theme.ORANGE);
         Theme.drawCentered(c, "Fly through rings", cx, TOP + PH - 36f, 44f, Theme.INK);
     }
 

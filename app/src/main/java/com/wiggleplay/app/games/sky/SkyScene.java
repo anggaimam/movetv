@@ -26,6 +26,7 @@ public final class SkyScene implements Scene {
     private static final String GAME_ID = "sky";
     private static final float ROUND_SECONDS = 80f;
     private static final float CAM_H = 260f;
+    private static final float CAM_H_2P = 420f;
     private static final float GROUND_Y = -300f;
     private static final float STRIPE = 500f;
     private static final float FAR = SkyLogic.FOCAL + SkyLogic.SPAWN_DIST + 400f;
@@ -60,7 +61,7 @@ public final class SkyScene implements Scene {
     private int sparkCap = 120;
 
     // per-viewport values, set at the start of drawing one viewport
-    private float vx, vw, zoom, cx, camX, camY, camZ;
+    private float vx, vw, zoom, cx, camX, camY, camZ, camH;
 
     /**
      * Tells the game whether the rules screen has been shown already this session (tests use this).
@@ -192,6 +193,7 @@ public final class SkyScene implements Scene {
         vw = players == 2 ? Stage.W / 2f : Stage.W;
         vx = players == 2 ? p * vw : 0f;
         zoom = players == 2 ? ZOOM_2P : 1f;
+        camH = players == 2 ? CAM_H_2P : CAM_H;
         cx = vx + vw / 2f;
         SkyLogic l = logic[p];
         camX = l.planeX() * 0.85f;
@@ -204,7 +206,7 @@ public final class SkyScene implements Scene {
     }
 
     private float planeSY(SkyLogic l) {
-        return SkyArt.HORIZON - (l.planeY() - camY - CAM_H) * zoom;
+        return SkyArt.HORIZON - (l.planeY() - camY - camH) * zoom;
     }
 
     private void burst(int player, int n, int colour, float size) {
@@ -298,7 +300,7 @@ public final class SkyScene implements Scene {
     }
 
     private float groundY(float dz) {
-        return SkyArt.HORIZON + (camY + CAM_H - GROUND_Y) * SkyLogic.FOCAL / dz * zoom;
+        return SkyArt.HORIZON + (camY + camH - GROUND_Y) * SkyLogic.FOCAL / dz * zoom;
     }
 
     private void drawViewport(Canvas c, int p) {
@@ -368,7 +370,7 @@ public final class SkyScene implements Scene {
     private void drawItem(Canvas c, SkyLogic.Item it, float dz) {
         float scale = SkyLogic.FOCAL / dz * zoom;
         float x = cx + (it.x - camX) * scale;
-        float y = SkyArt.HORIZON - (it.y - camY - CAM_H) * scale;
+        float y = SkyArt.HORIZON - (it.y - camY - camH) * scale;
         switch (it.kind) {
             case SkyLogic.RING: {
                 float h = it.r * scale * 256f / 230f;
@@ -401,7 +403,7 @@ public final class SkyScene implements Scene {
 
     private void drawPlane(Canvas c, SkyLogic l) {
         float x = planeSX(l), y = planeSY(l);
-        float roll = l.steer() * 9f + (l.wobble() > 0f ? (float) Math.sin(time * 38f) * 12f * l.wobble() / 0.7f : 0f);
+        float roll = l.steer() * 5f + (l.wobble() > 0f ? (float) Math.sin(time * 38f) * 12f * l.wobble() / 0.7f : 0f);
         float hw = SkyArt.PLANE_W / 2f * zoom, hh = SkyArt.PLANE_H / 2f * zoom;
         c.save();
         c.rotate(roll, x, y);
