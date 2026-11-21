@@ -10,6 +10,8 @@ import com.angga.movetv.core.Stage;
 import com.angga.movetv.ui.RoundButton;
 import com.angga.movetv.ui.Theme;
 import com.angga.movetv.ui.TileMenu;
+import com.angga.movetv.ui.puppet.Mascots;
+import com.angga.movetv.ui.puppet.Puppet;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -64,6 +66,8 @@ public final class Hud {
     private boolean menuReady;
     private float time;
     private RulesPainter rules;
+    private final Puppet[] kids = new Puppet[2];
+    private final boolean[] cheered = new boolean[2];
 
     /**
      * Creates the frame.
@@ -151,6 +155,16 @@ public final class Hud {
         phase = END;
         endAnim = 0f;
         shownStars = -1;
+        // one player: one kid (alternating A and B); two players: A beside player 1, B beside player 2
+        if (players == 2) {
+            kids[0] = Mascots.create(Puppet.KID_A);
+            kids[1] = Mascots.create(Puppet.KID_B);
+        } else {
+            kids[0] = Mascots.create(Mascots.nextKid());
+            kids[1] = null;
+        }
+        cheered[0] = false;
+        cheered[1] = false;
         if (env.music != null) env.music.stop(400);
         env.sfx("cheer");
         List<TileMenu.Tile> tiles = new ArrayList<>();
@@ -198,6 +212,15 @@ public final class Hud {
             if (show != shownStars) {
                 if (show > 0) env.sfx("star");
                 shownStars = show;
+            }
+            for (int p = 0; p < 2; p++) {
+                if (kids[p] == null) continue;
+                kids[p].update(dt);
+                int mine = p == 0 || players == 2 ? stars[p] : 0;
+                if (!cheered[p] && shownStars >= Math.min(3, mine)) {
+                    cheered[p] = true;
+                    kids[p].anim().cheer();
+                }
             }
             if (!menuReady) return null;
             String sel = menu.update(dt, f);
@@ -308,6 +331,12 @@ public final class Hud {
         FILL.setColor(0x99F3EBDD);
         c.drawRect(0f, 0f, Stage.W, Stage.H, FILL);
         Theme.drawBanner(c, "Great job!", Stage.W / 2f, 190f, 96f, 0xE6F3EBDD, Theme.INK);
+        if (players == 1) {
+            if (kids[0] != null) kids[0].draw(c, 1500f, 620f, 420f);
+        } else {
+            if (kids[0] != null) kids[0].draw(c, 170f, 620f, 340f);
+            if (kids[1] != null) kids[1].draw(c, 1750f, 620f, 340f);
+        }
         for (int p = 0; p < players; p++) {
             float cx = players == 1 ? Stage.W / 2f : (p == 0 ? 600f : 1320f);
             int n = Math.min(shownStars, stars[p]);

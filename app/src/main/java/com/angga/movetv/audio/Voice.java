@@ -1,7 +1,9 @@
 package com.angga.movetv.audio;
 
 import android.content.Context;
+import android.os.SystemClock;
 import android.speech.tts.TextToSpeech;
+import android.speech.tts.UtteranceProgressListener;
 import android.util.Log;
 
 import java.util.Locale;
@@ -18,6 +20,7 @@ public final class Voice {
     private volatile boolean ready = false;
     private volatile boolean failed = false;
     private String waiting;
+    private volatile long speakingUntil;
 
     /**
      * Starts the speech engine. It becomes ready a moment later; words said before that are spoken once ready.
@@ -45,6 +48,12 @@ public final class Voice {
             }
             tts.setSpeechRate(0.95f);
             tts.setPitch(1.15f);
+            tts.setOnUtteranceProgressListener(new UtteranceProgressListener() {
+                @Override public void onStart(String id) { }
+                @Override public void onDone(String id) { speakingUntil = 0; }
+                @Override public void onError(String id) { speakingUntil = 0; }
+                @Override public void onStop(String id, boolean interrupted) { speakingUntil = 0; }
+            });
             ready = true;
             if (waiting != null) {
                 String w = waiting;
@@ -58,6 +67,8 @@ public final class Voice {
     }
 
     private void speak(String text) {
+        // if the engine never reports back, the mouth still moves for about 120 ms per character
+        speakingUntil = SystemClock.uptimeMillis() + 120L * text.length();
         try {
             tts.speak(text, TextToSpeech.QUEUE_FLUSH, null, "movetv");
         } catch (Throwable t) {
@@ -78,9 +89,18 @@ public final class Voice {
         speak(text);
     }
 
+    /**
+     * Whether a phrase is being spoken (the kid puppets move their mouths while it is).
+     * @return true while speaking
+     */
+    public boolean speaking() {
+        return SystemClock.uptimeMillis() < speakingUntil;
+    }
+
     /** Stops speaking at once. */
     public synchronized void cancel() {
         waiting = null;
+        speakingUntil = 0;
         if (ready && tts != null) {
             try { tts.stop(); } catch (Throwable ignored) { }
         }

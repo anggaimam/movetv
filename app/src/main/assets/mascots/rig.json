@@ -1,0 +1,637 @@
+{
+ "scale": 1.5,
+ "kids": {
+  "a": {
+   "rootPivotDrawing": [
+    335.0,
+    674.0
+   ],
+   "parts": [
+    {
+     "id": "shadow",
+     "file": "mascots/a_shadow.png",
+     "parent": "root",
+     "pivot": [
+      198.5,
+      26.0
+     ],
+     "offset": [
+      0.0,
+      0.0
+     ],
+     "order": 0
+    },
+    {
+     "id": "leg_l",
+     "file": "mascots/a_leg_l.png",
+     "parent": "root",
+     "pivot": [
+      51.5,
+      0.5
+     ],
+     "offset": [
+      -42.0,
+      -208.5
+     ],
+     "order": 1
+    },
+    {
+     "id": "leg_r",
+     "file": "mascots/a_leg_r.png",
+     "parent": "root",
+     "pivot": [
+      36.5,
+      0.5
+     ],
+     "offset": [
+      42.0,
+      -208.5
+     ],
+     "order": 2
+    },
+    {
+     "id": "upper_arm_l",
+     "file": "mascots/a_upper_arm_l.png",
+     "parent": "torso",
+     "pivot": [
+      95.0,
+      29.0
+     ],
+     "offset": [
+      -97.5,
+      -153.0
+     ],
+     "order": 3
+    },
+    {
+     "id": "upper_arm_r",
+     "file": "mascots/a_upper_arm_r.png",
+     "parent": "torso",
+     "pivot": [
+      29.0,
+      29.0
+     ],
+     "offset": [
+      97.5,
+      -153.0
+     ],
+     "order": 4
+    },
+    {
+     "id": "torso",
+     "file": "mascots/a_torso.png",
+     "parent": "root",
+     "pivot": [
+      177.5,
+      234.0
+     ],
+     "offset": [
+      0.0,
+      -216.0
+     ],
+     "order": 5
+    },
+    {
+     "id": "shorts",
+     "file": "mascots/a_shorts.png",
+     "parent": "root",
+     "pivot": [
+      115.5,
+      0.5
+     ],
+     "offset": [
+      0.0,
+      -220.5
+     ],
+     "order": 6
+    },
+    {
+     "id": "sleeve_l",
+     "file": "mascots/a_sleeve_l.png",
+     "parent": "upper_arm_l",
+     "pivot": [
+      80.0,
+      54.0
+     ],
+     "offset": [
+      0.0,
+      0.0
+     ],
+     "order": 7
+    },
+    {
+     "id": "sleeve_r",
+     "file": "mascots/a_sleeve_r.png",
+     "parent": "upper_arm_r",
+     "pivot": [
+      -3.0,
+      54.0
+     ],
+     "offset": [
+      0.0,
+      0.0
+     ],
+     "order": 8
+    },
+    {
+     "id": "neck",
+     "file": "mascots/a_neck.png",
+     "parent": "torso",
+     "pivot": [
+      37.5,
+      64.5
+     ],
+     "offset": [
+      0.0,
+      -208.5
+     ],
+     "order": 9
+    },
+    {
+     "id": "head",
+     "file": "mascots/a_head.png",
+     "parent": "torso",
+     "pivot": [
+      214.5,
+      319.5
+     ],
+     "offset": [
+      0.0,
+      -232.5
+     ],
+     "order": 10
+    },
+    {
+     "id": "hair",
+     "file": "mascots/a_hair.png",
+     "parent": "head",
+     "pivot": [
+      205.5,
+      437.5
+     ],
+     "offset": [
+      0.0,
+      0.0
+     ],
+     "order": 11
+    },
+    {
+     "id": "brows",
+     "file": "mascots/a_brows.png",
+     "parent": "head",
+     "pivot": [
+      122.5,
+      199.5
+     ],
+     "offset": [
+      0.0,
+      0.0
+     ],
+     "order": 12
+    },
+    {
+     "id": "eyes",
+     "file": "mascots/a_eyes.png",
+     "parent": "head",
+     "pivot": [
+      124.5,
+      184.5
+     ],
+     "offset": [
+      0.0,
+      0.0
+     ],
+     "order": 13
+    },
+    {
+     "id": "pupils",
+     "file": "mascots/a_pupils.png",
+     "parent": "head",
+     "pivot": [
+      102.5,
+      163.5
+     ],
+     "offset": [
+      0.0,
+      0.0
+     ],
+     "order": 14
+    },
+    {
+     "id": "lids",
+     "file": "mascots/a_lids.png",
+     "parent": "head",
+     "pivot": [
+      127.5,
+      187.5
+     ],
+     "offset": [
+      0.0,
+      0.0
+     ],
+     "order": 15
+    },
+    {
+     "id": "eyes_closed",
+     "file": "mascots/a_eyes_closed.png",
+     "parent": "head",
+     "pivot": [
+      116.5,
+      130.5
+     ],
+     "offset": [
+      0.0,
+      0.0
+     ],
+     "order": 16
+    },
+    {
+     "id": "mouth_smile",
+     "file": "mascots/a_mouth_smile.png",
+     "parent": "head",
+     "pivot": [
+      55.5,
+      67.5
+     ],
+     "offset": [
+      0.0,
+      0.0
+     ],
+     "order": 17
+    },
+    {
+     "id": "mouth_open",
+     "file": "mascots/a_mouth_open.png",
+     "parent": "head",
+     "pivot": [
+      51.5,
+      63.5
+     ],
+     "offset": [
+      0.0,
+      0.0
+     ],
+     "order": 18
+    },
+    {
+     "id": "mouth_closed",
+     "file": "mascots/a_mouth_closed.png",
+     "parent": "head",
+     "pivot": [
+      49.5,
+      59.5
+     ],
+     "offset": [
+      0.0,
+      0.0
+     ],
+     "order": 19
+    },
+    {
+     "id": "fore_arm_l",
+     "file": "mascots/a_fore_arm_l.png",
+     "parent": "upper_arm_l",
+     "pivot": [
+      110.9,
+      29.3
+     ],
+     "offset": [
+      -66.1,
+      76.3
+     ],
+     "order": 20
+    },
+    {
+     "id": "fore_arm_r",
+     "file": "mascots/a_fore_arm_r.png",
+     "parent": "upper_arm_r",
+     "pivot": [
+      30.2,
+      29.3
+     ],
+     "offset": [
+      66.2,
+      76.3
+     ],
+     "order": 21
+    }
+   ]
+  },
+  "b": {
+   "rootPivotDrawing": [
+    865.0,
+    674.0
+   ],
+   "parts": [
+    {
+     "id": "shadow",
+     "file": "mascots/b_shadow.png",
+     "parent": "root",
+     "pivot": [
+      198.5,
+      26.0
+     ],
+     "offset": [
+      0.0,
+      0.0
+     ],
+     "order": 0
+    },
+    {
+     "id": "leg_l",
+     "file": "mascots/b_leg_l.png",
+     "parent": "root",
+     "pivot": [
+      51.5,
+      0.5
+     ],
+     "offset": [
+      -42.0,
+      -208.5
+     ],
+     "order": 1
+    },
+    {
+     "id": "leg_r",
+     "file": "mascots/b_leg_r.png",
+     "parent": "root",
+     "pivot": [
+      35.5,
+      0.5
+     ],
+     "offset": [
+      42.0,
+      -208.5
+     ],
+     "order": 2
+    },
+    {
+     "id": "upper_arm_l",
+     "file": "mascots/b_upper_arm_l.png",
+     "parent": "torso",
+     "pivot": [
+      95.0,
+      29.0
+     ],
+     "offset": [
+      -97.5,
+      -153.0
+     ],
+     "order": 3
+    },
+    {
+     "id": "upper_arm_r",
+     "file": "mascots/b_upper_arm_r.png",
+     "parent": "torso",
+     "pivot": [
+      29.0,
+      29.0
+     ],
+     "offset": [
+      97.5,
+      -153.0
+     ],
+     "order": 4
+    },
+    {
+     "id": "torso",
+     "file": "mascots/b_torso.png",
+     "parent": "root",
+     "pivot": [
+      177.5,
+      234.0
+     ],
+     "offset": [
+      0.0,
+      -216.0
+     ],
+     "order": 5
+    },
+    {
+     "id": "shorts",
+     "file": "mascots/b_shorts.png",
+     "parent": "root",
+     "pivot": [
+      115.5,
+      0.5
+     ],
+     "offset": [
+      0.0,
+      -220.5
+     ],
+     "order": 6
+    },
+    {
+     "id": "sleeve_l",
+     "file": "mascots/b_sleeve_l.png",
+     "parent": "upper_arm_l",
+     "pivot": [
+      80.0,
+      54.0
+     ],
+     "offset": [
+      0.0,
+      0.0
+     ],
+     "order": 7
+    },
+    {
+     "id": "sleeve_r",
+     "file": "mascots/b_sleeve_r.png",
+     "parent": "upper_arm_r",
+     "pivot": [
+      -3.0,
+      54.0
+     ],
+     "offset": [
+      0.0,
+      0.0
+     ],
+     "order": 8
+    },
+    {
+     "id": "neck",
+     "file": "mascots/b_neck.png",
+     "parent": "torso",
+     "pivot": [
+      36.5,
+      64.5
+     ],
+     "offset": [
+      0.0,
+      -208.5
+     ],
+     "order": 9
+    },
+    {
+     "id": "head",
+     "file": "mascots/b_head.png",
+     "parent": "torso",
+     "pivot": [
+      214.5,
+      319.5
+     ],
+     "offset": [
+      0.0,
+      -232.5
+     ],
+     "order": 10
+    },
+    {
+     "id": "hair",
+     "file": "mascots/b_hair.png",
+     "parent": "head",
+     "pivot": [
+      189.5,
+      403.5
+     ],
+     "offset": [
+      0.0,
+      0.0
+     ],
+     "order": 11
+    },
+    {
+     "id": "brows",
+     "file": "mascots/b_brows.png",
+     "parent": "head",
+     "pivot": [
+      122.5,
+      199.5
+     ],
+     "offset": [
+      0.0,
+      0.0
+     ],
+     "order": 12
+    },
+    {
+     "id": "eyes",
+     "file": "mascots/b_eyes.png",
+     "parent": "head",
+     "pivot": [
+      124.5,
+      184.5
+     ],
+     "offset": [
+      0.0,
+      0.0
+     ],
+     "order": 13
+    },
+    {
+     "id": "pupils",
+     "file": "mascots/b_pupils.png",
+     "parent": "head",
+     "pivot": [
+      102.5,
+      163.5
+     ],
+     "offset": [
+      0.0,
+      0.0
+     ],
+     "order": 14
+    },
+    {
+     "id": "lids",
+     "file": "mascots/b_lids.png",
+     "parent": "head",
+     "pivot": [
+      127.5,
+      187.5
+     ],
+     "offset": [
+      0.0,
+      0.0
+     ],
+     "order": 15
+    },
+    {
+     "id": "eyes_closed",
+     "file": "mascots/b_eyes_closed.png",
+     "parent": "head",
+     "pivot": [
+      116.5,
+      130.5
+     ],
+     "offset": [
+      0.0,
+      0.0
+     ],
+     "order": 16
+    },
+    {
+     "id": "mouth_smile",
+     "file": "mascots/b_mouth_smile.png",
+     "parent": "head",
+     "pivot": [
+      55.5,
+      67.5
+     ],
+     "offset": [
+      0.0,
+      0.0
+     ],
+     "order": 17
+    },
+    {
+     "id": "mouth_open",
+     "file": "mascots/b_mouth_open.png",
+     "parent": "head",
+     "pivot": [
+      51.5,
+      63.5
+     ],
+     "offset": [
+      0.0,
+      0.0
+     ],
+     "order": 18
+    },
+    {
+     "id": "mouth_closed",
+     "file": "mascots/b_mouth_closed.png",
+     "parent": "head",
+     "pivot": [
+      49.5,
+      59.5
+     ],
+     "offset": [
+      0.0,
+      0.0
+     ],
+     "order": 19
+    },
+    {
+     "id": "fore_arm_l",
+     "file": "mascots/b_fore_arm_l.png",
+     "parent": "upper_arm_l",
+     "pivot": [
+      110.8,
+      29.3
+     ],
+     "offset": [
+      -66.2,
+      76.3
+     ],
+     "order": 20
+    },
+    {
+     "id": "fore_arm_r",
+     "file": "mascots/b_fore_arm_r.png",
+     "parent": "upper_arm_r",
+     "pivot": [
+      31.2,
+      29.3
+     ],
+     "offset": [
+      66.2,
+      76.3
+     ],
+     "order": 21
+    }
+   ]
+  }
+ }
+}

@@ -9,11 +9,14 @@ import com.angga.movetv.core.SpriteCache;
 import com.angga.movetv.core.Stage;
 import com.angga.movetv.ui.Theme;
 import com.angga.movetv.ui.TileMenu;
+import com.angga.movetv.ui.puppet.Mascots;
+import com.angga.movetv.ui.puppet.Puppet;
+import com.angga.movetv.ui.puppet.PuppetPose;
 
 import java.util.Collections;
 
 /**
- * The first screen: the MoveTV logo, a waving mascot and a pulsing "Raise your hand to start!". Any raised
+ * The first screen: the MoveTV logo, a waving kid (Angga's drawing, a puppet) and a pulsing "Raise your hand to start!". Any raised
  * hand for half a second (or OK / Play on the remote) goes to the set-up screen. Back does nothing here.
  */
 public final class AttractScene implements Scene {
@@ -29,6 +32,11 @@ public final class AttractScene implements Scene {
     private float time;
     private float visibleMs;
     private Bitmap logo;
+    private Puppet kid;
+    private float nextWave;
+    private float leaveIn = -1f;
+    private final float[] cur = new float[2];
+    private static final float KID_X = 1560f, KID_FOOT = 880f, KID_H = 600f;
 
     /**
      * Creates the screen.
@@ -44,6 +52,9 @@ public final class AttractScene implements Scene {
         env.menuMusic();
         menu.setTiles(Collections.<TileMenu.Tile>emptyList(), null);
         visibleMs = 0f;
+        leaveIn = -1f;
+        kid = Mascots.create(Mascots.nextKid());
+        nextWave = 0.6f;
         logo = SpriteCache.shared().get("attract_logo", 1000, 280, (c, w, h) -> {
             Theme.drawCentered(c, "MoveTV", w / 2f + 10f, h * 0.80f + 10f, 230f, Theme.darker(Theme.ORANGE));
             Theme.drawCentered(c, "MoveTV", w / 2f, h * 0.80f, 230f, Theme.ORANGE);
@@ -60,13 +71,28 @@ public final class AttractScene implements Scene {
         camera = f.camera;
         test = "test".equals(f.pose.source);
         menu.update(dt, f);
+        kid.update(dt);
+        if (env.speaking()) kid.anim().talk(0.1f);
+        boolean has = menu.cursorPosition(cur);
+        Mascots.look(kid, KID_X, KID_FOOT - KID_H * 0.8f, has, cur[0], cur[1]);
+        if (leaveIn >= 0f) {
+            leaveIn -= dt;
+            if (leaveIn <= 0f) env.go("setup", SceneArgs.EMPTY);
+            return;
+        }
+        nextWave -= dt;
+        if (nextWave <= 0f && !kid.anim().busy()) {
+            kid.anim().wave(PuppetPose.RIGHT);   // the arm on the outer side of the screen
+            nextWave = 3f + (time * 7f % 1f);
+        }
         visibleMs = menu.cursorVisible() ? visibleMs + dt * 1000f : 0f;
         boolean ok = f.input.pressed(KeyEvent.KEYCODE_DPAD_CENTER) || f.input.pressed(KeyEvent.KEYCODE_ENTER)
                 || f.input.pressed(KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE) || f.input.pressed(KeyEvent.KEYCODE_MEDIA_PLAY)
                 || f.input.pressed(KeyEvent.KEYCODE_MEDIA_PAUSE);
         if (visibleMs >= SHOW_MS || ok) {
             env.sfx("select");
-            env.go("setup", SceneArgs.EMPTY);
+            kid.anim().cheer();
+            leaveIn = 0.9f;
         }
     }
 
@@ -74,8 +100,7 @@ public final class AttractScene implements Scene {
     public void draw(Canvas c) {
         Theme.drawBackdrop(c, camera, time);
         c.drawBitmap(logo, (Stage.W - logo.getWidth()) / 2f, 70f, null);
-        float bob = (float) Math.sin(time * 3f) * 10f;
-        Theme.drawMascot(c, Stage.W / 2f, 600f + bob, 190f, 70f + 45f * (float) Math.sin(time * 6f), Theme.SAGE);
+        kid.draw(c, KID_X, KID_FOOT, KID_H);
         float pulse = 1f + 0.05f * (float) Math.sin(time * 4f);
         c.save();
         c.scale(pulse, pulse, Stage.W / 2f, 930f);

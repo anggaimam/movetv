@@ -16,7 +16,7 @@ import java.util.List;
 /**
  * The settings panel, drawn over any screen. It holds the hold time (0.7 / 1.0 / 1.4 s), the pointer (on my hand / easy reach), the camera's light
  * boost and the performance overlay, all as big tiles that work with a hand or with the remote. The menu key
- * (or Back, or the Done tile) closes it. While it is open the screen underneath is not updated, so a game
+ * (or Back, or the Done tile) closes it. It opens with the menu key or the round gear button (top right on Players, Game select and Level select). While it is open the screen underneath is not updated, so a game
  * pauses. Wrap each scene with {@link #host(Scene)} to give it the overlay.
  */
 public final class SettingsOverlay {

@@ -19,6 +19,7 @@ import com.angga.movetv.scenes.SettingsOverlay;
 import com.angga.movetv.scenes.SetupScene;
 import com.angga.movetv.ui.TileMenu;
 
+import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.robolectric.RobolectricTestRunner;
@@ -35,6 +36,67 @@ import java.io.File;
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 @Config(sdk = 34)
 public class ScreenshotTest {
+
+    @Before
+    public void loadPuppets() {
+        com.angga.movetv.ui.puppet.Puppet.init(org.robolectric.RuntimeEnvironment.getApplication());
+    }
+
+    /** A bare scene that shows one or two kid puppets on paper, to look at poses. */
+    private static final class PuppetScene implements Scene {
+        private final int mode;   // 0 rest, 1 wave, 2 cheer, 3 point
+        private final com.angga.movetv.ui.puppet.Puppet a = new com.angga.movetv.ui.puppet.Puppet(0, 3);
+        private final com.angga.movetv.ui.puppet.Puppet b = new com.angga.movetv.ui.puppet.Puppet(1, 4);
+
+        PuppetScene(int mode) {
+            this.mode = mode;
+        }
+
+        @Override public void enter(SceneArgs args) {
+            if (mode == 1) {
+                a.anim().wave(com.angga.movetv.ui.puppet.PuppetPose.RIGHT);
+                b.anim().wave(com.angga.movetv.ui.puppet.PuppetPose.LEFT);
+            } else if (mode == 2) {
+                a.anim().cheer();
+                b.anim().cheer();
+            } else if (mode == 3) {
+                a.anim().point(com.angga.movetv.ui.puppet.PuppetPose.RIGHT, 100f);
+                b.anim().point(com.angga.movetv.ui.puppet.PuppetPose.LEFT, 120f);
+            }
+        }
+
+        @Override public void exit() { }
+
+        @Override public void update(float dt, Frame f) {
+            a.update(dt);
+            b.update(dt);
+        }
+
+        @Override public void draw(android.graphics.Canvas c) {
+            c.drawColor(0xFFFBF5E9);
+            a.draw(c, 560f, 1020f, 900f);
+            b.draw(c, 1360f, 1020f, 900f);
+        }
+    }
+
+    @Test
+    public void puppetsAtRest() throws Exception {
+        check(ShotRig.shoot("puppet_rest", new PuppetScene(0), Scene.SceneArgs.EMPTY, 1, 1, null));
+    }
+
+    @Test
+    public void puppetWaveSequence() throws Exception {
+        int[] frames = {10, 24, 40, 56, 76, 96};
+        for (int i = 0; i < frames.length; i++) {
+            check(ShotRig.shoot("puppet_wave_" + (i + 1), new PuppetScene(1), Scene.SceneArgs.EMPTY, 1, frames[i], null));
+        }
+    }
+
+    @Test
+    public void puppetsCheerAndPoint() throws Exception {
+        check(ShotRig.shoot("puppet_cheer", new PuppetScene(2), Scene.SceneArgs.EMPTY, 1, 28, null));
+        check(ShotRig.shoot("puppet_point", new PuppetScene(3), Scene.SceneArgs.EMPTY, 1, 40, null));
+    }
 
     private static void check(File f) {
         assertTrue(f + " should be a real picture", f.length() > 5000);

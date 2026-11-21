@@ -586,62 +586,6 @@ public final class Theme {
         });
     }
 
-    // ---- the mascot ----
-
-    /**
-     * Draws the friendly round mascot (flat, code-drawn, original). A few shapes: cheap enough to draw live.
-     * @param c canvas
-     * @param cx centre x of the body
-     * @param cy centre y of the body
-     * @param r body radius
-     * @param waveDeg angle of the waving arm (0 = hanging, up to 150 = raised)
-     * @param body body colour
-     */
-    public static void drawMascot(Canvas c, float cx, float cy, float r, float waveDeg, int body) {
-        // ground shadow
-        FILL.setColor(0x33000000);
-        R.set(cx - r * 0.9f, cy + r * 0.92f, cx + r * 0.9f, cy + r * 1.12f);
-        c.drawOval(R, FILL);
-        int dark = darker(body);
-        // feet
-        FILL.setColor(dark);
-        R.set(cx - r * 0.62f, cy + r * 0.80f, cx - r * 0.16f, cy + r * 1.08f);
-        c.drawOval(R, FILL);
-        R.set(cx + r * 0.16f, cy + r * 0.80f, cx + r * 0.62f, cy + r * 1.08f);
-        c.drawOval(R, FILL);
-        // arms
-        LINE.setColor(dark);
-        LINE.setStrokeWidth(r * 0.26f);
-        c.drawLine(cx - r * 0.92f, cy + r * 0.05f, cx - r * 1.12f, cy + r * 0.48f, LINE);
-        c.save();
-        c.translate(cx + r * 0.9f, cy + r * 0.05f);
-        c.rotate(-waveDeg);
-        c.drawLine(0f, 0f, r * 0.28f, r * 0.62f, LINE);
-        c.restore();
-        // body, flat shadow under it, belly
-        FILL.setColor(dark);
-        c.drawCircle(cx + r * 0.05f, cy + r * 0.07f, r, FILL);
-        FILL.setColor(body);
-        c.drawCircle(cx, cy, r, FILL);
-        FILL.setColor(0x55FFFFFF);
-        R.set(cx - r * 0.55f, cy + r * 0.05f, cx + r * 0.55f, cy + r * 0.85f);
-        c.drawOval(R, FILL);
-        // face
-        FILL.setColor(INK);
-        c.drawCircle(cx - r * 0.34f, cy - r * 0.2f, r * 0.13f, FILL);
-        c.drawCircle(cx + r * 0.34f, cy - r * 0.2f, r * 0.13f, FILL);
-        FILL.setColor(0xFFFFFFFF);
-        c.drawCircle(cx - r * 0.30f, cy - r * 0.25f, r * 0.045f, FILL);
-        c.drawCircle(cx + r * 0.38f, cy - r * 0.25f, r * 0.045f, FILL);
-        FILL.setColor(0x88E8A598);
-        c.drawCircle(cx - r * 0.56f, cy + r * 0.06f, r * 0.12f, FILL);
-        c.drawCircle(cx + r * 0.56f, cy + r * 0.06f, r * 0.12f, FILL);
-        R.set(cx - r * 0.26f, cy - r * 0.05f, cx + r * 0.26f, cy + r * 0.38f);
-        LINE.setColor(INK);
-        LINE.setStrokeWidth(r * 0.07f);
-        c.drawArc(R, 20f, 140f, false, LINE);
-    }
-
     // ---- icons (painted once into tile icon bitmaps) ----
 
     /**
@@ -751,27 +695,6 @@ public final class Theme {
         snow.close();
         FILL.setColor(0xFFFFFFFF);
         c.drawPath(snow, FILL);
-    }
-
-    /**
-     * One mascot (1 Player).
-     * @param c canvas
-     * @param w width
-     * @param h height
-     */
-    public static void paintOneMascot(Canvas c, int w, int h) {
-        drawMascot(c, w * 0.5f, h * 0.50f, w * 0.30f, 70f, SAGE);
-    }
-
-    /**
-     * Two mascots (2 Players).
-     * @param c canvas
-     * @param w width
-     * @param h height
-     */
-    public static void paintTwoMascots(Canvas c, int w, int h) {
-        drawMascot(c, w * 0.30f, h * 0.55f, w * 0.22f, 40f, SAGE);
-        drawMascot(c, w * 0.70f, h * 0.55f, w * 0.22f, 110f, PINK);
     }
 
     /**

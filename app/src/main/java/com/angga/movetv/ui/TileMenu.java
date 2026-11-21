@@ -112,6 +112,14 @@ public final class TileMenu {
         }
 
         /**
+         * Whether a spoken phrase is playing right now.
+         * @return true while the voice speaks
+         */
+        public boolean speaking() {
+            return voice != null && voice.speaking();
+        }
+
+        /**
          * Speaks a word or phrase.
          * @param text what to say
          */
@@ -257,6 +265,14 @@ public final class TileMenu {
             }
         }
 
+        /**
+         * How much the tile is lifted by hover or focus (0 = resting, 1 = fully lifted).
+         * @return 0..1
+         */
+        public float hoverAmount() {
+            return hover;
+        }
+
         boolean contains(float px, float py) {
             return px >= x && px <= x + w && py >= y && py <= y + h;
         }
@@ -322,6 +338,23 @@ public final class TileMenu {
      */
     public boolean cursorVisible() {
         return cursorVisible;
+    }
+
+    /**
+     * Where the first visible cursor is (the kids' eyes follow it).
+     * @param out receives x and y in stage pixels
+     * @return true if a cursor is visible, false if out was left alone
+     */
+    public boolean cursorPosition(float[] out) {
+        for (int i = 0; i < active.length; i++) {
+            HandCursor cur = active[i];
+            if (cur != null && cur.visible()) {
+                out[0] = cur.x();
+                out[1] = cur.y();
+                return true;
+            }
+        }
+        return false;
     }
 
     /**

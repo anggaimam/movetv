@@ -1,0 +1,670 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 720" width="1200" height="720">
+<defs>
+    <!-- Palette -->
+    <linearGradient id="skinA" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#FFB06F"/>
+      <stop offset="1" stop-color="#F79258"/>
+    </linearGradient>
+
+    <linearGradient id="skinB" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#FFD0AE"/>
+      <stop offset="1" stop-color="#FFAA82"/>
+    </linearGradient>
+
+    <linearGradient id="hairDark" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#172147"/>
+      <stop offset="1" stop-color="#252544"/>
+    </linearGradient>
+
+    <linearGradient id="hairGold" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#FFD167"/>
+      <stop offset="1" stop-color="#F8AD41"/>
+    </linearGradient>
+
+    <linearGradient id="blueShorts" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#3086E7"/>
+      <stop offset="1" stop-color="#2466CA"/>
+    </linearGradient>
+
+    <clipPath id="greenShirtClip">
+      <path d="M267 393
+               Q303 375 335 374
+               Q367 375 403 393
+               L453 458
+               L412 454
+               L408 530
+               Q337 545 262 530
+               L258 454
+               L217 458 Z"/>
+    </clipPath>
+
+    <clipPath id="redShirtClip">
+      <path d="M797 393
+               Q833 375 865 374
+               Q897 375 933 393
+               L983 458
+               L942 454
+               L938 530
+               Q867 545 792 530
+               L788 454
+               L747 458 Z"/>
+    </clipPath>
+  
+    <clipPath id="a_clip_up_l"><path d="M-151.8 151.3 L603.6 806.4 L931.2 428.7 L175.8 -226.5 Z"/></clipPath>
+    <clipPath id="a_clip_fo_l"><path d="M-151.8 151.3 L603.6 806.4 L276.0 1184.2 L-479.4 529.0 Z"/></clipPath>
+    <clipPath id="a_clip_sleeve_l"><path d="M268 391 L213 461 L262 457 Z"/></clipPath>
+    <clipPath id="a_clip_up_r"><path d="M66.4 806.4 L821.8 151.3 L494.2 -226.5 L-261.2 428.7 Z"/></clipPath>
+    <clipPath id="a_clip_fo_r"><path d="M66.4 806.4 L821.8 151.3 L1149.4 529.0 L394.0 1184.2 Z"/></clipPath>
+    <clipPath id="a_clip_sleeve_r"><path d="M402 391 L457 461 L408 457 Z"/></clipPath>
+    <clipPath id="b_clip_up_l"><path d="M378.2 151.3 L1133.6 806.4 L1461.2 428.7 L705.8 -226.5 Z"/></clipPath>
+    <clipPath id="b_clip_fo_l"><path d="M378.2 151.3 L1133.6 806.4 L806.0 1184.2 L50.6 529.0 Z"/></clipPath>
+    <clipPath id="b_clip_sleeve_l"><path d="M798 391 L743 461 L792 457 Z"/></clipPath>
+    <clipPath id="b_clip_up_r"><path d="M596.4 806.4 L1351.8 151.3 L1024.2 -226.5 L268.8 428.7 Z"/></clipPath>
+    <clipPath id="b_clip_fo_r"><path d="M596.4 806.4 L1351.8 151.3 L1679.4 529.0 L924.0 1184.2 Z"/></clipPath>
+    <clipPath id="b_clip_sleeve_r"><path d="M932 391 L987 461 L938 457 Z"/></clipPath>
+  </defs>
+<!-- Rig of Angga's kids: one group per part. data-parent / data-pivot are read by tools/rig_mascot.py. -->
+<g id="a_shadow" data-parent="root" data-pivot="335.0,674.0">
+<ellipse cx="335" cy="674" rx="132" ry="17" fill="#E8D6BA" opacity=".55"/>
+</g>
+<g id="a_leg_l" data-parent="root" data-pivot="307.0,535.0">
+<path d="M284 535 L331 535 L326 626
+           Q309 634 287 626 Z" fill="url(#skinA)"/>
+<path d="M287 607 Q307 613 326 607 L326 642
+           Q306 649 286 641 Z" fill="#FCFDFC"/>
+<path d="M282 633
+           Q296 625 314 628
+           Q324 630 329 640
+           Q343 644 355 653
+           Q365 661 358 670
+           Q325 678 275 670
+           Q269 654 282 633 Z"
+        fill="#FDFEFF"/>
+<path d="M277 666 Q318 673 359 665
+           L356 675
+           Q316 684 274 675 Z"
+        fill="#CEE7F7"/>
+<path d="M285 643 Q299 648 309 658"
+        fill="none" stroke="#438DDD" stroke-width="7"
+        stroke-linecap="round"/>
+<path d="M294 635 Q310 641 319 650"
+        fill="none" stroke="#438DDD" stroke-width="7"
+        stroke-linecap="round"/>
+</g>
+<g id="a_leg_r" data-parent="root" data-pivot="363.0,535.0">
+<path d="M342 535 L389 535 L382 626
+           Q365 634 344 626 Z" fill="url(#skinA)"/>
+<path d="M344 607 Q364 613 383 607 L384 642
+           Q364 650 344 641 Z" fill="#FCFDFC"/>
+<path d="M346 634
+           Q359 626 376 628
+           Q388 630 392 642
+           Q410 648 421 657
+           Q430 664 422 672
+           Q387 680 340 671
+           Q336 652 346 634 Z"
+        fill="#FDFEFF"/>
+<path d="M340 668 Q383 676 424 667
+           L421 676
+           Q384 685 340 676 Z"
+        fill="#CEE7F7"/>
+<path d="M357 644 Q370 649 380 659"
+        fill="none" stroke="#438DDD" stroke-width="7"
+        stroke-linecap="round"/>
+<path d="M367 636 Q381 641 390 651"
+        fill="none" stroke="#438DDD" stroke-width="7"
+        stroke-linecap="round"/>
+</g>
+<g id="a_shorts" data-parent="root" data-pivot="335.0,527.0">
+<path d="M264 527
+           Q335 540 406 527
+           L411 596
+           Q387 603 343 599
+           L337 584
+           L331 599
+           Q293 604 258 596 Z"
+        fill="url(#blueShorts)"/>
+<path d="M264 532 Q284 550 291 570"
+        fill="none" stroke="#2061BA" stroke-width="4" opacity=".35"/>
+<path d="M404 532 Q385 551 380 568"
+        fill="none" stroke="#2061BA" stroke-width="4" opacity=".35"/>
+</g>
+<g id="a_torso" data-parent="root" data-pivot="335.0,530.0">
+<path d="M267 393
+           Q303 375 335 374
+           Q367 375 403 393
+           L453 458
+           L412 454
+           L408 530
+           Q337 545 262 530
+           L258 454
+           L217 458 Z"
+        fill="#FAF2D9"/>
+<g clip-path="url(#greenShirtClip)">
+    <rect x="224" y="390" width="220" height="31" fill="#15A987"/>
+    <rect x="224" y="447" width="220" height="34" fill="#18B08C"/>
+    <rect x="224" y="509" width="220" height="34" fill="#14A77F"/>
+  </g>
+<g clip-path="url(#greenShirtClip)"><path d="M258 457 L211 461 L211 444 L258 440 Z" fill="#FAF2D9"/>
+  <path d="M412 457 L459 461 L459 444 L412 440 Z" fill="#FAF2D9"/></g>
+<path d="M301 382 Q335 392 369 382
+           Q365 408 335 410
+           Q305 407 301 382 Z"
+        fill="#087D64"/>
+</g>
+<g id="a_neck" data-parent="a_torso" data-pivot="335.0,391.0">
+<path d="M310 348 L360 348 L360 391
+           Q335 407 310 390 Z" fill="url(#skinA)"/>
+</g>
+<g id="a_upper_arm_l" data-parent="a_torso" data-pivot="270.0,428.0">
+<g clip-path="url(#a_clip_up_l)"><path d="M262 410
+           Q240 436 217 462
+           L190 501
+           L159 523
+           Q149 531 154 540
+           Q158 545 164 541
+           Q158 550 165 554
+           Q171 556 177 548
+           Q173 557 180 559
+           Q189 559 195 546
+           L221 525
+           L278 447 Z"
+        fill="url(#skinA)"/></g>
+<circle cx="225.9" cy="478.9" r="19.0" fill="#FBA063"/>
+<circle cx="270.0" cy="428.0" r="19.0" fill="#FBA063"/>
+</g>
+<g id="a_sleeve_l" data-parent="a_upper_arm_l" data-pivot="270.0,428.0">
+<g clip-path="url(#a_clip_sleeve_l)">
+<path d="M267 393
+           Q303 375 335 374
+           Q367 375 403 393
+           L453 458
+           L412 454
+           L408 530
+           Q337 545 262 530
+           L258 454
+           L217 458 Z"
+        fill="#FAF2D9"/>
+<g clip-path="url(#greenShirtClip)">
+    <rect x="224" y="390" width="220" height="31" fill="#15A987"/>
+    <rect x="224" y="447" width="220" height="34" fill="#18B08C"/>
+    <rect x="224" y="509" width="220" height="34" fill="#14A77F"/>
+  </g>
+<g clip-path="url(#greenShirtClip)"><path d="M258 457 L211 461 L211 444 L258 440 Z" fill="#FAF2D9"/>
+  <path d="M412 457 L459 461 L459 444 L412 440 Z" fill="#FAF2D9"/></g>
+</g>
+</g>
+<g id="a_fore_arm_l" data-parent="a_upper_arm_l" data-pivot="225.9,478.9">
+<g clip-path="url(#a_clip_fo_l)"><path d="M262 410
+           Q240 436 217 462
+           L190 501
+           L159 523
+           Q149 531 154 540
+           Q158 545 164 541
+           Q158 550 165 554
+           Q171 556 177 548
+           Q173 557 180 559
+           Q189 559 195 546
+           L221 525
+           L278 447 Z"
+        fill="url(#skinA)"/></g>
+<circle cx="225.9" cy="478.9" r="19.0" fill="#FBA063"/>
+</g>
+<g id="a_upper_arm_r" data-parent="a_torso" data-pivot="400.0,428.0">
+<g clip-path="url(#a_clip_up_r)"><path d="M408 410
+           Q428 436 449 462
+           L474 501
+           L504 522
+           Q516 530 511 540
+           Q507 545 501 541
+           Q507 550 500 554
+           Q494 555 488 547
+           Q491 557 484 559
+           Q475 558 470 545
+           L445 525
+           L389 447 Z"
+        fill="url(#skinA)"/></g>
+<circle cx="444.1" cy="478.9" r="19.0" fill="#FBA365"/>
+<circle cx="400.0" cy="428.0" r="19.0" fill="#FEAD6D"/>
+</g>
+<g id="a_sleeve_r" data-parent="a_upper_arm_r" data-pivot="400.0,428.0">
+<g clip-path="url(#a_clip_sleeve_r)">
+<path d="M267 393
+           Q303 375 335 374
+           Q367 375 403 393
+           L453 458
+           L412 454
+           L408 530
+           Q337 545 262 530
+           L258 454
+           L217 458 Z"
+        fill="#FAF2D9"/>
+<g clip-path="url(#greenShirtClip)">
+    <rect x="224" y="390" width="220" height="31" fill="#15A987"/>
+    <rect x="224" y="447" width="220" height="34" fill="#18B08C"/>
+    <rect x="224" y="509" width="220" height="34" fill="#14A77F"/>
+  </g>
+<g clip-path="url(#greenShirtClip)"><path d="M258 457 L211 461 L211 444 L258 440 Z" fill="#FAF2D9"/>
+  <path d="M412 457 L459 461 L459 444 L412 440 Z" fill="#FAF2D9"/></g>
+</g>
+</g>
+<g id="a_fore_arm_r" data-parent="a_upper_arm_r" data-pivot="444.1,478.9">
+<g clip-path="url(#a_clip_fo_r)"><path d="M408 410
+           Q428 436 449 462
+           L474 501
+           L504 522
+           Q516 530 511 540
+           Q507 545 501 541
+           Q507 550 500 554
+           Q494 555 488 547
+           Q491 557 484 559
+           Q475 558 470 545
+           L445 525
+           L389 447 Z"
+        fill="url(#skinA)"/></g>
+<circle cx="444.1" cy="478.9" r="19.0" fill="#FBA365"/>
+</g>
+<g id="a_head" data-parent="a_torso" data-pivot="335.0,375.0">
+<ellipse cx="225" cy="289" rx="33" ry="39"
+           fill="url(#skinA)"/>
+<ellipse cx="445" cy="289" rx="33" ry="39"
+           fill="url(#skinA)"/>
+<path d="M209 286 Q225 272 240 297"
+        fill="none" stroke="#E9804E" stroke-width="5"
+        stroke-linecap="round" opacity=".65"/>
+<path d="M460 286 Q444 273 430 297"
+        fill="none" stroke="#E9804E" stroke-width="5"
+        stroke-linecap="round" opacity=".65"/>
+<path d="M231 253
+           Q239 170 335 162
+           Q428 168 439 252
+           L435 309
+           Q424 372 338 381
+           Q249 374 235 311 Z"
+        fill="url(#skinA)"/>
+<ellipse cx="335" cy="314" rx="12" ry="8" fill="#E9794D" opacity=".65"/>
+<circle cx="251" cy="329" r="19" fill="#F2765D" opacity=".55"/>
+<circle cx="418" cy="329" r="19" fill="#F2765D" opacity=".55"/>
+<path d="M316 377 Q335 384 354 377"
+        fill="none" stroke="#DC7548" stroke-width="3"
+        stroke-linecap="round" opacity=".25"/>
+</g>
+<g id="a_hair" data-parent="a_head" data-pivot="335.0,375.0">
+<path d="M226 270
+           Q199 238 216 202
+           Q222 174 250 153
+           Q261 130 296 122
+           Q324 101 368 111
+           Q407 107 430 139
+           Q454 154 448 189
+           Q464 215 446 247
+           Q450 272 432 283
+           L423 236
+           Q398 230 371 204
+           Q358 237 322 245
+           Q282 250 256 219
+           Q246 247 239 278 Z"
+        fill="url(#hairDark)"/>
+<path d="M221 211
+           Q198 226 198 203
+           Q203 178 245 151
+           Q221 145 222 132
+           Q225 120 245 125
+           Q257 128 269 142
+           Q263 113 281 91
+           Q296 74 297 96
+           Q293 119 287 132
+           Q318 104 359 103
+           Q390 103 370 120
+           Q401 114 423 128
+           Q445 142 431 149
+           Q457 155 457 171
+           Q457 189 433 200
+           Q448 215 446 240
+           Q445 260 432 266
+           Q427 236 408 218
+           Q393 202 368 190
+           Q371 220 358 232
+           Q342 246 320 244
+           Q284 240 265 205
+           Q258 228 241 242
+           Q227 252 219 247
+           Q218 235 221 211 Z"
+        fill="url(#hairDark)"/>
+</g>
+<g id="a_brows" data-parent="a_head" data-pivot="335.0,375.0">
+<path d="M258 257 Q276 242 296 249"
+        fill="none" stroke="#202544" stroke-width="9"
+        stroke-linecap="round"/>
+<path d="M375 249 Q396 243 414 259"
+        fill="none" stroke="#202544" stroke-width="9"
+        stroke-linecap="round"/>
+</g>
+<g id="a_eyes" data-parent="a_head" data-pivot="335.0,375.0">
+<ellipse cx="281" cy="286" rx="29" ry="34" fill="#FFFDF4"/>
+<ellipse cx="389" cy="286" rx="29" ry="34" fill="#FFFDF4"/>
+</g>
+<g id="a_pupils" data-parent="a_head" data-pivot="335.0,375.0">
+<ellipse cx="286" cy="290" rx="19" ry="24" fill="#17234C"/>
+<ellipse cx="384" cy="290" rx="19" ry="24" fill="#17234C"/>
+</g>
+<g id="a_lids" data-parent="a_head" data-pivot="335.0,375.0">
+<ellipse cx="281" cy="286" rx="31" ry="36" fill="#FCA466"/>
+<ellipse cx="389" cy="286" rx="31" ry="36" fill="#FA9C60"/>
+</g>
+<g id="a_eyes_closed" data-parent="a_head" data-pivot="335.0,375.0">
+<path d="M261 292 Q281 306 301 292" fill="none" stroke="#202544" stroke-width="7" stroke-linecap="round"/>
+<path d="M369 292 Q389 306 409 292" fill="none" stroke="#202544" stroke-width="7" stroke-linecap="round"/>
+</g>
+<g id="a_mouth_smile" data-parent="a_head" data-pivot="335.0,375.0">
+<path d="M298 330
+           Q335 343 372 330
+           Q373 365 337 370
+           Q300 364 298 330 Z"
+        fill="#172146"/>
+<path d="M316 357
+           Q336 345 358 357
+           Q348 370 335 370
+           Q323 369 316 357 Z"
+        fill="#EF5257"/>
+</g>
+<g id="a_mouth_open" data-parent="a_head" data-pivot="335.0,375.0">
+<path d="M303 333 Q335 338 367 333 Q377 368 335 376 Q293 368 303 333 Z" fill="#172146"/>
+<path d="M319 363 Q336 353 353 363 Q346 375 336 375 Q326 375 319 363 Z" fill="#EF5257"/>
+</g>
+<g id="a_mouth_closed" data-parent="a_head" data-pivot="335.0,375.0">
+<path d="M306 339 Q335 357 364 339" fill="none" stroke="#172146" stroke-width="7" stroke-linecap="round"/>
+</g>
+<g id="b_shadow" data-parent="root" data-pivot="865.0,674.0">
+<ellipse cx="865" cy="674" rx="132" ry="17" fill="#E8D6BA" opacity=".55"/>
+</g>
+<g id="b_leg_l" data-parent="root" data-pivot="837.0,535.0">
+<path d="M815 535 L861 535 L856 626
+           Q838 633 817 626 Z" fill="url(#skinB)"/>
+<path d="M817 607 Q837 613 856 607 L857 644
+           Q837 649 816 642 Z" fill="#FFFDF8"/>
+<path d="M811 633
+           Q825 624 844 628
+           Q854 631 859 641
+           Q875 645 886 654
+           Q895 662 887 671
+           Q852 679 805 670
+           Q799 651 811 633 Z"
+        fill="#3473E7"/>
+<path d="M804 667 Q847 676 889 667
+           L886 677
+           Q846 685 804 676 Z"
+        fill="#FEFEFA"/>
+<path d="M819 644 Q834 648 844 658"
+        fill="none" stroke="#FFFDF6" stroke-width="6"
+        stroke-linecap="round"/>
+<path d="M828 635 Q843 640 853 650"
+        fill="none" stroke="#FFFDF6" stroke-width="6"
+        stroke-linecap="round"/>
+</g>
+<g id="b_leg_r" data-parent="root" data-pivot="893.0,535.0">
+<path d="M873 535 L918 535 L913 626
+           Q895 634 875 626 Z" fill="url(#skinB)"/>
+<path d="M875 607 Q895 613 914 607 L915 644
+           Q895 650 875 642 Z" fill="#FFFDF8"/>
+<path d="M877 634
+           Q890 624 907 628
+           Q919 631 923 641
+           Q940 647 952 656
+           Q961 664 953 672
+           Q918 680 871 671
+           Q867 652 877 634 Z"
+        fill="#3473E7"/>
+<path d="M871 668 Q915 676 955 668
+           L952 677
+           Q914 686 871 676 Z"
+        fill="#FEFEFA"/>
+<path d="M887 644 Q901 649 911 659"
+        fill="none" stroke="#FFFDF6" stroke-width="6"
+        stroke-linecap="round"/>
+<path d="M897 635 Q912 640 921 650"
+        fill="none" stroke="#FFFDF6" stroke-width="6"
+        stroke-linecap="round"/>
+</g>
+<g id="b_shorts" data-parent="root" data-pivot="865.0,527.0">
+<path d="M794 527
+           Q865 540 936 527
+           L941 596
+           Q914 603 873 599
+           L867 584
+           L861 599
+           Q824 604 788 596 Z"
+        fill="#976143"/>
+<path d="M865 538 L865 557"
+        fill="none" stroke="#805037" stroke-width="4" opacity=".5"/>
+<path d="M851 538 L852 555 L865 557 L879 555 L878 538"
+        fill="none" stroke="#805037" stroke-width="3" opacity=".45"/>
+</g>
+<g id="b_torso" data-parent="root" data-pivot="865.0,530.0">
+<path d="M797 393
+           Q833 375 865 374
+           Q897 375 933 393
+           L983 458
+           L942 454
+           L938 530
+           Q867 545 792 530
+           L788 454
+           L747 458 Z"
+        fill="#FAF5E8"/>
+<g clip-path="url(#redShirtClip)">
+    <rect x="754" y="390" width="220" height="31" fill="#E94043"/>
+    <rect x="754" y="447" width="220" height="34" fill="#EA4146"/>
+    <rect x="754" y="509" width="220" height="34" fill="#E53C41"/>
+  </g>
+<g clip-path="url(#redShirtClip)"><path d="M788 457 L741 461 L741 444 L788 440 Z" fill="#FAF5E8"/>
+  <path d="M942 457 L989 461 L989 444 L942 440 Z" fill="#FAF5E8"/></g>
+<path d="M831 382 Q865 392 899 382
+           Q895 408 865 410
+           Q835 407 831 382 Z"
+        fill="#C92E37"/>
+</g>
+<g id="b_neck" data-parent="b_torso" data-pivot="865.0,391.0">
+<path d="M841 348 L890 348 L890 391
+           Q865 407 841 390 Z"
+        fill="url(#skinB)"/>
+</g>
+<g id="b_upper_arm_l" data-parent="b_torso" data-pivot="800.0,428.0">
+<g clip-path="url(#b_clip_up_l)"><path d="M792 410
+           Q770 436 749 461
+           L721 501
+           L691 521
+           Q679 530 684 539
+           Q688 546 695 541
+           Q688 550 695 554
+           Q702 556 708 548
+           Q703 557 711 560
+           Q720 558 726 546
+           L752 525
+           L809 447 Z"
+        fill="url(#skinB)"/></g>
+<circle cx="755.9" cy="478.9" r="19.0" fill="#FFBC97"/>
+<circle cx="800.0" cy="428.0" r="19.0" fill="#FFBC97"/>
+</g>
+<g id="b_sleeve_l" data-parent="b_upper_arm_l" data-pivot="800.0,428.0">
+<g clip-path="url(#b_clip_sleeve_l)">
+<path d="M797 393
+           Q833 375 865 374
+           Q897 375 933 393
+           L983 458
+           L942 454
+           L938 530
+           Q867 545 792 530
+           L788 454
+           L747 458 Z"
+        fill="#FAF5E8"/>
+<g clip-path="url(#redShirtClip)">
+    <rect x="754" y="390" width="220" height="31" fill="#E94043"/>
+    <rect x="754" y="447" width="220" height="34" fill="#EA4146"/>
+    <rect x="754" y="509" width="220" height="34" fill="#E53C41"/>
+  </g>
+<g clip-path="url(#redShirtClip)"><path d="M788 457 L741 461 L741 444 L788 440 Z" fill="#FAF5E8"/>
+  <path d="M942 457 L989 461 L989 444 L942 440 Z" fill="#FAF5E8"/></g>
+</g>
+</g>
+<g id="b_fore_arm_l" data-parent="b_upper_arm_l" data-pivot="755.9,478.9">
+<g clip-path="url(#b_clip_fo_l)"><path d="M792 410
+           Q770 436 749 461
+           L721 501
+           L691 521
+           Q679 530 684 539
+           Q688 546 695 541
+           Q688 550 695 554
+           Q702 556 708 548
+           Q703 557 711 560
+           Q720 558 726 546
+           L752 525
+           L809 447 Z"
+        fill="url(#skinB)"/></g>
+<circle cx="755.9" cy="478.9" r="19.0" fill="#FFBC97"/>
+</g>
+<g id="b_upper_arm_r" data-parent="b_torso" data-pivot="930.0,428.0">
+<g clip-path="url(#b_clip_up_r)"><path d="M938 410
+           Q958 436 979 461
+           L1005 501
+           L1035 521
+           Q1047 530 1042 539
+           Q1038 546 1031 541
+           Q1038 550 1031 554
+           Q1024 556 1018 548
+           Q1022 557 1015 560
+           Q1006 558 1000 546
+           L974 525
+           L918 447 Z"
+        fill="url(#skinB)"/></g>
+<circle cx="974.1" cy="478.9" r="19.0" fill="#FFBF9A"/>
+<circle cx="930.0" cy="428.0" r="19.0" fill="#FFCCA9"/>
+</g>
+<g id="b_sleeve_r" data-parent="b_upper_arm_r" data-pivot="930.0,428.0">
+<g clip-path="url(#b_clip_sleeve_r)">
+<path d="M797 393
+           Q833 375 865 374
+           Q897 375 933 393
+           L983 458
+           L942 454
+           L938 530
+           Q867 545 792 530
+           L788 454
+           L747 458 Z"
+        fill="#FAF5E8"/>
+<g clip-path="url(#redShirtClip)">
+    <rect x="754" y="390" width="220" height="31" fill="#E94043"/>
+    <rect x="754" y="447" width="220" height="34" fill="#EA4146"/>
+    <rect x="754" y="509" width="220" height="34" fill="#E53C41"/>
+  </g>
+<g clip-path="url(#redShirtClip)"><path d="M788 457 L741 461 L741 444 L788 440 Z" fill="#FAF5E8"/>
+  <path d="M942 457 L989 461 L989 444 L942 440 Z" fill="#FAF5E8"/></g>
+</g>
+</g>
+<g id="b_fore_arm_r" data-parent="b_upper_arm_r" data-pivot="974.1,478.9">
+<g clip-path="url(#b_clip_fo_r)"><path d="M938 410
+           Q958 436 979 461
+           L1005 501
+           L1035 521
+           Q1047 530 1042 539
+           Q1038 546 1031 541
+           Q1038 550 1031 554
+           Q1024 556 1018 548
+           Q1022 557 1015 560
+           Q1006 558 1000 546
+           L974 525
+           L918 447 Z"
+        fill="url(#skinB)"/></g>
+<circle cx="974.1" cy="478.9" r="19.0" fill="#FFBF9A"/>
+</g>
+<g id="b_head" data-parent="b_torso" data-pivot="865.0,375.0">
+<ellipse cx="755" cy="290" rx="33" ry="39" fill="url(#skinB)"/>
+<ellipse cx="975" cy="290" rx="33" ry="39" fill="url(#skinB)"/>
+<path d="M739 286 Q754 273 770 297"
+        fill="none" stroke="#F18F72" stroke-width="5"
+        stroke-linecap="round" opacity=".65"/>
+<path d="M990 286 Q974 273 960 297"
+        fill="none" stroke="#F18F72" stroke-width="5"
+        stroke-linecap="round" opacity=".65"/>
+<path d="M761 253
+           Q769 170 865 162
+           Q958 168 969 252
+           L965 309
+           Q954 372 868 381
+           Q779 374 765 311 Z"
+        fill="url(#skinB)"/>
+<ellipse cx="865" cy="314" rx="11" ry="9" fill="#F28366" opacity=".65"/>
+<circle cx="781" cy="329" r="19" fill="#F88370" opacity=".52"/>
+<circle cx="948" cy="329" r="19" fill="#F88370" opacity=".52"/>
+<path d="M846 377 Q865 384 884 377"
+        fill="none" stroke="#EC8C6E" stroke-width="3"
+        stroke-linecap="round" opacity=".25"/>
+</g>
+<g id="b_hair" data-parent="b_head" data-pivot="865.0,375.0">
+<path d="M756 268
+           Q728 241 746 202
+           Q751 168 781 148
+           Q795 125 825 119
+           Q853 99 895 111
+           Q926 106 954 132
+           Q978 147 978 178
+           Q996 197 982 223
+           Q992 247 972 268
+           L962 243
+           Q936 236 916 208
+           Q916 228 900 239
+           Q882 251 861 232
+           Q851 250 833 243
+           Q809 236 798 211
+           Q790 239 771 256 Z"
+        fill="url(#hairGold)"/>
+<path d="M779 159 Q790 147 801 145"
+        fill="none" stroke="#F2A040" stroke-width="6"
+        stroke-linecap="round" opacity=".65"/>
+<path d="M919 154 Q932 169 949 168"
+        fill="none" stroke="#F2A040" stroke-width="6"
+        stroke-linecap="round" opacity=".65"/>
+</g>
+<g id="b_brows" data-parent="b_head" data-pivot="865.0,375.0">
+<path d="M788 258 Q806 242 826 249"
+        fill="none" stroke="#D85D2C" stroke-width="9"
+        stroke-linecap="round"/>
+<path d="M906 250 Q927 243 945 259"
+        fill="none" stroke="#D85D2C" stroke-width="9"
+        stroke-linecap="round"/>
+</g>
+<g id="b_eyes" data-parent="b_head" data-pivot="865.0,375.0">
+<ellipse cx="811" cy="286" rx="29" ry="34" fill="#FFFDF8"/>
+<ellipse cx="919" cy="286" rx="29" ry="34" fill="#FFFDF8"/>
+</g>
+<g id="b_pupils" data-parent="b_head" data-pivot="865.0,375.0">
+<ellipse cx="816" cy="290" rx="19" ry="24" fill="#112952"/>
+<ellipse cx="914" cy="290" rx="19" ry="24" fill="#112952"/>
+</g>
+<g id="b_lids" data-parent="b_head" data-pivot="865.0,375.0">
+<ellipse cx="811" cy="286" rx="31" ry="36" fill="#FFC19C"/>
+<ellipse cx="919" cy="286" rx="31" ry="36" fill="#FFB791"/>
+</g>
+<g id="b_eyes_closed" data-parent="b_head" data-pivot="865.0,375.0">
+<path d="M791 292 Q811 306 831 292" fill="none" stroke="#D85D2C" stroke-width="7" stroke-linecap="round"/>
+<path d="M899 292 Q919 306 939 292" fill="none" stroke="#D85D2C" stroke-width="7" stroke-linecap="round"/>
+</g>
+<g id="b_mouth_smile" data-parent="b_head" data-pivot="865.0,375.0">
+<path d="M828 330
+           Q865 343 902 330
+           Q902 365 867 370
+           Q830 364 828 330 Z"
+        fill="#11284F"/>
+<path d="M846 357
+           Q866 345 888 357
+           Q878 370 865 370
+           Q853 369 846 357 Z"
+        fill="#F05658"/>
+</g>
+<g id="b_mouth_open" data-parent="b_head" data-pivot="865.0,375.0">
+<path d="M833 333 Q865 338 897 333 Q907 368 865 376 Q823 368 833 333 Z" fill="#11284F"/>
+<path d="M849 363 Q866 353 883 363 Q876 375 866 375 Q856 375 849 363 Z" fill="#F05658"/>
+</g>
+<g id="b_mouth_closed" data-parent="b_head" data-pivot="865.0,375.0">
+<path d="M836 339 Q865 357 894 339" fill="none" stroke="#11284F" stroke-width="7" stroke-linecap="round"/>
+</g>
+</svg>
