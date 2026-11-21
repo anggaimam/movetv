@@ -24,6 +24,7 @@ import com.angga.movetv.core.SceneManager;
 import com.angga.movetv.core.SpriteCache;
 import com.angga.movetv.debug.DebugPoseView;
 import com.angga.movetv.games.GameRegistry;
+import com.angga.movetv.games.fruit.FruitScene;
 import com.angga.movetv.pose.PoseFrame;
 import com.angga.movetv.pose.PoseHub;
 import com.angga.movetv.scenes.AttractScene;
@@ -149,6 +150,7 @@ public class MainActivity extends Activity {
         scenes.register("gameselect", settings.host(new GameSelectScene(env)));
         scenes.register("levelselect", settings.host(new LevelSelectScene(env)));
         scenes.register(GameRegistry.PLACEHOLDER_SCENE, settings.host(new PlaceholderGameScene(env)));
+        scenes.register("fruit", settings.host(new FruitScene(env)));
         // the sound and speed test keeps its own quick keys, so it is not wrapped
         scenes.register("demo", new DemoScene(perf, sfx, music));
         gameView = new GameView(this, hub, scenes, perf);

@@ -27,7 +27,7 @@ public final class GameRegistry {
 
     static {
         List<GameInfo> g = new ArrayList<>();
-        g.add(new GameInfo("fruit", "Fruit Splash", Theme.ORANGE, GameRegistry::paintFruit, PLACEHOLDER_SCENE, 1, 2, false));
+        g.add(new GameInfo("fruit", "Fruit Splash", Theme.ORANGE, GameRegistry::paintFruit, "fruit", 1, 2, false));
         g.add(new GameInfo("sky", "Sky Glider", Theme.BLUE, GameRegistry::paintSky, PLACEHOLDER_SCENE, 1, 2, false));
         g.add(new GameInfo("dance", "Animal Dance Party", Theme.PINK, GameRegistry::paintDance, PLACEHOLDER_SCENE, 1, 2, false));
         g.add(new GameInfo("jungle", "Jungle Dash", Theme.SAGE, GameRegistry::paintJungle, PLACEHOLDER_SCENE, 1, 2, false));
