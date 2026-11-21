@@ -754,7 +754,7 @@ public final class Theme {
         c.drawPath(snow, FILL);
     }
 
-    private static Bitmap kidBoy, kidGirl;
+    private static Bitmap kidBoy, kidGirl, kidBoyHalf, kidBoyClosed;
     private static boolean kidsTried;
     private static final Paint KID_PAINT = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG);
 
@@ -770,6 +770,12 @@ public final class Theme {
             try (java.io.InputStream in = am.open("mascots/kid_girl.png")) {
                 kidGirl = android.graphics.BitmapFactory.decodeStream(in);
             }
+            try (java.io.InputStream in = am.open("mascots/kid_boy_lids_half.png")) {
+                kidBoyHalf = android.graphics.BitmapFactory.decodeStream(in);
+            }
+            try (java.io.InputStream in = am.open("mascots/kid_boy_lids_closed.png")) {
+                kidBoyClosed = android.graphics.BitmapFactory.decodeStream(in);
+            }
         } catch (Throwable t) {
             android.util.Log.w("MoveTV", "kid pictures not loaded, using the round mascot: " + t);
             kidBoy = null;
@@ -783,6 +789,36 @@ public final class Theme {
         float w = kid.getWidth() * s, h = kid.getHeight() * s;
         RectF r = new RectF(cx - w / 2f, bottom - h, cx + w / 2f, bottom);
         c.drawBitmap(kid, null, r, KID_PAINT);
+    }
+
+    /**
+     * The home-screen boy, with a blink: the same picture plus one skin-coloured lid picture on top for about
+     * a tenth of a second every few seconds. Costs one extra bitmap draw only while blinking.
+     * Falls back to the round mascot if the pictures are missing.
+     * @param c canvas
+     * @param cx centre x
+     * @param bottom y of the feet
+     * @param maxH tallest he may be
+     * @param maxW widest he may be
+     * @param time seconds since the screen opened (drives the blink)
+     * @param bounce 0..1 squash-and-stretch amount for a cheerful bounce (scales around the feet)
+     */
+    public static void drawBlinkingBoy(Canvas c, float cx, float bottom, float maxH, float maxW, float time,
+                                       float bounce) {
+        if (kidBoy == null) {
+            drawMascot(c, cx, bottom - maxH * 0.5f, maxH * 0.35f, 70f + 45f * (float) Math.sin(time * 6f), SAGE);
+            return;
+        }
+        float stretch = 1f + 0.035f * bounce, squash = 1f - 0.03f * bounce;
+        c.save();
+        c.scale(squash, stretch, cx, bottom);
+        drawKid(c, kidBoy, cx, bottom, maxH, maxW);
+        float ph = time % 3.4f; // one blink every 3.4 s: half, closed, half
+        Bitmap lids = null;
+        if (ph > 3.18f && ph < 3.22f || ph > 3.30f && ph < 3.34f) lids = kidBoyHalf;
+        else if (ph >= 3.22f && ph <= 3.30f) lids = kidBoyClosed;
+        if (lids != null) drawKid(c, lids, cx, bottom, maxH, maxW);
+        c.restore();
     }
 
     /**

@@ -74,8 +74,7 @@ public final class AttractScene implements Scene {
     public void draw(Canvas c) {
         Theme.drawBackdrop(c, camera, time);
         c.drawBitmap(logo, (Stage.W - logo.getWidth()) / 2f, 70f, null);
-        float bob = (float) Math.sin(time * 3f) * 10f;
-        Theme.drawMascot(c, Stage.W / 2f, 600f + bob, 190f, 70f + 45f * (float) Math.sin(time * 6f), Theme.SAGE);
+        Theme.drawBlinkingBoy(c, Stage.W / 2f, 865f, 480f, 360f, time, 0.5f + 0.5f * (float) Math.sin(time * 4f));
         float pulse = 1f + 0.05f * (float) Math.sin(time * 4f);
         c.save();
         c.scale(pulse, pulse, Stage.W / 2f, 930f);
