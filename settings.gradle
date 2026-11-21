@@ -14,5 +14,5 @@ dependencyResolutionManagement {
         mavenCentral()
     }
 }
-rootProject.name = "MoveTV"
+rootProject.name = "WigglePlay"
 include ':app'

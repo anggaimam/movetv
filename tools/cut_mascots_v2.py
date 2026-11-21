@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Cuts Angga's kid character sheets into transparent PNG pieces: the front and side body and the three faces
+"""Cuts the kid character sheets into transparent PNG pieces: the front and side body and the three faces
 (laughing, surprised, sad) of each kid, plus 'lid' overlays that fake a blink by covering the eyes with skin colour.
 Output goes to the folder given as the first argument (default /tmp/mascot_parts).
 The drawing is not changed: only the flat cream background and the floor shadow are removed."""

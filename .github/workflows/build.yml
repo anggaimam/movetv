@@ -1,4 +1,4 @@
-name: Build MoveTV APK
+name: Build Wiggle Play APK
 
 on:
   push:
@@ -24,7 +24,7 @@ jobs:
           gradle-version: "8.7"
 
       # The signing key lives only in GitHub's private build cache (never in the public repo),
-      # so updates install over each other. If the cache ever expires, uninstall MoveTV once.
+      # so updates install over each other. If the cache ever expires, uninstall Wiggle Play once.
       - uses: actions/cache@v4
         with:
           path: app/movetv.keystore
@@ -80,23 +80,23 @@ jobs:
         run: gradle assembleRelease --no-daemon
 
       - name: Rename APK
-        run: cp app/build/outputs/apk/release/app-release.apk movetv.apk
+        run: cp app/build/outputs/apk/release/app-release.apk wiggleplay.apk
 
       - name: Print APK permissions
         run: |
-          ls -l movetv.apk
-          $ANDROID_HOME/build-tools/$(ls $ANDROID_HOME/build-tools | sort -V | tail -1)/aapt dump permissions movetv.apk
+          ls -l wiggleplay.apk
+          $ANDROID_HOME/build-tools/$(ls $ANDROID_HOME/build-tools | sort -V | tail -1)/aapt dump permissions wiggleplay.apk
 
       - uses: actions/upload-artifact@v4
         with:
-          name: movetv-apk
-          path: movetv.apk
+          name: wiggleplay-apk
+          path: wiggleplay.apk
 
       # Fixed link for Downloader:
-      # https://github.com/<you>/<repo>/releases/latest/download/movetv.apk
+      # https://github.com/<you>/<repo>/releases/latest/download/wiggleplay.apk
       - uses: softprops/action-gh-release@v2
         with:
           tag_name: build-${{ github.run_number }}
-          name: MoveTV build ${{ github.run_number }}
-          files: movetv.apk
+          name: Wiggle Play build ${{ github.run_number }}
+          files: wiggleplay.apk
           make_latest: true

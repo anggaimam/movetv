@@ -1,4 +1,4 @@
-# MoveTV: proof of concept
+# Wiggle Play
 
 Your own body-tracking app for Fire TV. The USB webcam feeds Google's MediaPipe Pose,
 which runs entirely on the Fire TV. It shows a skeleton over the camera image, live speed
@@ -9,9 +9,9 @@ Nothing is uploaded or saved.
 
 ## Install on Fire TV
 Downloader link (built automatically on every change):
-https://github.com/khoiapp-web/movetv/releases/latest/download/movetv.apk
+https://github.com/anggaimam/movetv/releases/latest/download/wiggleplay.apk
 
-- Close Zoom, then open MoveTV and choose **Allow** for the camera.
+- Close Zoom, then open Wiggle Play and choose **Allow** for the camera.
 - Stand back 2-3 m so your whole body is in view.
 
 ## Remote

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Cuts Angga's two kid characters (the front-facing figure of each character sheet in art-src/mascots/) out of
+"""Cuts the two kid characters (the front-facing figure of each character sheet in art-src/mascots/) out of
 their cream background and writes trimmed transparent PNGs to app/src/main/assets/mascots/kid_boy.png and
 kid_girl.png. The drawing itself is not changed: only the flat background and the floor shadow are removed.
 Usage: python3 tools/cut_mascots.py [--preview out.png]"""
