@@ -10,6 +10,8 @@ import com.wiggleplay.app.core.Input;
 import com.wiggleplay.app.core.PerfOverlay;
 import com.wiggleplay.app.core.Scene;
 import com.wiggleplay.app.games.fruit.FruitScene;
+import com.wiggleplay.app.games.sky.SkyScene;
+import com.wiggleplay.app.pose.TestPoseSource;
 import com.wiggleplay.app.scenes.AttractScene;
 import com.wiggleplay.app.scenes.GameSelectScene;
 import com.wiggleplay.app.scenes.LevelSelectScene;
@@ -177,5 +179,60 @@ public class ScreenshotTest {
     @Test
     public void fruitEndTwoPlayers() throws Exception {
         fruitEnd("fruit_end_2p", 2);
+    }
+
+    // ---- T-08: Sky Glider ----
+
+    @Test
+    public void skyRules() throws Exception {
+        SkyScene.setRulesSeen(false);
+        File f = ShotRig.shoot("sky_rules", new SkyScene(env()), Scene.SceneArgs.of("level", 1, "players", 1), 1, 75, null);
+        check(f);
+    }
+
+    @Test
+    public void skyCountdownDemo() throws Exception {
+        SkyScene.setRulesSeen(true);
+        File f = ShotRig.shoot("sky_countdown", new SkyScene(env()), Scene.SceneArgs.of("level", 1, "players", 1), 1, 100,
+                null);
+        check(f);
+    }
+
+    private void skyPlay(String name, int level, int players, int frames) throws Exception {
+        SkyScene.setRulesSeen(true);
+        File f = ShotRig.shoot(name, new SkyScene(env()), Scene.SceneArgs.of("level", level, "players", players), players,
+                frames, (frame, now, body, input) -> {
+                    int phase = (frame / 70) % 4;
+                    body.setHeld(TestPoseSource.CTRL_LEAN_LEFT, phase == 0);
+                    body.setHeld(TestPoseSource.CTRL_LEAN_RIGHT, phase == 2);
+                    if (frame == 0) body.pointerDown(1300, 250);
+                    body.pointerMove(1300, phase < 2 ? 250 : 520);
+                });
+        check(f);
+    }
+
+    @Test
+    public void skyPlayEasy() throws Exception {
+        skyPlay("sky_play_easy", 1, 1, 900);
+    }
+
+    @Test
+    public void skyPlayMedium() throws Exception {
+        skyPlay("sky_play_medium", 2, 1, 900);
+    }
+
+    @Test
+    public void skyPlayHard() throws Exception {
+        skyPlay("sky_play_hard", 3, 1, 900);
+    }
+
+    @Test
+    public void skyPlayTwoPlayers() throws Exception {
+        skyPlay("sky_play_2p", 1, 2, 900);
+    }
+
+    @Test
+    public void skyEndOnePlayer() throws Exception {
+        skyPlay("sky_end_1p", 1, 1, 6000);
     }
 }

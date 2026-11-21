@@ -13,7 +13,7 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * The list of games, in the order the menu shows them. Until T-07 to T-10 are built every game points at
+ * The list of games, in the order the menu shows them. Games that are not built yet point at
  * the placeholder scene ({@link #PLACEHOLDER_SCENE}); a game's ticket replaces its entry's scene name.
  * T-13 to T-15 add bowling, bubbles and mirror later. Each tile picture is a small preview in the game's
  * own art style (flat storybook, crayon doodle or neon arcade), painted once.
@@ -28,7 +28,7 @@ public final class GameRegistry {
     static {
         List<GameInfo> g = new ArrayList<>();
         g.add(new GameInfo("fruit", "Fruit Splash", Theme.ORANGE, GameRegistry::paintFruit, "fruit", 1, 2, false));
-        g.add(new GameInfo("sky", "Sky Glider", Theme.BLUE, GameRegistry::paintSky, PLACEHOLDER_SCENE, 1, 2, false));
+        g.add(new GameInfo("sky", "Sky Glider", Theme.BLUE, GameRegistry::paintSky, "sky", 1, 2, false));
         g.add(new GameInfo("dance", "Animal Dance Party", Theme.PINK, GameRegistry::paintDance, PLACEHOLDER_SCENE, 1, 2, false));
         g.add(new GameInfo("jungle", "Jungle Dash", Theme.SAGE, GameRegistry::paintJungle, PLACEHOLDER_SCENE, 1, 2, false));
         GAMES = Collections.unmodifiableList(g);
