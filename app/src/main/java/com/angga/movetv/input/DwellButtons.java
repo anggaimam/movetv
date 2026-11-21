@@ -9,7 +9,7 @@ import java.util.List;
  */
 public final class DwellButtons {
     static final float DWELL_MS = 150f, DRAIN_MS = 300f, STICKY = 1.25f;
-    static final float MAGNET_RANGE = 100f, MAGNET_MAX_SPEED = 600f, MAGNET_PULL = 0.35f;
+    static final float MAGNET_RANGE = 40f, MAGNET_MAX_SPEED = 600f, MAGNET_PULL = 0.12f;
     static final long COOLDOWN_MS = 600;
     private static final int MAX_PLAYERS = 2;
 

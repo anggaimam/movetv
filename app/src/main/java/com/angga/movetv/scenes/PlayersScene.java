@@ -8,6 +8,7 @@ import com.angga.movetv.core.Stage;
 import com.angga.movetv.pose.Keypoint;
 import com.angga.movetv.pose.Kp;
 import com.angga.movetv.pose.PlayerPose;
+import com.angga.movetv.ui.RoundButton;
 import com.angga.movetv.ui.Theme;
 import com.angga.movetv.ui.TileMenu;
 
@@ -44,6 +45,7 @@ public final class PlayersScene implements Scene {
         env.menuMusic();
         bothUpMs = 0f;
         List<TileMenu.Tile> tiles = new ArrayList<>();
+        tiles.add(RoundButton.back());
         float w = 560f, h = 620f, gap = 80f, x0 = (Stage.W - 2f * w - gap) / 2f, y = 200f;
         tiles.add(new TileMenu.Tile("p1", "1 Player", null, Theme.SAGE, Theme::paintOneMascot, x0, y, w, h));
         tiles.add(new TileMenu.Tile("p2", "2 Players", null, Theme.PINK, Theme::paintTwoMascots, x0 + w + gap, y, w, h));
@@ -68,7 +70,7 @@ public final class PlayersScene implements Scene {
         time += dt;
         camera = f.camera;
         String sel = menu.update(dt, f);
-        if (f.input.pressed(KeyEvent.KEYCODE_BACK)) {
+        if (f.input.pressed(KeyEvent.KEYCODE_BACK) || "back".equals(sel)) {
             env.sfx("back");
             env.go("setup", SceneArgs.of("back", 1));
             return;
@@ -90,7 +92,7 @@ public final class PlayersScene implements Scene {
     @Override
     public void draw(Canvas c) {
         Theme.drawBackdrop(c, camera, time);
-        Theme.drawBanner(c, T_TITLE, Stage.W / 2f, 100f, 64f, 0xE6F3EBDD, Theme.INK);
+        Theme.drawBanner(c, T_TITLE, Stage.W / 2f, 100f, 72f, 0xE6F3EBDD, Theme.INK);
         menu.draw(c);
         Theme.drawBanner(c, T_HINT, Stage.W / 2f, 960f, 40f, 0xCCF3EBDD, Theme.INK);
     }

@@ -14,6 +14,7 @@ import com.angga.movetv.pose.Keypoint;
 import com.angga.movetv.pose.Kp;
 import com.angga.movetv.pose.PlayerPose;
 import com.angga.movetv.pose.PoseFrame;
+import com.angga.movetv.ui.RoundButton;
 import com.angga.movetv.ui.Theme;
 import com.angga.movetv.ui.TileMenu;
 
@@ -87,6 +88,7 @@ public final class SetupScene implements Scene {
         lowConfMs = 0f;
         state = NOBODY;
         List<TileMenu.Tile> tiles = new ArrayList<>();
+        tiles.add(RoundButton.back());
         tiles.add(new TileMenu.Tile("skip", "Skip", null, Theme.MUSTARD, Theme::paintSkip,
                 Stage.W - 48f - 380f, Stage.H - 48f - 260f, 380f, 260f));
         menu.setTiles(tiles, "skip");
@@ -131,7 +133,7 @@ public final class SetupScene implements Scene {
         goodMs = state == GOOD ? goodMs + dt * 1000f : 0f;
 
         String sel = menu.update(dt, f);
-        if (f.input.pressed(KeyEvent.KEYCODE_BACK)) {
+        if (f.input.pressed(KeyEvent.KEYCODE_BACK) || "back".equals(sel)) {
             env.sfx("back");
             env.go("attract", SceneArgs.EMPTY);
             return;
@@ -151,7 +153,7 @@ public final class SetupScene implements Scene {
         Bitmap o = state == GOOD ? outlineGreen : outlineWhite;
         c.drawBitmap(o, (Stage.W - o.getWidth()) / 2f, 150f, null);
         if (showSkeleton) drawSkeleton(c, pose.players[0]);
-        Theme.drawBanner(c, T_TITLE, Stage.W / 2f, 90f, 64f, 0xE6F3EBDD, Theme.INK);
+        Theme.drawBanner(c, T_TITLE, Stage.W / 2f, 90f, 72f, 0xE6F3EBDD, Theme.INK);
         String msg;
         int bg = 0xE6F3EBDD;
         switch (state) {
@@ -161,7 +163,7 @@ public final class SetupScene implements Scene {
             case GOOD: msg = T_GOOD; bg = 0xF2B9E3B0; break;
             default: msg = T_NOBODY; break;
         }
-        Theme.drawBanner(c, msg, Stage.W / 2f - 150f, 960f, 56f, bg, Theme.INK);
+        Theme.drawBanner(c, msg, Stage.W / 2f - 150f, 960f, 48f, bg, Theme.INK);
         menu.draw(c);
     }
 

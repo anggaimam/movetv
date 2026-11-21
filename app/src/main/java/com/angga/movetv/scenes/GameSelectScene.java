@@ -8,6 +8,7 @@ import com.angga.movetv.core.Scene;
 import com.angga.movetv.core.Stage;
 import com.angga.movetv.games.GameInfo;
 import com.angga.movetv.games.GameRegistry;
+import com.angga.movetv.ui.RoundButton;
 import com.angga.movetv.ui.Theme;
 import com.angga.movetv.ui.TileMenu;
 
@@ -70,11 +71,8 @@ public final class GameSelectScene implements Scene {
         env.menuMusic();
         List<GameInfo> games = GameRegistry.forPlayers(env.players);
         List<TileMenu.Tile> tiles = new ArrayList<>(layout(games));
-        TileMenu.Tile home = new TileMenu.Tile("home", "Home", null, Theme.MUSTARD, Theme::paintHome,
-                HOME_X, HOME_Y, HOME_W, HOME_H);
-        home.holdMs = 1500;
-        tiles.add(0, home);
-        menu.setTiles(tiles, games.isEmpty() ? "home" : games.get(0).id);
+        tiles.add(0, RoundButton.back());
+        menu.setTiles(tiles, games.isEmpty() ? "back" : games.get(0).id);
     }
 
     @Override
@@ -85,7 +83,7 @@ public final class GameSelectScene implements Scene {
         time += dt;
         camera = f.camera;
         String sel = menu.update(dt, f);
-        if (f.input.pressed(KeyEvent.KEYCODE_BACK) || "home".equals(sel)) {
+        if (f.input.pressed(KeyEvent.KEYCODE_BACK) || "back".equals(sel)) {
             env.sfx("back");
             env.go("players", SceneArgs.EMPTY);
             return;
@@ -96,7 +94,7 @@ public final class GameSelectScene implements Scene {
     @Override
     public void draw(Canvas c) {
         Theme.drawBackdrop(c, camera, time);
-        Theme.drawBanner(c, T_TITLE, Stage.W / 2f, 120f, 64f, 0xE6F3EBDD, Theme.INK);
+        Theme.drawBanner(c, T_TITLE, Stage.W / 2f, 120f, 72f, 0xE6F3EBDD, Theme.INK);
         menu.draw(c);
     }
 }

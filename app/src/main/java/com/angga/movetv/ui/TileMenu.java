@@ -211,6 +211,8 @@ public final class TileMenu {
         public Bitmap badge;
         /** Small picture in the top-right corner (a tick for the chosen option), or null. May change any time. */
         public Bitmap cornerBadge;
+        /** True for the round corner buttons (Back, Home) made by {@link RoundButton}. */
+        public boolean round;
 
         Bitmap body, shadow, iconBmp;
         float hover;
@@ -241,6 +243,10 @@ public final class TileMenu {
         }
 
         void bake() {
+            if (round) {
+                RoundButton.bake(this);
+                return;
+            }
             int bw = (int) w, bh = (int) h;
             String k = "tile_" + id + "_" + title + "_" + bw + "x" + bh + "_" + colour;
             body = Theme.tileBody(k + "_b", bw, bh, colour, title, subtitle);
@@ -492,13 +498,20 @@ public final class TileMenu {
     public void draw(Canvas c) {
         for (int i = 0; i < tiles.size(); i++) {
             Tile t = tiles.get(i);
-            Theme.drawTile(c, t.shadow, t.body, t.iconBmp, t.badge, t.cornerBadge, t.x, t.y, t.hover, time);
+            if (t.round) {
+                int pl = dwell.progressPlayer(t.id);
+                RoundButton.draw(c, t, dwell.progress(t.id), Theme.playerColour(pl < 0 ? 0 : pl));
+            } else {
+                Theme.drawTile(c, t.shadow, t.body, t.iconBmp, t.badge, t.cornerBadge, t.x, t.y, t.hover, time);
+            }
         }
         if (focusShown) {
             String fid = dwell.focusId();
             for (int i = 0; i < tiles.size() && fid != null; i++) {
                 Tile t = tiles.get(i);
-                if (t.id.equals(fid)) Theme.drawFocus(c, t.x, t.y, t.w, t.h, t.hover, time);
+                if (!t.id.equals(fid)) continue;
+                if (t.round) RoundButton.drawFocus(c, t, time);
+                else Theme.drawFocus(c, t.x, t.y, t.w, t.h, t.hover, time);
             }
         }
         drawCursors(c);

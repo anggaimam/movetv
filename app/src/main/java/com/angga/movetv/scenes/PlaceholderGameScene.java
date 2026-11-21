@@ -8,6 +8,7 @@ import com.angga.movetv.core.Scene;
 import com.angga.movetv.core.Stage;
 import com.angga.movetv.games.GameInfo;
 import com.angga.movetv.games.GameRegistry;
+import com.angga.movetv.ui.RoundButton;
 import com.angga.movetv.ui.Theme;
 import com.angga.movetv.ui.TileMenu;
 
@@ -48,10 +49,7 @@ public final class PlaceholderGameScene implements Scene {
         name = g != null ? g.title : "Game";
         detail = LEVELS[level - 1] + "  -  " + players + (players == 1 ? " player" : " players");
         List<TileMenu.Tile> tiles = new ArrayList<>();
-        TileMenu.Tile home = new TileMenu.Tile("home", "Home", null, Theme.MUSTARD, Theme::paintHome,
-                GameSelectScene.HOME_X, GameSelectScene.HOME_Y, GameSelectScene.HOME_W, GameSelectScene.HOME_H);
-        home.holdMs = 1500;
-        tiles.add(home);
+        tiles.add(RoundButton.home());
         menu.setTiles(tiles, "home");
     }
 
@@ -74,9 +72,9 @@ public final class PlaceholderGameScene implements Scene {
     @Override
     public void draw(Canvas c) {
         Theme.drawBackdrop(c, camera, time);
-        Theme.drawBanner(c, name, Stage.W / 2f, 420f, 110f, 0xE6F3EBDD, Theme.INK);
-        Theme.drawBanner(c, detail, Stage.W / 2f, 600f, 64f, 0xE6F3EBDD, Theme.INK);
-        Theme.drawBanner(c, "This game is coming soon!", Stage.W / 2f, 780f, 56f, 0xCCF3EBDD, Theme.INK);
+        Theme.drawBanner(c, name, Stage.W / 2f, 420f, 96f, 0xE6F3EBDD, Theme.INK);
+        Theme.drawBanner(c, detail, Stage.W / 2f, 600f, 56f, 0xE6F3EBDD, Theme.INK);
+        Theme.drawBanner(c, "This game is coming soon!", Stage.W / 2f, 780f, 48f, 0xCCF3EBDD, Theme.INK);
         menu.draw(c);
     }
 }

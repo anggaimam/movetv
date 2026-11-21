@@ -213,9 +213,9 @@ public class DwellButtonsTest {
     public void magnetPullsTowardsNearbyTargetWhenSlow() {
         Sim s = new Sim();
         s.d.setTargets(one());               // left edge x = 760
-        Fake c = new Fake(0, 700, 540);      // 60 px left of the edge
+        Fake c = new Fake(0, 740, 540);      // 20 px left of the edge
         s.step(c);
-        assertEquals(0.35f * (960 - 700), s.d.magnetDx(0), 0.01f);
+        assertEquals(0.12f * (960 - 740), s.d.magnetDx(0), 0.01f);
         assertEquals(0f, s.d.magnetDy(0), 0.01f);
         c.fs = 700;                          // too fast
         s.step(c);

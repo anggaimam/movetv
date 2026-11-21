@@ -8,6 +8,7 @@ import com.angga.movetv.core.Scene;
 import com.angga.movetv.core.Stage;
 import com.angga.movetv.games.GameInfo;
 import com.angga.movetv.games.GameRegistry;
+import com.angga.movetv.ui.RoundButton;
 import com.angga.movetv.ui.Theme;
 import com.angga.movetv.ui.TileMenu;
 
@@ -47,10 +48,7 @@ public final class LevelSelectScene implements Scene {
         game = GameRegistry.get(gameId);
         title = game != null ? game.title + ": pick a level" : "Pick a level";
         List<TileMenu.Tile> tiles = new ArrayList<>();
-        TileMenu.Tile home = new TileMenu.Tile("home", "Home", null, Theme.MUSTARD, Theme::paintHome,
-                GameSelectScene.HOME_X, GameSelectScene.HOME_Y, GameSelectScene.HOME_W, GameSelectScene.HOME_H);
-        home.holdMs = 1500;
-        tiles.add(home);
+        tiles.add(RoundButton.back());
         float w = 480f, h = 560f, gap = 64f, x0 = (Stage.W - 3f * w - 2f * gap) / 2f;
         int[] colours = {Theme.MUSTARD, Theme.ORANGE, Theme.PINK};
         com.angga.movetv.core.SpriteCache.Painter[] icons = {Theme::paintSprout, Theme::paintTree, Theme::paintMountain};
@@ -71,7 +69,7 @@ public final class LevelSelectScene implements Scene {
         time += dt;
         camera = f.camera;
         String sel = menu.update(dt, f);
-        if (f.input.pressed(KeyEvent.KEYCODE_BACK) || "home".equals(sel)) {
+        if (f.input.pressed(KeyEvent.KEYCODE_BACK) || "back".equals(sel)) {
             env.sfx("back");
             env.go("gameselect", SceneArgs.EMPTY);
             return;
@@ -88,7 +86,7 @@ public final class LevelSelectScene implements Scene {
     @Override
     public void draw(Canvas c) {
         Theme.drawBackdrop(c, camera, time);
-        Theme.drawBanner(c, title, Stage.W / 2f, 120f, 64f, 0xE6F3EBDD, Theme.INK);
+        Theme.drawBanner(c, title, Stage.W / 2f, 120f, 72f, 0xE6F3EBDD, Theme.INK);
         menu.draw(c);
     }
 }

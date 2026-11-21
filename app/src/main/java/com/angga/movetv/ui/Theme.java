@@ -42,8 +42,13 @@ public final class Theme {
     /** Brown used for trunks. */
     public static final int BROWN = 0xFF9B6B43;
 
-    /** The rounded bold system font (falls back to the normal bold font on devices without it). */
+    /** The rounded bold system font, used until (or unless) Fredoka loads. */
     public static final Typeface FONT = Typeface.create("sans-serif-rounded", Typeface.BOLD);
+    private static Typeface titleFont = FONT, labelFont = FONT;
+    private static boolean fontsTried;
+
+    /** Text at or below this size uses the lighter label weight. */
+    static final float LABEL_MAX = 36.5f;
 
     private static final Paint FILL = new Paint(Paint.ANTI_ALIAS_FLAG);
     private static final Paint LINE = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -63,13 +68,46 @@ public final class Theme {
         LINE.setStyle(Paint.Style.STROKE);
         LINE.setStrokeCap(Paint.Cap.ROUND);
         LINE.setStrokeJoin(Paint.Join.ROUND);
-        TEXT.setTypeface(FONT);
         TEXT.setTextAlign(Paint.Align.CENTER);
         RING.setStyle(Paint.Style.STROKE);
         RING.setStrokeCap(Paint.Cap.ROUND);
     }
 
     private Theme() { }
+
+    /**
+     * Loads the Fredoka font (SemiBold for titles, Medium for small labels) from the app's assets. Safe to call
+     * more than once. If the font cannot be loaded (Android older than 8, or a read error) the rounded system
+     * font stays in use; that is logged once.
+     * @param ctx any context
+     */
+    public static void init(android.content.Context ctx) {
+        if (fontsTried || ctx == null) return;
+        fontsTried = true;
+        try {
+            if (android.os.Build.VERSION.SDK_INT < 26) throw new IllegalStateException("needs Android 8 for variable fonts");
+            android.content.res.AssetManager am = ctx.getApplicationContext().getAssets();
+            Typeface semi = new Typeface.Builder(am, "fonts/Fredoka-Variable.ttf")
+                    .setFontVariationSettings("'wght' 600, 'wdth' 100").build();
+            Typeface med = new Typeface.Builder(am, "fonts/Fredoka-Variable.ttf")
+                    .setFontVariationSettings("'wght' 500, 'wdth' 100").build();
+            if (semi == null || med == null) throw new IllegalStateException("font did not load");
+            titleFont = semi;
+            labelFont = med;
+        } catch (Throwable t) {
+            android.util.Log.w("MoveTV", "Fredoka not loaded, using the system font: " + t);
+        }
+    }
+
+    private static void useFont(float size) {
+        TEXT.setTypeface(size <= LABEL_MAX ? labelFont : titleFont);
+    }
+
+    private static final TextFit.Measure MEASURE = (str, size) -> {
+        useFont(size);
+        TEXT.setTextSize(size);
+        return TEXT.measureText(str);
+    };
 
     // ---- small colour helpers ----
 
@@ -118,6 +156,7 @@ public final class Theme {
      * @param colour ARGB colour
      */
     public static void drawCentered(Canvas c, String s, float cx, float baseline, float size, int colour) {
+        useFont(size);
         TEXT.setTextSize(size);
         TEXT.setColor(colour);
         c.drawText(s, cx, baseline, TEXT);
@@ -134,13 +173,25 @@ public final class Theme {
      * @param fg text colour
      */
     public static void drawBanner(Canvas c, String s, float cx, float cy, float size, int bg, int fg) {
-        TEXT.setTextSize(size);
-        float w = TEXT.measureText(s) + size * 1.6f, h = size * 1.9f;
+        // never wider than the stage: shrink first (not below 40 for big titles), then cut
+        float maxText = Stage.W - 160f - size * 1.6f;
+        String shown = s;
+        float sz = size;
+        useFont(sz);
+        TEXT.setTextSize(sz);
+        if (TEXT.measureText(s) > maxText) {
+            TextFit.Result r = TextFit.fit(MEASURE, s, maxText, size, Math.min(size, Math.max(36f, 40f)), 1);
+            shown = r.lines[0];
+            sz = r.size;
+        }
+        useFont(sz);
+        TEXT.setTextSize(sz);
+        float w = TEXT.measureText(shown) + sz * 1.6f, h = sz * 1.9f;
         R.set(cx - w / 2f, cy - h / 2f, cx + w / 2f, cy + h / 2f);
         FILL.setColor(bg);
         c.drawRoundRect(R, h / 2f, h / 2f, FILL);
         TEXT.setColor(fg);
-        c.drawText(s, cx, cy + size * 0.35f, TEXT);
+        c.drawText(shown, cx, cy + sz * 0.35f, TEXT);
     }
 
     // ---- cursor and ring ----
@@ -263,47 +314,27 @@ public final class Theme {
             LINE.setStrokeWidth(5f);
             c.drawPath(p, LINE);
             int ink = isLight(colour) ? INK : 0xFFFFFFFF;
-            float titleSize = Math.max(38f, Math.min(64f, bh * 0.14f));
             float maxW = bw * 0.88f;
             if (subtitle == null) {
-                drawFitted(c, title, bw / 2f, bh * 0.88f, titleSize, maxW, ink);
+                drawFitted(c, title, bw / 2f, bh * 0.88f, 48f, 40f, 2, maxW, ink);
             } else {
-                drawFitted(c, title, bw / 2f, bh * 0.78f, titleSize, maxW, ink);
-                drawFitted(c, subtitle, bw / 2f, bh * 0.92f, Math.max(36f, bh * 0.09f), maxW, ink);
+                drawFitted(c, title, bw / 2f, bh * 0.78f, 48f, 40f, 2, maxW, ink);
+                drawFitted(c, subtitle, bw / 2f, bh * 0.92f, 36f, 36f, 1, maxW, ink);
             }
         });
     }
 
     /**
-     * Draws a title that always fits the tile: it shrinks (not below 36) and, if that is not enough and the
-     * text has a space, it goes onto two lines. Used while painting a tile once, so it may allocate.
+     * Draws text that always fits its container, using {@link TextFit}: shrink, then wrap, then cut with an
+     * ellipsis. Used while painting a tile once, so it may allocate.
      */
-    private static void drawFitted(Canvas c, String text, float cx, float baseline, float size, float maxW, int colour) {
-        TEXT.setTextSize(size);
-        if (TEXT.measureText(text) <= maxW) {
-            drawCentered(c, text, cx, baseline, size, colour);
-            return;
+    private static void drawFitted(Canvas c, String text, float cx, float baseline, float start, float min,
+                                   int maxLines, float maxW, int colour) {
+        TextFit.Result r = TextFit.fit(MEASURE, text, maxW, start, min, maxLines);
+        int n = r.lines.length;
+        for (int i = 0; i < n; i++) {
+            drawCentered(c, r.lines[i], cx, baseline - (n - 1 - i) * r.size * 1.1f, r.size, colour);
         }
-        float shrunk = size * maxW / TEXT.measureText(text);
-        if (shrunk >= 48f) { // a little smaller on one line reads better than two lines
-            drawCentered(c, text, cx, baseline, shrunk, colour);
-            return;
-        }
-        int mid = text.length() / 2, split = -1;
-        for (int d = 0; d < text.length(); d++) {
-            if (mid - d >= 0 && text.charAt(mid - d) == ' ') { split = mid - d; break; }
-            if (mid + d < text.length() && text.charAt(mid + d) == ' ') { split = mid + d; break; }
-        }
-        if (split < 0) { // one word: shrink only
-            float sz = Math.max(36f, size * maxW / TEXT.measureText(text));
-            drawCentered(c, text, cx, baseline, sz, colour);
-            return;
-        }
-        String a = text.substring(0, split), b = text.substring(split + 1);
-        float wide = Math.max(TEXT.measureText(a), TEXT.measureText(b));
-        float sz = Math.max(36f, Math.min(size, size * maxW / wide));
-        drawCentered(c, a, cx, baseline - sz * 1.05f, sz, colour);
-        drawCentered(c, b, cx, baseline, sz, colour);
     }
 
     /**

@@ -79,7 +79,7 @@ public final class AttractScene implements Scene {
         float pulse = 1f + 0.05f * (float) Math.sin(time * 4f);
         c.save();
         c.scale(pulse, pulse, Stage.W / 2f, 930f);
-        Theme.drawBanner(c, test ? HINT_TEST : HINT, Stage.W / 2f, 930f, 64f, 0xE6F3EBDD, Theme.INK);
+        Theme.drawBanner(c, test ? HINT_TEST : HINT, Stage.W / 2f, 930f, 48f, 0xE6F3EBDD, Theme.INK);
         c.restore();
         menu.draw(c);
     }
