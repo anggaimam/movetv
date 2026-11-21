@@ -1,0 +1,416 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+<defs>
+  <linearGradient id="gRed" x1="0" y1="0" x2=".9" y2="1">
+    <stop stop-color="#ff3d4c"/>
+    <stop offset=".55" stop-color="#f31e35"/>
+    <stop offset="1" stop-color="#cb0b27"/>
+  </linearGradient>
+  <linearGradient id="gYellow" x1="0" y1="0" x2=".9" y2="1">
+    <stop stop-color="#ffe95a"/>
+    <stop offset=".55" stop-color="#ffd61c"/>
+    <stop offset="1" stop-color="#f2b800"/>
+  </linearGradient>
+  <linearGradient id="gOrange" x1="0" y1="0" x2=".8" y2="1">
+    <stop stop-color="#ffad2b"/>
+    <stop offset=".55" stop-color="#ff8b0a"/>
+    <stop offset="1" stop-color="#f06600"/>
+  </linearGradient>
+  <linearGradient id="gGreen" x1="0" y1="0" x2=".9" y2="1">
+    <stop stop-color="#b9e83a"/>
+    <stop offset=".55" stop-color="#91d316"/>
+    <stop offset="1" stop-color="#65aa08"/>
+  </linearGradient>
+  <linearGradient id="gLeaf" x1="0" y1="0" x2="1" y2="1">
+    <stop stop-color="#72c931"/>
+    <stop offset="1" stop-color="#219c29"/>
+  </linearGradient>
+  <linearGradient id="gPurple" x1="0" y1="0" x2="1" y2="1">
+    <stop stop-color="#b64fca"/>
+    <stop offset=".55" stop-color="#8f35ae"/>
+    <stop offset="1" stop-color="#69218b"/>
+  </linearGradient>
+  <linearGradient id="gPeach" x1="0" y1="0" x2="1" y2="1">
+    <stop stop-color="#ffb385"/>
+    <stop offset=".52" stop-color="#ff8e6c"/>
+    <stop offset="1" stop-color="#ed6b55"/>
+  </linearGradient>
+  <linearGradient id="gMango" x1="0" y1="0" x2="1" y2="1">
+    <stop stop-color="#ff6d45"/>
+    <stop offset=".45" stop-color="#ff9e1e"/>
+    <stop offset="1" stop-color="#ffc526"/>
+  </linearGradient>
+  <linearGradient id="gBlue" x1="0" y1="0" x2="1" y2="1">
+    <stop stop-color="#6889df"/>
+    <stop offset=".55" stop-color="#466bc2"/>
+    <stop offset="1" stop-color="#294c98"/>
+  </linearGradient>
+  <linearGradient id="gPlum" x1="0" y1="0" x2="1" y2="1">
+    <stop stop-color="#b64eca"/>
+    <stop offset=".58" stop-color="#8a32a8"/>
+    <stop offset="1" stop-color="#642081"/>
+  </linearGradient>
+  <linearGradient id="gBrown" x1="0" y1="0" x2="1" y2="1">
+    <stop stop-color="#c58a49"/>
+    <stop offset="1" stop-color="#8f4e24"/>
+  </linearGradient>
+  <radialGradient id="gKiwi" cx="35%" cy="30%" r="80%">
+    <stop stop-color="#dcf178"/>
+    <stop offset=".65" stop-color="#94cf2d"/>
+    <stop offset="1" stop-color="#66a915"/>
+  </radialGradient>
+  <filter id="shadow" x="-25%" y="-25%" width="150%" height="150%">
+    <feDropShadow dx="0" dy="5" stdDeviation="5" flood-color="#5d725a" flood-opacity=".13"/>
+  </filter>
+</defs>
+
+<rect width="1024" height="1024" fill="#fff"/>
+
+<!-- ===================== BEGIN FRUIT 01: APPLE ===================== -->
+<g id="fruit-01-apple" transform="translate(22 25)" filter="url(#shadow)">
+  <path d="M126 78c25-31 61-34 86-19-21 32-52 46-84 35z" fill="url(#gLeaf)"/>
+  <path d="M130 92c1-19-2-35-9-49" stroke="#8c4a1d" stroke-width="13" stroke-linecap="round" fill="none"/>
+  <path d="M117 91c-36-18-78-2-92 37-16 45 2 102 38 130 22 18 40 11 58 7 19 7 40 11 62-9 34-31 49-91 29-133-17-36-61-48-95-32z" fill="url(#gRed)"/>
+  <path d="M40 222c42 37 114 38 166-5-12 42-45 63-78 49-35 17-74-1-88-44z" fill="#9f0c24" opacity=".16"/>
+  <ellipse cx="66" cy="129" rx="13" ry="24" fill="#fff" opacity=".62" transform="rotate(35 66 129)"/>
+  <ellipse cx="53" cy="162" rx="7" ry="11" fill="#fff" opacity=".5" transform="rotate(30 53 162)"/>
+</g>
+<!-- ====================== END FRUIT 01: APPLE ====================== -->
+
+
+<!-- ===================== BEGIN FRUIT 02: BANANA ==================== -->
+<g id="fruit-02-banana" transform="translate(268 24)" filter="url(#shadow)">
+  <!-- Thick, healthy banana -->
+  <path d="M22 158 C33 192 68 216 111 222 C157 228 200 211 226 178 C244 155 251 126 246 98 C232 123 212 143 187 156 C157 172 124 178 94 173 C67 170 48 158 35 145 C28 147 23 152 22 158 Z" fill="url(#gYellow)"/>
+  <path d="M28 165 C52 198 91 211 128 210 C172 209 205 190 228 160 C208 196 173 219 127 222 C80 224 42 203 22 166 Z" fill="#efb300" opacity=".32"/>
+  <path d="M48 155 C78 177 112 184 146 178 C176 173 202 159 220 139" fill="none" stroke="#fff2a0" stroke-width="11" stroke-linecap="round" opacity=".72"/>
+  <!-- peel texture -->
+  <path d="M54 184 C96 200 146 198 188 177" fill="none" stroke="#e8ad08" stroke-width="3" opacity=".38"/>
+  <path d="M71 193 C111 205 150 200 181 185" fill="none" stroke="#ffd82b" stroke-width="3" opacity=".45"/>
+  <ellipse cx="24" cy="157" rx="9" ry="10" fill="#89481a"/>
+  <path d="M239 109 C242 92 242 79 240 69 C247 63 258 65 264 73 C263 85 255 97 245 107 Z" fill="#8d4a1c"/>
+</g>
+<!-- ====================== END FRUIT 02: BANANA ===================== -->
+
+
+<!-- ===================== BEGIN FRUIT 03: ORANGE ==================== -->
+<g id="fruit-03-orange" transform="translate(515 24)" filter="url(#shadow)">
+  <path d="M121 86c47 0 88 29 99 73 13 54-23 108-79 116-58 8-104-26-115-78-11-58 31-107 84-111z" fill="url(#gOrange)"/>
+  <path d="M121 90c1-18-2-31-8-43" stroke="#914c1d" stroke-width="12" stroke-linecap="round" fill="none"/>
+  <path d="M128 63c28-30 69-28 93-13-23 31-58 42-92 30z" fill="url(#gLeaf)"/>
+  <ellipse cx="70" cy="135" rx="13" ry="23" fill="#fff" opacity=".58" transform="rotate(35 70 135)"/>
+  <ellipse cx="58" cy="167" rx="7" ry="11" fill="#fff" opacity=".48"/>
+</g>
+<!-- ====================== END FRUIT 03: ORANGE ===================== -->
+
+
+<!-- ====================== BEGIN FRUIT 04: PEAR ===================== -->
+<g id="fruit-04-pear" transform="translate(780 20)" filter="url(#shadow)">
+  <path d="M115 77c-22 7-22 39-31 61-9 23-27 39-39 61-21 41 3 81 46 89 23 4 43-6 56-3 39 8 69-21 65-61-4-31-28-54-40-80-14-30-23-74-57-67z" fill="url(#gGreen)"/>
+  <path d="M122 81c0-19-2-34 2-45" stroke="#87471b" stroke-width="11" stroke-linecap="round" fill="none"/>
+  <path d="M128 53c29-27 68-25 90-9-23 31-57 40-90 27z" fill="url(#gLeaf)"/>
+  <ellipse cx="84" cy="141" rx="11" ry="22" fill="#fff" opacity=".54" transform="rotate(22 84 141)"/>
+  <ellipse cx="73" cy="175" rx="8" ry="13" fill="#fff" opacity=".44" transform="rotate(23 73 175)"/>
+</g>
+<!-- ======================= END FRUIT 04: PEAR ====================== -->
+
+
+<!-- ================== BEGIN FRUIT 05: STRAWBERRY ================== -->
+<g id="fruit-05-strawberry" transform="translate(18 270)" filter="url(#shadow)">
+  <path d="M116 89 C74 80 40 105 40 146 C40 195 75 246 116 273 C157 246 192 194 192 146 C192 106 158 80 116 89 Z" fill="url(#gRed)"/>
+
+  <path d="M116 104 C103 95 91 91 76 89 L90 109 L58 105 L86 126 L65 133 L103 137 L116 153 L129 137 L168 133 L146 126 L176 105 L142 110 L157 88 C143 91 129 96 116 104 Z" fill="#57b82c"/>
+  <path d="M116 104 L116 78" stroke="#55af29" stroke-width="11" stroke-linecap="round"/>
+
+  <g fill="#ffd45c">
+    <ellipse cx="73" cy="151" rx="5" ry="9"/>
+    <ellipse cx="114" cy="151" rx="5" ry="9"/>
+    <ellipse cx="155" cy="151" rx="5" ry="9"/>
+    <ellipse cx="91" cy="184" rx="5" ry="9"/>
+    <ellipse cx="137" cy="184" rx="5" ry="9"/>
+    <ellipse cx="72" cy="213" rx="5" ry="9"/>
+    <ellipse cx="115" cy="218" rx="5" ry="9"/>
+    <ellipse cx="157" cy="211" rx="5" ry="9"/>
+    <ellipse cx="116" cy="247" rx="5" ry="9"/>
+  </g>
+
+  <ellipse cx="62" cy="142" rx="10" ry="18" fill="#fff" opacity=".56" transform="rotate(35 62 142)"/>
+</g>
+<!-- =================== END FRUIT 05: STRAWBERRY =================== -->
+
+
+<!-- ===================== BEGIN FRUIT 06: GRAPES ==================== -->
+<g id="fruit-06-grapes" transform="translate(272 260)" filter="url(#shadow)">
+  <path d="M113 99c1-24-5-37-14-48" stroke="#87491d" stroke-width="11" stroke-linecap="round" fill="none"/>
+  <path d="M119 80c18-35 57-36 78-18-18 17-24 33-31 46-17-13-32-22-47-28z" fill="url(#gLeaf)"/>
+
+  <g fill="url(#gPurple)">
+    <circle cx="85" cy="119" r="31"/>
+    <circle cx="129" cy="114" r="32"/>
+    <circle cx="170" cy="137" r="32"/>
+    <circle cx="62" cy="154" r="31"/>
+    <circle cx="104" cy="156" r="34"/>
+    <circle cx="145" cy="173" r="34"/>
+    <circle cx="83" cy="194" r="32"/>
+    <circle cx="124" cy="204" r="34"/>
+    <circle cx="110" cy="239" r="31"/>
+  </g>
+
+  <g fill="#fff" opacity=".42">
+    <ellipse cx="74" cy="107" rx="8" ry="12" transform="rotate(40 74 107)"/>
+    <ellipse cx="118" cy="103" rx="7" ry="10" transform="rotate(40 118 103)"/>
+    <ellipse cx="51" cy="144" rx="6" ry="9" transform="rotate(40 51 144)"/>
+  </g>
+</g>
+<!-- ====================== END FRUIT 06: GRAPES ===================== -->
+
+
+<!-- =================== BEGIN FRUIT 07: WATERMELON ================== -->
+<g id="fruit-07-watermelon" transform="translate(515 276)" filter="url(#shadow)">
+  <path d="M122 52 L224 211 C227 216 225 219 220 222 C159 248 86 248 24 222 C19 220 17 216 20 211 Z" fill="#ef3b42"/>
+
+  <!-- substantial inner and outer rind -->
+  <path d="M20 211 C77 237 164 245 224 211 L231 225 C168 260 78 257 13 225 Z" fill="#d8e687"/>
+  <path d="M13 225 C78 257 168 260 231 225 L230 244 C166 279 80 278 15 244 Z" fill="#299b31"/>
+
+  <g fill="#25231f">
+    <ellipse cx="93" cy="137" rx="6" ry="11" transform="rotate(15 93 137)"/>
+    <ellipse cx="150" cy="133" rx="6" ry="11" transform="rotate(-15 150 133)"/>
+    <ellipse cx="121" cy="181" rx="6" ry="11"/>
+    <ellipse cx="79" cy="193" rx="6" ry="11" transform="rotate(14 79 193)"/>
+    <ellipse cx="172" cy="190" rx="6" ry="11" transform="rotate(-15 172 190)"/>
+  </g>
+</g>
+<!-- ==================== END FRUIT 07: WATERMELON =================== -->
+
+
+<!-- =================== BEGIN FRUIT 08: PINEAPPLE =================== -->
+<g id="fruit-08-pineapple" transform="translate(780 248)" filter="url(#shadow)">
+  <!-- large symmetrical crown -->
+  <g>
+    <path d="M116 121 C111 96 111 72 116 43 C121 72 121 96 116 121 Z" fill="#188a34"/>
+    <path d="M111 121 C96 97 86 76 78 50 C98 68 111 88 116 110 Z" fill="#29983a"/>
+    <path d="M121 121 C136 97 146 76 154 50 C134 68 121 88 116 110 Z" fill="#29983a"/>
+    <path d="M106 120 C83 103 67 87 53 67 C79 78 99 93 114 111 Z" fill="#319f3c"/>
+    <path d="M126 120 C149 103 165 87 179 67 C153 78 133 93 118 111 Z" fill="#319f3c"/>
+    <path d="M101 121 C75 115 56 106 39 93 C67 94 90 101 111 114 Z" fill="#168b36"/>
+    <path d="M131 121 C157 115 176 106 193 93 C165 94 142 101 121 114 Z" fill="#168b36"/>
+  </g>
+
+  <path d="M58 121 C76 101 156 101 174 121 C195 149 195 237 172 268 C149 297 83 297 60 268 C37 237 38 149 58 121 Z" fill="url(#gYellow)"/>
+
+  <!-- pineapple lattice texture -->
+  <g stroke="#e9a516" stroke-width="6" stroke-linecap="round" opacity=".9">
+    <path d="M61 143 L169 252"/>
+    <path d="M49 180 L149 281"/>
+    <path d="M78 114 L187 224"/>
+    <path d="M108 107 L190 190"/>
+    <path d="M171 142 L64 254"/>
+    <path d="M184 179 L86 281"/>
+    <path d="M153 114 L45 224"/>
+    <path d="M124 107 L45 188"/>
+  </g>
+
+  <ellipse cx="75" cy="147" rx="10" ry="18" fill="#fff" opacity=".44" transform="rotate(33 75 147)"/>
+</g>
+<!-- ==================== END FRUIT 08: PINEAPPLE ==================== -->
+
+
+<!-- ===================== BEGIN FRUIT 09: LEMON ===================== -->
+<g id="fruit-09-lemon" transform="translate(18 530)" filter="url(#shadow)">
+  <!-- Oval body with small blunt bumps at both long ends -->
+  <path d="M21 166
+           C28 156 34 149 42 145
+           C50 114 82 91 120 87
+           C161 83 199 102 211 134
+           C220 159 214 188 194 209
+           C174 230 142 241 110 239
+           C74 237 45 220 34 196
+           C27 191 20 187 12 187
+           C18 181 21 175 21 166 Z"
+        fill="url(#gYellow)"/>
+
+  <!-- small rounded right end bump -->
+  <path d="M208 137
+           C216 137 222 141 228 147
+           C222 152 216 156 211 158
+           C213 151 212 143 208 137 Z"
+        fill="#ffd51b"/>
+
+  <!-- subtle lower peel shading -->
+  <path d="M35 198
+           C72 226 132 232 179 211
+           C157 236 110 247 72 231
+           C54 223 42 212 35 198 Z"
+        fill="#eeb000" opacity=".18"/>
+
+  <!-- highlights -->
+  <ellipse cx="67" cy="132" rx="12" ry="21"
+           fill="#fff" opacity=".57"
+           transform="rotate(39 67 132)"/>
+  <ellipse cx="52" cy="160" rx="7" ry="10"
+           fill="#fff" opacity=".43"/>
+
+  <!-- subtle peel texture -->
+  <g fill="#e8b90d" opacity=".48">
+    <circle cx="83" cy="111" r="2.4"/>
+    <circle cx="104" cy="103" r="2.1"/>
+    <circle cx="128" cy="101" r="2.5"/>
+    <circle cx="153" cy="107" r="2.1"/>
+    <circle cx="177" cy="120" r="2.5"/>
+    <circle cx="86" cy="133" r="2"/>
+    <circle cx="113" cy="125" r="2.2"/>
+    <circle cx="145" cy="128" r="2.4"/>
+    <circle cx="186" cy="147" r="2.1"/>
+    <circle cx="76" cy="158" r="2.4"/>
+    <circle cx="105" cy="153" r="2"/>
+    <circle cx="136" cy="157" r="2.2"/>
+    <circle cx="166" cy="166" r="2.3"/>
+    <circle cx="66" cy="185" r="2.1"/>
+    <circle cx="98" cy="184" r="2.5"/>
+    <circle cx="129" cy="188" r="2.1"/>
+    <circle cx="155" cy="196" r="2.3"/>
+    <circle cx="92" cy="211" r="2"/>
+    <circle cx="122" cy="213" r="2.2"/>
+  </g>
+
+  <g fill="#fff3a2" opacity=".34">
+    <circle cx="96" cy="116" r="1.7"/>
+    <circle cx="160" cy="142" r="1.6"/>
+    <circle cx="118" cy="174" r="1.8"/>
+    <circle cx="178" cy="180" r="1.6"/>
+  </g>
+</g>
+<!-- ====================== END FRUIT 09: LEMON ====================== -->
+
+
+<!-- ===================== BEGIN FRUIT 10: PEACH ===================== -->
+<g id="fruit-10-peach" transform="translate(270 514)" filter="url(#shadow)">
+  <path d="M114 91c-36-26-82-3-88 43-7 55 34 112 88 136 54-24 95-81 89-135-5-47-52-70-89-44z" fill="url(#gPeach)"/>
+  <path d="M118 93c0-20-5-36-14-48" stroke="#90501f" stroke-width="11" stroke-linecap="round" fill="none"/>
+  <path d="M124 69c25-33 65-33 88-16-20 30-53 40-86 28z" fill="url(#gLeaf)"/>
+  <path d="M118 106c17 50 18 110-4 158" fill="none" stroke="#df5e4d" stroke-width="8" opacity=".48" stroke-linecap="round"/>
+  <ellipse cx="60" cy="132" rx="12" ry="22" fill="#fff" opacity=".43" transform="rotate(39 60 132)"/>
+</g>
+<!-- ====================== END FRUIT 10: PEACH ====================== -->
+
+
+<!-- =================== BEGIN FRUIT 11: CHERRIES ==================== -->
+<g id="fruit-11-cherries" transform="translate(520 517)" filter="url(#shadow)">
+  <path d="M91 152c8-43 20-79 36-111M163 157c-10-44-22-80-36-116"
+        fill="none" stroke="#5ca315" stroke-width="8" stroke-linecap="round"/>
+  <path d="M132 51c24-27 59-23 78-8-20 30-51 38-76 24z" fill="url(#gLeaf)"/>
+  <circle cx="86" cy="192" r="51" fill="url(#gRed)"/>
+  <circle cx="164" cy="195" r="52" fill="url(#gRed)"/>
+  <ellipse cx="68" cy="171" rx="9" ry="16" fill="#fff" opacity=".54" transform="rotate(36 68 171)"/>
+  <ellipse cx="146" cy="174" rx="9" ry="16" fill="#fff" opacity=".5" transform="rotate(36 146 174)"/>
+</g>
+<!-- ==================== END FRUIT 11: CHERRIES ===================== -->
+
+
+<!-- ====================== BEGIN FRUIT 12: KIWI ===================== -->
+<g id="fruit-12-kiwi" transform="translate(774 514)" filter="url(#shadow)">
+  <!-- whole kiwi -->
+  <path d="M64 89c35-18 85-2 100 36 14 36-3 85-40 106-35 20-77 0-92-33-18-38-3-91 32-109z" fill="url(#gBrown)"/>
+  <ellipse cx="74" cy="122" rx="9" ry="16" fill="#fff" opacity=".34" transform="rotate(34 74 122)"/>
+
+  <!-- kiwi cross-section -->
+  <circle cx="158" cy="198" r="71" fill="#8c4b22"/>
+  <circle cx="158" cy="193" r="62" fill="url(#gKiwi)"/>
+  <circle cx="158" cy="193" r="20" fill="#eff4a5"/>
+
+  <g fill="#4b5310">
+    <ellipse cx="158" cy="158" rx="4" ry="8"/>
+    <ellipse cx="182" cy="167" rx="4" ry="8" transform="rotate(40 182 167)"/>
+    <ellipse cx="193" cy="192" rx="4" ry="8" transform="rotate(80 193 192)"/>
+    <ellipse cx="183" cy="218" rx="4" ry="8" transform="rotate(130 183 218)"/>
+    <ellipse cx="157" cy="228" rx="4" ry="8"/>
+    <ellipse cx="133" cy="218" rx="4" ry="8" transform="rotate(45 133 218)"/>
+    <ellipse cx="123" cy="192" rx="4" ry="8" transform="rotate(95 123 192)"/>
+    <ellipse cx="134" cy="168" rx="4" ry="8" transform="rotate(135 134 168)"/>
+  </g>
+</g>
+<!-- ======================= END FRUIT 12: KIWI ====================== -->
+
+
+<!-- ===================== BEGIN FRUIT 13: MANGO ===================== -->
+<g id="fruit-13-mango" transform="translate(12 770)" filter="url(#shadow)">
+  <path d="M164 65c-52-12-104 12-131 59-24 43-27 100-1 129 29 31 91 21 132-15 40-36 55-95 35-136-8-17-20-30-35-37z" fill="url(#gMango)"/>
+  <path d="M164 69c26-28 56-28 77-11-19 25-47 35-74 27z" fill="url(#gLeaf)"/>
+  <path d="M163 70c-7-15-8-27-5-37" stroke="#8c491d" stroke-width="10" stroke-linecap="round" fill="none"/>
+  <ellipse cx="57" cy="124" rx="11" ry="21" fill="#fff" opacity=".5" transform="rotate(37 57 124)"/>
+  <ellipse cx="44" cy="157" rx="6" ry="9" fill="#fff" opacity=".43"/>
+</g>
+<!-- ====================== END FRUIT 13: MANGO ====================== -->
+
+
+<!-- ================== BEGIN FRUIT 14: BLUEBERRIES ================== -->
+<g id="fruit-14-blueberries" transform="translate(267 771)" filter="url(#shadow)">
+  <path d="M107 89c-25-37-39-51-59-55-4 33 16 58 51 70z" fill="#45a32d"/>
+  <path d="M117 93c22-39 52-50 80-45-9 37-35 56-75 60z" fill="url(#gLeaf)"/>
+
+  <circle cx="84" cy="176" r="60" fill="url(#gBlue)"/>
+  <circle cx="154" cy="197" r="59" fill="url(#gBlue)"/>
+
+  <path d="M84 126l9 11 16-2-10 14 5 14-19-6-15 8 2-17-13-10 17 1z" fill="#28458d"/>
+  <path d="M155 146l9 10 16-1-10 13 5 14-18-6-15 8 2-16-13-10 17 1z" fill="#28458d"/>
+
+  <ellipse cx="58" cy="167" rx="10" ry="16" fill="#fff" opacity=".31" transform="rotate(35 58 167)"/>
+  <ellipse cx="132" cy="187" rx="9" ry="14" fill="#fff" opacity=".28" transform="rotate(35 132 187)"/>
+</g>
+<!-- =================== END FRUIT 14: BLUEBERRIES =================== -->
+
+
+<!-- ====================== BEGIN FRUIT 15: PLUM ===================== -->
+<g id="fruit-15-plum" transform="translate(522 768)" filter="url(#shadow)">
+  <path d="M119 72c-45-8-84 29-87 78-4 60 31 110 86 119 53 8 93-33 91-92-2-54-40-100-90-105z" fill="url(#gPlum)"/>
+  <path d="M119 76c0-20-4-33-10-44" stroke="#88491d" stroke-width="11" stroke-linecap="round" fill="none"/>
+  <path d="M125 57c29-29 70-26 91-8-20 29-53 38-88 24z" fill="url(#gLeaf)"/>
+  <path d="M117 89c-15 53-15 118 1 168" fill="none" stroke="#6d207e" stroke-width="7" opacity=".45" stroke-linecap="round"/>
+  <ellipse cx="67" cy="127" rx="11" ry="21" fill="#fff" opacity=".4" transform="rotate(32 67 127)"/>
+  <ellipse cx="55" cy="159" rx="6" ry="9" fill="#fff" opacity=".34"/>
+</g>
+<!-- ======================= END FRUIT 15: PLUM ====================== -->
+
+
+<!-- ===================== BEGIN FRUIT 16: PAPAYA ==================== -->
+<g id="fruit-16-papaya" transform="translate(775 772)" filter="url(#shadow)">
+  <!-- outer green rind -->
+  <path d="M45 235 C25 211 35 168 62 127 C89 87 130 54 169 43 C197 35 220 48 222 70 C226 109 197 164 156 207 C119 247 69 263 45 235 Z" fill="#75b917"/>
+
+  <!-- yellow inner rind -->
+  <path d="M53 227 C36 206 46 172 70 136 C94 99 132 69 168 58 C190 51 207 60 208 78 C210 111 184 158 148 196 C116 230 73 246 53 227 Z" fill="#ffbf20"/>
+
+  <!-- orange flesh -->
+  <path d="M67 215 C54 199 62 174 82 144 C103 113 134 87 163 77 C179 72 191 78 190 91 C187 119 164 156 137 185 C111 213 80 227 67 215 Z" fill="#f58327"/>
+
+  <!-- centered seed cavity -->
+  <ellipse cx="124" cy="154" rx="31" ry="50"
+           fill="#ce6424" opacity=".68"
+           transform="rotate(43 124 154)"/>
+
+  <!-- centered papaya seeds -->
+  <g fill="#57361f">
+    <circle cx="106" cy="166" r="7"/>
+    <circle cx="116" cy="155" r="7"/>
+    <circle cx="127" cy="145" r="7"/>
+    <circle cx="138" cy="135" r="7"/>
+    <circle cx="148" cy="125" r="6"/>
+
+    <circle cx="113" cy="176" r="6"/>
+    <circle cx="124" cy="166" r="6"/>
+    <circle cx="135" cy="155" r="6"/>
+    <circle cx="146" cy="145" r="6"/>
+
+    <circle cx="101" cy="154" r="6"/>
+    <circle cx="113" cy="143" r="6"/>
+    <circle cx="124" cy="133" r="6"/>
+    <circle cx="136" cy="123" r="6"/>
+  </g>
+
+  <path d="M165 61 C184 55 199 63 200 76"
+        stroke="#fff" stroke-width="8"
+        stroke-linecap="round" opacity=".28" fill="none"/>
+</g>
+<!-- ====================== END FRUIT 16: PAPAYA ===================== -->
+
+</svg>

@@ -9,7 +9,7 @@ import org.junit.Test;
 public class FruitLogicTest {
 
     private static final class Counter implements FruitLogic.Listener {
-        int slices, coconuts, misses, combos, points;
+        int slices, coconuts, misses, combos, points, lost;
         float maxR;
 
         @Override
@@ -20,7 +20,7 @@ public class FruitLogicTest {
         }
 
         @Override
-        public void onCoconut(FruitLogic.Fruit f, float dx, float dy) { coconuts++; }
+        public void onCoconut(FruitLogic.Fruit f, float dx, float dy, int l) { coconuts++; lost += l; }
 
         @Override
         public void onMiss(FruitLogic.Fruit f) { misses++; }
@@ -49,6 +49,10 @@ public class FruitLogicTest {
         assertEquals(1, e.maxAtOnce);
         assertEquals(90f, e.radius, 0.01f);
         assertEquals(0f, e.coconut, 0f);
+        assertEquals(75f, FruitLogic.params(2, 1).radius, 0.01f);
+        assertEquals(0, FruitLogic.params(2, 1).coconutPenalty);
+        assertEquals(55f, FruitLogic.params(3, 1).radius, 0.01f);
+        assertEquals(3, FruitLogic.params(3, 1).coconutPenalty);
         FruitLogic.Params h = FruitLogic.params(3, 1);
         assertEquals(5, h.maxAtOnce);
         assertTrue(h.combo);
@@ -104,8 +108,8 @@ public class FruitLogicTest {
             now += 16;
         }
         FruitLogic.Fruit f = l.at(0);
-        ht.update(0.016f, true, f.x, f.y, now);
-        ht.update(0.016f, true, f.x, f.y, now + 16);
+        ht.update(0.016f, true, f.x - 150f, f.y, now);
+        ht.update(0.016f, true, f.x + 150f, f.y, now + 16);
         l.update(0.016f, now + 16, new HandTrack[] {ht}, true);
         assertEquals(1, cn.slices);
         assertEquals(1, l.score());
@@ -131,8 +135,8 @@ public class FruitLogicTest {
         HandTrack ht = new HandTrack(0f);
         ht.update(0.016f, true, 0f, 500f, 0);
         ht.update(0.016f, true, 1000f, 500f, 16);
-        assertTrue(ht.hits(500f, 540f, 90f, 16));
-        assertFalse(ht.hits(500f, 900f, 90f, 16));
+        assertTrue(ht.hits(500f, 540f, 90f, 16, 90f));
+        assertFalse(ht.hits(500f, 900f, 90f, 16, 90f));
     }
 
     @Test
@@ -141,8 +145,8 @@ public class FruitLogicTest {
         ht.update(0.016f, true, 500f, 500f, 0);
         ht.update(0.016f, true, 900f, 100f, 100);
         ht.update(0.016f, true, 1000f, 100f, 200);
-        assertTrue(ht.hits(500f, 500f, 60f, 200));
-        assertFalse(ht.hits(500f, 500f, 60f, 400));
+        assertTrue(ht.hits(500f, 500f, 60f, 200, 90f));
+        assertFalse(ht.hits(500f, 500f, 60f, 400, 90f));
     }
 
     @Test
@@ -156,13 +160,14 @@ public class FruitLogicTest {
             l.update(0.016f, now, NONE, true);
             if (l.activeCount() > 0) {
                 FruitLogic.Fruit f = l.at(0);
-                ht.update(0.016f, true, f.x, f.y, now);
+                ht.update(0.016f, true, f.x + (i % 2 == 0 ? -200f : 200f), f.y, now);
                 l.update(0.0f, now, new HandTrack[] {ht}, false);
             }
         }
         assertTrue(cn.coconuts > 0);
         assertTrue(cn.slices > 20);
-        assertEquals(cn.points, l.score());
+        assertTrue(cn.lost > 0);
+        assertEquals(cn.points - cn.lost, l.score());
     }
 
     @Test
@@ -187,7 +192,99 @@ public class FruitLogicTest {
             }
         }
         assertEquals(1, cn.combos);
-        assertEquals(cn.points, l.score());
-        assertTrue(l.score() >= 6);
+        assertEquals(cn.points - cn.lost, l.score());
+        assertTrue(l.score() >= 6 - cn.lost);
+    }
+
+    @Test
+    public void aRestingHandNeverSlices() {
+        Counter cn = new Counter();
+        FruitLogic l = new FruitLogic(2, 1, 21L, 0f, 1920f, cn);
+        HandTrack ht = new HandTrack(14f);
+        for (int i = 0; i < 4000; i++) {
+            long now = i * 16L;
+            ht.update(0.016f, true, 960f + (i % 2) * 2f, 540f, now); // only pose jitter
+            l.update(0.016f, now, new HandTrack[] {ht}, true);
+        }
+        assertEquals(0, cn.slices);
+        assertEquals(0, cn.coconuts);
+    }
+
+    @Test
+    public void movingHandIsMoving() {
+        HandTrack ht = new HandTrack(0f);
+        ht.update(0.016f, true, 100f, 100f, 0);
+        ht.update(0.016f, true, 130f, 100f, 16);
+        ht.update(0.016f, true, 160f, 100f, 32);
+        ht.update(0.016f, true, 190f, 100f, 48);
+        assertTrue(ht.moving(48, 90f));
+        assertFalse(ht.moving(48, 200f));
+        assertFalse(ht.moving(600, 90f));
+    }
+
+    @Test
+    public void hardCoconutTakesPointsButNeverBelowZero() {
+        Counter cn = new Counter();
+        FruitLogic l = new FruitLogic(3, 1, 17L, 0f, 1920f, cn);
+        long now = 0;
+        int guard = 0;
+        // slice a few good fruit, then a coconut
+        while (guard++ < 20000 && !(l.score() >= 4 && cn.lost > 0)) {
+            l.update(0.016f, now, NONE, true);
+            now += 16;
+            for (int i = 0; i < l.activeCount(); i++) {
+                FruitLogic.Fruit f = l.at(i);
+                if ((f.kind != FruitLogic.COCONUT) == (cn.slices < 5 || l.score() < 4)) {
+                    l.forceSlice(i, now);
+                    break;
+                }
+            }
+        }
+        assertTrue(cn.lost > 0);
+        assertTrue(l.score() >= 0);
+        assertEquals(cn.points - cn.lost, l.score());
+    }
+
+    @Test
+    public void mediumCoconutOnlySaysOops() {
+        Counter cn = new Counter();
+        FruitLogic l = new FruitLogic(2, 1, 19L, 0f, 1920f, cn);
+        long now = 0;
+        int guard = 0;
+        while (guard++ < 20000 && cn.coconuts == 0) {
+            l.update(0.016f, now, NONE, true);
+            now += 16;
+            for (int i = 0; i < l.activeCount(); i++) {
+                if (l.at(i).kind == FruitLogic.COCONUT) {
+                    l.forceSlice(i, now);
+                    break;
+                }
+            }
+        }
+        assertTrue(cn.coconuts > 0);
+        assertEquals(0, cn.lost);
+    }
+
+    @Test
+    public void hardFruitStaysInsideItsRegionToo() {
+        FruitLogic l = new FruitLogic(3, 2, 23L, 0f, 960f, new Counter());
+        for (int i = 0; i < 5000; i++) {
+            l.update(0.016f, i * 16L, NONE, true);
+            for (int k = 0; k < l.activeCount(); k++) assertTrue(l.at(k).x >= 0f && l.at(k).x <= 960f);
+        }
+    }
+
+    @Test
+    public void fruitComesInDifferentSizesOfFlight() {
+        FruitLogic l = new FruitLogic(2, 1, 31L, 0f, 1920f, new Counter());
+        float lo = 1e9f, hi = 0f;
+        for (int i = 0; i < 4000; i++) {
+            l.update(0.016f, i * 16L, NONE, true);
+            for (int k = 0; k < l.activeCount(); k++) {
+                lo = Math.min(lo, l.at(k).apex);
+                hi = Math.max(hi, l.at(k).apex);
+            }
+        }
+        assertTrue(hi - lo > 200f);
     }
 }

@@ -9,6 +9,7 @@ import com.angga.movetv.core.DemoScene;
 import com.angga.movetv.core.Input;
 import com.angga.movetv.core.PerfOverlay;
 import com.angga.movetv.core.Scene;
+import com.angga.movetv.games.fruit.FruitScene;
 import com.angga.movetv.scenes.AttractScene;
 import com.angga.movetv.scenes.GameSelectScene;
 import com.angga.movetv.scenes.LevelSelectScene;
@@ -129,6 +130,28 @@ public class ScreenshotTest {
                 (frame, now, body, input) -> {
                     if (frame == 3) input.keyDown(KeyEvent.KEYCODE_MENU);
                     if (frame == 4) input.keyUp(KeyEvent.KEYCODE_MENU);
+                });
+        check(f);
+    }
+
+    @Test
+    public void fruitRules() throws Exception {
+        FruitScene.initArt(org.robolectric.RuntimeEnvironment.getApplication());
+        FruitScene.setRulesSeen(false);
+        File f = ShotRig.shoot("fruit_rules", new FruitScene(env()), Scene.SceneArgs.of("level", 3, "players", 1), 1, 75,
+                null);
+        check(f);
+    }
+
+    @Test
+    public void fruitPlaying() throws Exception {
+        FruitScene.initArt(org.robolectric.RuntimeEnvironment.getApplication());
+        FruitScene.setRulesSeen(true);
+        File f = ShotRig.shoot("fruit_play", new FruitScene(env()), Scene.SceneArgs.of("level", 2, "players", 1), 1, 700,
+                (frame, now, body, input) -> {
+                    if (frame == 0) body.pointerDown(300, 700);
+                    float t = frame / 60f;
+                    body.pointerMove(960 + (float) Math.sin(t * 5f) * 700f, 500 + (float) Math.cos(t * 7f) * 300f);
                 });
         check(f);
     }

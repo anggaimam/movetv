@@ -14,6 +14,8 @@ public final class HandTrack {
     public static final long LOOK_BACK_MS = 250;
     /** A swipe counts when it passes within this many radii of the fruit centre. */
     public static final float SWEEP = 1.5f;
+    /** Window used to decide whether the hand is moving. */
+    public static final long MOVE_WINDOW_MS = 200;
 
     private final float glideRate;
     private final float[] hx = new float[N], hy = new float[N];
@@ -122,10 +124,11 @@ public final class HandTrack {
      * @param cy circle centre y
      * @param r the circle's radius
      * @param nowMs clock in ms
+     * @param minPath how far the hand must have travelled in the last 200 ms (a resting hand slices nothing)
      * @return true if this frame's swept segment passes within 1.5 r, or the hand was inside r in the last 250 ms
      */
-    public boolean hits(float cx, float cy, float r, long nowMs) {
-        if (!valid) return false;
+    public boolean hits(float cx, float cy, float r, long nowMs, float minPath) {
+        if (!valid || !moving(nowMs, minPath)) return false;
         float lim = SWEEP * r;
         if (hadPrev) {
             if (segDist(prevX, prevY, x, y, cx, cy) <= lim) return true;
@@ -137,6 +140,21 @@ public final class HandTrack {
             if (Math.hypot(sampleX(i) - cx, sampleY(i) - cy) <= r) return true;
         }
         return false;
+    }
+
+    /**
+     * Whether the hand is really moving.
+     * @param nowMs clock in ms
+     * @param minPath least distance in px travelled during the last {@value #MOVE_WINDOW_MS} ms
+     * @return true if it travelled at least that far
+     */
+    public boolean moving(long nowMs, float minPath) {
+        float path = 0f;
+        for (int i = 0; i + 1 < count; i++) {
+            if (nowMs - sampleMs(i) > MOVE_WINDOW_MS) break;
+            path += (float) Math.hypot(sampleX(i) - sampleX(i + 1), sampleY(i) - sampleY(i + 1));
+        }
+        return path >= minPath;
     }
 
     /**

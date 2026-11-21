@@ -130,6 +130,7 @@ public class MainActivity extends Activity {
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
                 | WindowManager.LayoutParams.FLAG_FULLSCREEN);
         com.angga.movetv.ui.Theme.init(this);
+        com.angga.movetv.games.fruit.FruitScene.initArt(this);
         hub = new PoseHub();
         boolean debuggable = (getApplicationInfo().flags & ApplicationInfo.FLAG_DEBUGGABLE) != 0;
         perf = new PerfOverlay(debuggable);

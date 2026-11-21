@@ -22,7 +22,19 @@ import java.util.List;
 public final class Hud {
 
     /** The phases of a round. */
-    public static final int COUNTDOWN = 0, PLAYING = 1, ENDING = 2, END = 3;
+    public static final int COUNTDOWN = 0, PLAYING = 1, ENDING = 2, END = 3, RULES = 4;
+
+    /** Draws a game's "how to play" pictures and tells how to say them. */
+    public interface RulesPainter {
+        /**
+         * Draws the rule pictures in stage coordinates (no title and no buttons: the Hud adds those).
+         * @param c canvas
+         */
+        void draw(Canvas c);
+
+        /** @return one short sentence read aloud when the rules open */
+        String speech();
+    }
 
     private static final float COUNT_SECONDS = 3.2f;
     private static final int MAX_NUM = 400;
@@ -51,6 +63,7 @@ public final class Hud {
     private final int[] finalScore = new int[2];
     private boolean menuReady;
     private float time;
+    private RulesPainter rules;
 
     /**
      * Creates the frame.
@@ -66,10 +79,35 @@ public final class Hud {
     }
 
     /**
-     * Starts a new round: countdown first.
-     * @param playerCount 1 or 2
+     * Sets the game's "how to play" pictures.
+     * @param painter the painter, or null for none
      */
-    public void start(int playerCount) {
+    public void setRules(RulesPainter painter) {
+        rules = painter;
+    }
+
+    /** Shows the "how to play" screen with a "Let's go!" button (the game starts a round when it returns "go"). */
+    public void openRules() {
+        phase = RULES;
+        paused = false;
+        if (env.music != null) env.music.stop(200);
+        List<TileMenu.Tile> tiles = new ArrayList<>();
+        tiles.add(RoundButton.back());
+        TileMenu.Tile go = new TileMenu.Tile("go", "Let's go!", null, Theme.SAGE, Theme::paintDone,
+                760f, 660f, 400f, 360f);
+        go.holdMs = 1000;
+        tiles.add(go);
+        menu.setTiles(tiles, "go");
+        menuReady = true;
+        if (rules != null) env.say(rules.speech());
+    }
+
+    /**
+     * Starts a new round: countdown first (or the rules screen first).
+     * @param playerCount 1 or 2
+     * @param showRules true to open the rules screen before the countdown
+     */
+    public void start(int playerCount, boolean showRules) {
         players = playerCount == 2 ? 2 : 1;
         phase = COUNTDOWN;
         t = 0f;
@@ -80,6 +118,7 @@ public final class Hud {
         paused = false;
         menuReady = false;
         if (env.music != null) env.music.stop(200);
+        if (showRules && rules != null) openRules();
     }
 
     /** @return the current phase ({@link #COUNTDOWN}, {@link #PLAYING}, {@link #ENDING} or {@link #END}) */
@@ -117,12 +156,16 @@ public final class Hud {
         List<TileMenu.Tile> tiles = new ArrayList<>();
         tiles.add(RoundButton.back());
         TileMenu.Tile again = new TileMenu.Tile("again", "Play again", null, Theme.ORANGE, Theme::paintSprout,
-                460f, 640f, 400f, 380f);
+                320f, 640f, 400f, 380f);
+        TileMenu.Tile how = new TileMenu.Tile("rules", "How to play", null, Theme.MUSTARD, Theme::paintSun,
+                760f, 640f, 400f, 380f);
         TileMenu.Tile home = new TileMenu.Tile("home", "Home", null, Theme.BLUE, Theme::paintHome,
-                1060f, 640f, 400f, 380f);
+                1200f, 640f, 400f, 380f);
         again.holdMs = 1000;
+        how.holdMs = 1000;
         home.holdMs = 1000;
         tiles.add(again);
+        tiles.add(how);
         tiles.add(home);
         menu.setTiles(tiles, "again");
         menuReady = true;
@@ -132,7 +175,7 @@ public final class Hud {
      * Advances the frame.
      * @param dt seconds since the last frame
      * @param f this frame's data
-     * @return "again", "home" or "back" when the player chose on the end screen or pressed Back; otherwise null
+     * @return "again", "rules", "home", "go" (from the rules screen) or "back" when the player chose or pressed Back; otherwise null
      */
     public String update(float dt, Scene.Frame f) {
         time += dt;
@@ -140,6 +183,12 @@ public final class Hud {
         if (f.input.pressed(KeyEvent.KEYCODE_BACK)) {
             env.sfx("back");
             return "back";
+        }
+        if (phase == RULES) {
+            if (!menuReady) return null;
+            String sel = menu.update(dt, f);
+            if ("go".equals(sel)) env.sfx("select");
+            return sel;
         }
         if (phase == END) {
             endAnim += dt;
@@ -153,7 +202,7 @@ public final class Hud {
             if (!menuReady) return null;
             String sel = menu.update(dt, f);
             if (sel == null) return null;
-            if ("again".equals(sel)) env.sfx("select");
+            if ("again".equals(sel) || "rules".equals(sel)) env.sfx("select");
             return sel;
         }
         if (!test && f.input.pressed(KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE)) {
@@ -203,6 +252,12 @@ public final class Hud {
      * @param score2 live score of player 2
      */
     public void draw(Canvas c, int score1, int score2) {
+        if (phase == RULES) {
+            Theme.drawBanner(c, "How to play", Stage.W / 2f, 150f, 80f, 0xE6F3EBDD, Theme.INK);
+            if (rules != null) rules.draw(c);
+            if (menuReady) menu.draw(c);
+            return;
+        }
         if (phase == END) {
             drawEnd(c);
             return;
