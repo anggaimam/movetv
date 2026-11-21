@@ -73,6 +73,7 @@ public class ScreenshotTest {
     // ---- T-06: the home flow (menus use the test body: the pointer is the cursor) ----
 
     private static TileMenu.Env env() {
+        com.angga.movetv.ui.Theme.init(org.robolectric.RuntimeEnvironment.getApplication());
         return new TileMenu.Env(null, null, null, null, null, new PerfOverlay(false));
     }
 

@@ -82,6 +82,7 @@ public final class Theme {
      * @param ctx any context
      */
     public static void init(android.content.Context ctx) {
+        loadKids(ctx);
         if (fontsTried || ctx == null) return;
         fontsTried = true;
         try {
@@ -753,6 +754,37 @@ public final class Theme {
         c.drawPath(snow, FILL);
     }
 
+    private static Bitmap kidBoy, kidGirl;
+    private static boolean kidsTried;
+    private static final Paint KID_PAINT = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG);
+
+    /** Loads Angga's two kid pictures (the boy and the girl) once. Without them the old round mascot is drawn. */
+    private static void loadKids(android.content.Context ctx) {
+        if (kidsTried || ctx == null) return;
+        kidsTried = true;
+        try {
+            android.content.res.AssetManager am = ctx.getApplicationContext().getAssets();
+            try (java.io.InputStream in = am.open("mascots/kid_boy.png")) {
+                kidBoy = android.graphics.BitmapFactory.decodeStream(in);
+            }
+            try (java.io.InputStream in = am.open("mascots/kid_girl.png")) {
+                kidGirl = android.graphics.BitmapFactory.decodeStream(in);
+            }
+        } catch (Throwable t) {
+            android.util.Log.w("MoveTV", "kid pictures not loaded, using the round mascot: " + t);
+            kidBoy = null;
+            kidGirl = null;
+        }
+    }
+
+    /** Draws a kid picture standing on the bottom of the box, as big as fits. */
+    private static void drawKid(Canvas c, Bitmap kid, float cx, float bottom, float maxH, float maxW) {
+        float s = Math.min(maxH / kid.getHeight(), maxW / kid.getWidth());
+        float w = kid.getWidth() * s, h = kid.getHeight() * s;
+        RectF r = new RectF(cx - w / 2f, bottom - h, cx + w / 2f, bottom);
+        c.drawBitmap(kid, null, r, KID_PAINT);
+    }
+
     /**
      * One mascot (1 Player).
      * @param c canvas
@@ -760,6 +792,10 @@ public final class Theme {
      * @param h height
      */
     public static void paintOneMascot(Canvas c, int w, int h) {
+        if (kidBoy != null) {
+            drawKid(c, kidBoy, w * 0.5f, h * 0.97f, h * 0.97f, w * 0.9f);
+            return;
+        }
         drawMascot(c, w * 0.5f, h * 0.50f, w * 0.30f, 70f, SAGE);
     }
 
@@ -770,6 +806,11 @@ public final class Theme {
      * @param h height
      */
     public static void paintTwoMascots(Canvas c, int w, int h) {
+        if (kidBoy != null && kidGirl != null) {
+            drawKid(c, kidBoy, w * 0.31f, h * 0.97f, h * 0.90f, w * 0.52f);
+            drawKid(c, kidGirl, w * 0.71f, h * 0.97f, h * 0.90f, w * 0.52f);
+            return;
+        }
         drawMascot(c, w * 0.30f, h * 0.55f, w * 0.22f, 40f, SAGE);
         drawMascot(c, w * 0.70f, h * 0.55f, w * 0.22f, 110f, PINK);
     }
