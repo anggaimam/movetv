@@ -51,7 +51,7 @@ public class FruitLogicTest {
         assertEquals(0f, e.coconut, 0f);
         assertEquals(75f, FruitLogic.params(2, 1).radius, 0.01f);
         assertEquals(0, FruitLogic.params(2, 1).coconutPenalty);
-        assertEquals(55f, FruitLogic.params(3, 1).radius, 0.01f);
+        assertEquals(65f, FruitLogic.params(3, 1).radius, 0.01f);
         assertEquals(3, FruitLogic.params(3, 1).coconutPenalty);
         FruitLogic.Params h = FruitLogic.params(3, 1);
         assertEquals(5, h.maxAtOnce);

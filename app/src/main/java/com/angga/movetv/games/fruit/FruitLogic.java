@@ -133,7 +133,7 @@ public final class FruitLogic {
                 combo = true; minPath = 90f;
                 break;
             case 3:
-                rise = 2.4f; max = 5; radius = 55f; golden = 0.08f; coconut = 0.18f; side = 0.50f; combo = true;
+                rise = 2.4f; max = 5; radius = 65f; golden = 0.08f; coconut = 0.18f; side = 0.50f; combo = true;
                 burst = 0.40f; penalty = 3; minPath = 100f;
                 break;
             default:

@@ -156,4 +156,26 @@ public class ScreenshotTest {
                 });
         check(f);
     }
+
+    private void fruitEnd(String name, int players) throws Exception {
+        FruitScene.initArt(org.robolectric.RuntimeEnvironment.getApplication());
+        FruitScene.setRulesSeen(true);
+        File f = ShotRig.shoot(name, new FruitScene(env()), Scene.SceneArgs.of("level", 2, "players", players), players,
+                5000, (frame, now, body, input) -> {
+                    if (frame == 0) body.pointerDown(300, 700);
+                    float t = frame / 60f;
+                    body.pointerMove(960 + (float) Math.sin(t * 5f) * 700f, 500 + (float) Math.cos(t * 7f) * 300f);
+                });
+        check(f);
+    }
+
+    @Test
+    public void fruitEndOnePlayer() throws Exception {
+        fruitEnd("fruit_end_1p", 1);
+    }
+
+    @Test
+    public void fruitEndTwoPlayers() throws Exception {
+        fruitEnd("fruit_end_2p", 2);
+    }
 }

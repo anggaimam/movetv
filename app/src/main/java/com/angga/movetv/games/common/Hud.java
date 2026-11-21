@@ -308,20 +308,34 @@ public final class Hud {
         FILL.setColor(0x99F3EBDD);
         c.drawRect(0f, 0f, Stage.W, Stage.H, FILL);
         Theme.drawBanner(c, "Great job!", Stage.W / 2f, 190f, 96f, 0xE6F3EBDD, Theme.INK);
+        float count = Math.min(1f, Math.max(0f, (endAnim - 0.3f) / 1.4f));
+        count = 1f - (1f - count) * (1f - count); // the score counts up and slows down at the end
         for (int p = 0; p < players; p++) {
-            float cx = players == 1 ? Stage.W / 2f : (p == 0 ? 600f : 1320f);
+            boolean one = players == 1;
+            float cx = one ? Stage.W / 2f : (p == 0 ? 600f : 1320f);
+            float cy = one ? 440f : 470f;
+            float big = one ? 150f : 105f;          // radius of the middle star
+            float small = one ? 88f : 62f;          // radius of the side stars
+            float gap = one ? 260f : 185f;
             int n = Math.min(shownStars, stars[p]);
-            float pop = (endAnim % 0.55f) / 0.55f;
-            float sc = 2.1f + (n > 0 && n == shownStars && pop < 0.3f ? 0.25f * (1f - pop / 0.3f) : 0f);
-            android.graphics.Bitmap b = Theme.starsBadge(Math.max(0, n));
-            float w = b.getWidth() * sc, h = b.getHeight() * sc;
-            R.set(cx - w / 2f, 330f - h / 2f, cx + w / 2f, 330f + h / 2f);
-            c.drawBitmap(b, null, R, null);
-            if (players == 2) {
-                Theme.drawCentered(c, p == 0 ? "Player 1" : "Player 2", cx, 480f, 48f, Theme.playerColour(p));
+            for (int i = 0; i < 3; i++) {
+                boolean mid = i == 1;
+                float r = mid ? big : small;
+                float x = cx + (i - 1) * gap;
+                float y = mid ? cy : cy + r * 0.45f;   // the side stars sit a little lower
+                float t = endAnim - (i + 1) * 0.55f;   // seconds since this star lit up
+                float pop = i < n && t >= 0f && t < 0.3f ? 0.25f * (1f - t / 0.3f) : 0f;
+                if (mid && n == 3) pop += 0.03f + 0.03f * (float) Math.sin(endAnim * 3f);
+                float d = r * (1f + pop);
+                android.graphics.Bitmap b = Theme.bigStar(i < n);
+                R.set(x - d, y - d, x + d, y + d);
+                c.drawBitmap(b, null, R, null);
             }
-            Theme.drawCentered(c, NUM[Math.max(0, Math.min(MAX_NUM, finalScore[p]))], cx, players == 2 ? 570f : 500f,
-                    players == 2 ? 80f : 96f, Theme.INK);
+            if (!one) Theme.drawCentered(c, p == 0 ? "Player 1" : "Player 2", cx, 300f, 48f, Theme.playerColour(p));
+            int shown = Math.round(finalScore[p] * count);
+            float pulse = 1f + (count < 1f ? 0.06f * (float) Math.sin(endAnim * 22f) : 0f);
+            Theme.drawCentered(c, NUM[Math.max(0, Math.min(MAX_NUM, shown))], cx, cy + big * 0.30f,
+                    (one ? 150f : 100f) * pulse, Theme.INK);
         }
         if (menuReady) menu.draw(c);
     }

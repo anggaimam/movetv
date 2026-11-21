@@ -522,6 +522,34 @@ public final class Theme {
         return starsBmp[count];
     }
 
+    private static final Bitmap[] bigStars = new Bitmap[2];
+
+    /**
+     * One big star with a soft outline, drawn once and scaled when used (the end screen).
+     * @param on true for gold, false for the grey empty star
+     * @return a 300x300 bitmap; the star's points touch the edges
+     */
+    public static Bitmap bigStar(final boolean on) {
+        int k = on ? 1 : 0;
+        if (bigStars[k] != null) return bigStars[k];
+        bigStars[k] = SpriteCache.shared().get(on ? "theme_bigstar_on" : "theme_bigstar_off", 300, 300, (c, w, h) -> {
+            Path p = new Path();
+            starPath(p, w / 2f, h * 0.53f, w * 0.46f);
+            FILL.setColor(on ? 0xFFF2B705 : 0xFFD9CDB8);
+            c.drawPath(p, FILL);
+            LINE.setColor(on ? 0xFFC98F00 : 0xFFBFB29A);
+            LINE.setStrokeWidth(10f);
+            LINE.setStrokeJoin(Paint.Join.ROUND);
+            c.drawPath(p, LINE);
+            if (on) {
+                FILL.setColor(0x55FFFFFF); // a soft shine on the upper left
+                R.set(w * 0.30f, h * 0.22f, w * 0.52f, h * 0.36f);
+                c.drawOval(R, FILL);
+            }
+        });
+        return bigStars[k];
+    }
+
     /**
      * A round "ON" or "OFF" label.
      * @param on true for ON (green), false for OFF (pink)
