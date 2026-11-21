@@ -24,7 +24,8 @@ public final class FruitLogic {
     static final int STAR_POINTS = 5, COMBO_POINTS = 3;
     static final int HELP_AFTER_MISSES = 4, HELP_SLICES = 2;
     static final float HELP_RADIUS = 1.2f;
-    static final long COMBO_WINDOW_MS = 1000;
+    /** Time to slice three fruit for the combo bonus: 1.0 s on Medium, 1.5 s on Hard. */
+    static final long COMBO_WINDOW_MS = 1000, COMBO_WINDOW_HARD_MS = 1500;
 
     /** One fruit in flight. */
     public static final class Fruit {
@@ -90,8 +91,10 @@ public final class FruitLogic {
         public final float coconut;
         /** Chance a fruit drifts sideways. */
         public final float sideways;
-        /** Whether three slices within a second earn a bonus. */
+        /** Whether three quick slices earn a bonus. */
         public final boolean combo;
+        /** Time allowed for those three slices, in ms (1 s on Medium, 1.5 s on Hard). */
+        public long comboWindowMs = COMBO_WINDOW_MS;
         /** Chance that a spawn launches two or three fruit together. */
         public final float burst;
         /** Points the grumpy coconut takes away. */
@@ -127,7 +130,7 @@ public final class FruitLogic {
         switch (level) {
             case 2:
                 rise = 3.0f; max = 3; radius = 75f; golden = 0.10f; coconut = 0.12f; side = 0.30f; burst = 0.25f;
-                minPath = 90f;
+                combo = true; minPath = 90f;
                 break;
             case 3:
                 rise = 2.4f; max = 5; radius = 55f; golden = 0.08f; coconut = 0.18f; side = 0.50f; combo = true;
@@ -141,7 +144,9 @@ public final class FruitLogic {
             radius *= 1.25f;
             rise /= 0.85f;
         }
-        return new Params(rise, max, radius, golden, coconut, side, combo, burst, penalty, minPath);
+        Params out = new Params(rise, max, radius, golden, coconut, side, combo, burst, penalty, minPath);
+        out.comboWindowMs = level >= 3 ? COMBO_WINDOW_HARD_MS : COMBO_WINDOW_MS;
+        return out;
     }
 
     /**
@@ -318,7 +323,7 @@ public final class FruitLogic {
             if (sliceCount >= 3) {
                 long oldest = Long.MAX_VALUE;
                 for (long t : sliceTimes) oldest = Math.min(oldest, t);
-                if (nowMs - oldest <= COMBO_WINDOW_MS) {
+                if (nowMs - oldest <= p.comboWindowMs) {
                     combo = true;
                     pts += COMBO_POINTS;
                     sliceCount = 0;

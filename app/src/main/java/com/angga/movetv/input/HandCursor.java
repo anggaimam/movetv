@@ -78,11 +78,25 @@ public class HandCursor {
     /** @return cursor speed in px/s */
     public float speed() { return speed; }
 
+    /** While a hand is already the pointer, it keeps counting as long as the wrist is this far (x shoulder widths) out from its shoulder. */
+    static final float HOLD_OUT = 0.5f;
+    /** Another hand takes the pointer over only when its wrist is this many px higher and above its own shoulder. */
+    static final float TAKE_OVER_PX = 60f;
+
     private boolean raised(PlayerPose p, int h) {
         Keypoint w = p.kps[h == 0 ? Kp.L_WRIST : Kp.R_WRIST];
         Keypoint e = p.kps[h == 0 ? Kp.L_ELBOW : Kp.R_ELBOW];
         if (w.s >= MIN_WRIST_S && e.s >= MIN_ELBOW_S && w.y < e.y) return true;
-        return mapping.reaching(p, h);
+        if (mapping.reaching(p, h)) return true;
+        // the pointer hand that is being lowered towards a low button stays tracked (a resting arm hangs close to the body)
+        if (visible && h == hand) {
+            Keypoint own = p.kps[h == 0 ? Kp.L_SHOULDER : Kp.R_SHOULDER];
+            float sw = PoseFrame.shoulderWidth(p);
+            if (sw > 0f && w.s >= MIN_WRIST_S && own.s >= MIN_WRIST_S) {
+                return Math.abs(w.x - own.x) >= HOLD_OUT * sw;
+            }
+        }
+        return false;
     }
 
     /**
@@ -126,7 +140,10 @@ public class HandCursor {
                 switchSinceMs = -1;
             } else {
                 Keypoint cur = hand == 0 ? lw : rwk, oth = hand == 0 ? rwk : lw;
-                if (oth.y <= cur.y - SWITCH_PX) {
+                Keypoint othShoulder = p.kps[hand == 0 ? Kp.R_SHOULDER : Kp.L_SHOULDER];
+                // stay on the hand that is pointing; the other one takes over only when it is clearly raised above its shoulder
+                boolean clearlyUp = othShoulder.s >= MIN_WRIST_S && oth.y < othShoulder.y;
+                if (clearlyUp && oth.y <= cur.y - TAKE_OVER_PX) {
                     if (switchSinceMs < 0) switchSinceMs = nowMs;
                     if (nowMs - switchSinceMs >= SWITCH_MS) {
                         hand = 1 - hand;

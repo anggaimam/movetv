@@ -56,6 +56,10 @@ public class FruitLogicTest {
         FruitLogic.Params h = FruitLogic.params(3, 1);
         assertEquals(5, h.maxAtOnce);
         assertTrue(h.combo);
+        assertTrue(FruitLogic.params(2, 1).combo);
+        assertFalse(FruitLogic.params(1, 1).combo);
+        assertEquals(1000L, FruitLogic.params(2, 1).comboWindowMs);
+        assertEquals(1500L, FruitLogic.params(3, 1).comboWindowMs);
         FruitLogic.Params two = FruitLogic.params(1, 2);
         assertEquals(112.5f, two.radius, 0.01f);
         assertTrue(two.rise > e.rise);
@@ -194,6 +198,38 @@ public class FruitLogicTest {
         assertEquals(1, cn.combos);
         assertEquals(cn.points - cn.lost, l.score());
         assertTrue(l.score() >= 6 - cn.lost);
+    }
+
+    private static int combosWhenSlicingThreeFruitSpacedBy(int level, long spacingMs) {
+        Counter cn = new Counter();
+        FruitLogic l = new FruitLogic(level, 1, 13L, 0f, 1920f, cn);
+        long now = 0;
+        int guard = 0;
+        while (guard++ < 5000) {
+            l.update(0.016f, now, NONE, true);
+            now += 16;
+            int good = 0;
+            for (int i = 0; i < l.activeCount(); i++) if (l.at(i).kind != FruitLogic.COCONUT) good++;
+            if (good >= 3) break;
+        }
+        for (int s = 0; s < 3; s++) {
+            for (int i = 0; i < l.activeCount(); i++) {
+                if (l.at(i).kind != FruitLogic.COCONUT) {
+                    l.forceSlice(i, now + s * spacingMs);
+                    break;
+                }
+            }
+        }
+        return cn.combos;
+    }
+
+    @Test
+    public void comboWindowIsOneSecondOnMediumAndOneAndAHalfOnHard() {
+        assertEquals(1, combosWhenSlicingThreeFruitSpacedBy(2, 450)); // 0.9 s from first to third
+        assertEquals(0, combosWhenSlicingThreeFruitSpacedBy(2, 700)); // 1.4 s is too slow on Medium
+        assertEquals(1, combosWhenSlicingThreeFruitSpacedBy(3, 700)); // but fine on Hard
+        assertEquals(0, combosWhenSlicingThreeFruitSpacedBy(3, 800)); // 1.6 s is too slow on Hard
+        assertEquals(0, combosWhenSlicingThreeFruitSpacedBy(1, 100)); // Easy has no combo
     }
 
     @Test

@@ -232,4 +232,43 @@ public class HandCursorTest {
         // raw jitter would be about 13 px peak-to-peak on screen
         assertTrue("jitter range " + (max - min), max - min < 6f);
     }
+
+    @Test
+    public void pointerStaysOnTheHandThatReachesDownWhileTheOtherArmIsBent() {
+        HandCursor c = new HandCursor(0);
+        PlayerPose p = standing();
+        set(p, Kp.R_WRIST, 1070, 380);           // right hand up: it becomes the pointer
+        long t = run(c, p, 0, 300);
+        assertEquals(1, c.hand());
+        set(p, Kp.R_WRIST, 1180, 700);           // the right hand goes down and out to a low button
+        set(p, Kp.L_WRIST, 850, 500);            // the left forearm is bent, wrist above its elbow but below the shoulder
+        t = run(c, p, t, 1500);
+        assertTrue(c.visible());
+        assertEquals("pointer must stay on the hand that is pointing", 1, c.hand());
+    }
+
+    @Test
+    public void anotherHandTakesOverOnlyWhenClearlyRaisedAboveItsShoulder() {
+        HandCursor c = new HandCursor(0);
+        PlayerPose p = standing();
+        set(p, Kp.R_WRIST, 1180, 700);
+        set(p, Kp.R_ELBOW, 1100, 560);
+        set(p, Kp.R_WRIST, 1070, 380);
+        long t = run(c, p, 0, 300);
+        assertEquals(1, c.hand());
+        set(p, Kp.L_WRIST, 850, 250);            // left hand high above its shoulder, 130 px above the right
+        t = run(c, p, t, 500);
+        assertEquals(0, c.hand());
+    }
+
+    @Test
+    public void aRestingArmStillNeverCountsEvenAfterTheHandWasTracked() {
+        HandCursor c = new HandCursor(0);
+        PlayerPose up = standing();
+        set(up, Kp.R_WRIST, 1070, 380);
+        long t = run(c, up, 0, 300);
+        assertEquals(1, c.hand());
+        run(c, standing(), t, 600);              // arm hangs next to the body again
+        assertFalse(c.visible());
+    }
 }
