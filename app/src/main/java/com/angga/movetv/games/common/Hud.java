@@ -18,7 +18,8 @@ import java.util.List;
 
 /**
  * The shared game frame: 3-2-1-Go countdown, a time bar, score bubbles, pause, and the end screen with
- * animated stars and the "Play again / Home / Back" tiles. Games own the playing field and feed their scores
+ * animated stars (laid out by {@link EndLayout}, animated by {@link StarBurst}) and the "Play again / How to play /
+ * Home" tiles, which appear once the stars have landed (or at once when OK is pressed). Games own the playing field and feed their scores
  * in. Nothing is allocated per frame (score text comes from a table made once). Main thread only.
  */
 public final class Hud {
@@ -55,16 +56,20 @@ public final class Hud {
     private final float playSeconds;
     private final String track;
 
+    private static final float TITLE_WIDTH = 760f;
+
     private int phase = COUNTDOWN;
-    private float t, clock, endAnim;
+    private float t, clock;
     private int players = 1;
-    private int shownStars = -1;
     private int lastCountShown = -1;
     private boolean paused;
     private final int[] stars = new int[2];
     private final int[] finalScore = new int[2];
     private boolean menuReady;
+    private boolean tilesShown;
     private float time;
+    private final StarBurst burst;
+    private EndLayout layout = new EndLayout(1, TITLE_WIDTH, 1, 0);
     private RulesPainter rules;
     private final Puppet[] kids = new Puppet[2];
     private final boolean[] cheered = new boolean[2];
@@ -78,6 +83,7 @@ public final class Hud {
     public Hud(TileMenu.Env env, float playSeconds, String track) {
         this.env = env;
         this.menu = new TileMenu(env);
+        this.burst = new StarBurst(env);
         this.playSeconds = playSeconds;
         this.track = track;
     }
@@ -116,8 +122,6 @@ public final class Hud {
         phase = COUNTDOWN;
         t = 0f;
         clock = 0f;
-        endAnim = 0f;
-        shownStars = -1;
         lastCountShown = -1;
         paused = false;
         menuReady = false;
@@ -153,8 +157,10 @@ public final class Hud {
         finalScore[0] = score1;
         finalScore[1] = score2;
         phase = END;
-        endAnim = 0f;
-        shownStars = -1;
+        layout = new EndLayout(players, TITLE_WIDTH, NUM[clampNum(score1)].length(),
+                NUM[clampNum(score2)].length());
+        burst.begin(layout, players, s1, s2, score1, score2);
+        tilesShown = false;
         // one player: one kid (alternating A and B); two players: A beside player 1, B beside player 2
         if (players == 2) {
             kids[0] = Mascots.create(Puppet.KID_A);
@@ -166,15 +172,15 @@ public final class Hud {
         cheered[0] = false;
         cheered[1] = false;
         if (env.music != null) env.music.stop(400);
-        env.sfx("cheer");
         List<TileMenu.Tile> tiles = new ArrayList<>();
         tiles.add(RoundButton.back());
+        EndLayout.Box[] tb = layout.tiles;
         TileMenu.Tile again = new TileMenu.Tile("again", "Play again", null, Theme.ORANGE, Theme::paintSprout,
-                320f, 640f, 400f, 380f);
+                tb[0].l, tb[0].t, tb[0].r - tb[0].l, tb[0].b - tb[0].t);
         TileMenu.Tile how = new TileMenu.Tile("rules", "How to play", null, Theme.MUSTARD, Theme::paintSun,
-                760f, 640f, 400f, 380f);
+                tb[1].l, tb[1].t, tb[1].r - tb[1].l, tb[1].b - tb[1].t);
         TileMenu.Tile home = new TileMenu.Tile("home", "Home", null, Theme.BLUE, Theme::paintHome,
-                1200f, 640f, 400f, 380f);
+                tb[2].l, tb[2].t, tb[2].r - tb[2].l, tb[2].b - tb[2].t);
         again.holdMs = 1000;
         how.holdMs = 1000;
         home.holdMs = 1000;
@@ -183,6 +189,10 @@ public final class Hud {
         tiles.add(home);
         menu.setTiles(tiles, "again");
         menuReady = true;
+    }
+
+    private static int clampNum(int n) {
+        return Math.max(0, Math.min(MAX_NUM, n));
     }
 
     /**
@@ -205,24 +215,22 @@ public final class Hud {
             return sel;
         }
         if (phase == END) {
-            endAnim += dt;
-            int want = Math.min(3, (int) (endAnim / 0.55f)) ;
-            int best = Math.max(stars[0], players == 2 ? stars[1] : 0);
-            int show = Math.min(want, best);
-            if (show != shownStars) {
-                if (show > 0) env.sfx("star");
-                shownStars = show;
+            if (!tilesShown) {
+                if (f.input.pressed(KeyEvent.KEYCODE_DPAD_CENTER) || f.input.pressed(KeyEvent.KEYCODE_ENTER)) {
+                    burst.skip();
+                }
+                if (burst.allLanded()) tilesShown = true;
             }
+            burst.update(dt);
             for (int p = 0; p < 2; p++) {
                 if (kids[p] == null) continue;
                 kids[p].update(dt);
-                int mine = p == 0 || players == 2 ? stars[p] : 0;
-                if (!cheered[p] && shownStars >= Math.min(3, mine)) {
+                if (!cheered[p] && burst.playerDone(p)) {
                     cheered[p] = true;
                     kids[p].anim().cheer();
                 }
             }
-            if (!menuReady) return null;
+            if (!menuReady || !tilesShown) return null;
             String sel = menu.update(dt, f);
             if (sel == null) return null;
             if ("again".equals(sel) || "rules".equals(sel)) env.sfx("select");
@@ -330,28 +338,20 @@ public final class Hud {
     private void drawEnd(Canvas c) {
         FILL.setColor(0x99F3EBDD);
         c.drawRect(0f, 0f, Stage.W, Stage.H, FILL);
-        Theme.drawBanner(c, "Great job!", Stage.W / 2f, 190f, 96f, 0xE6F3EBDD, Theme.INK);
-        if (players == 1) {
-            if (kids[0] != null) kids[0].draw(c, 1500f, 620f, 420f);
-        } else {
-            if (kids[0] != null) kids[0].draw(c, 170f, 620f, 340f);
-            if (kids[1] != null) kids[1].draw(c, 1750f, 620f, 340f);
+        burst.drawConfetti(c);
+        Theme.drawBanner(c, "Great job!", Stage.W / 2f, layout.title.cy(), 96f, 0xE6F3EBDD, Theme.INK);
+        for (int p = 0; p < players; p++) {
+            if (kids[p] != null) kids[p].draw(c, layout.kidFootX[p], layout.kidFootY[p], layout.kidHeight[p]);
         }
         for (int p = 0; p < players; p++) {
-            float cx = players == 1 ? Stage.W / 2f : (p == 0 ? 600f : 1320f);
-            int n = Math.min(shownStars, stars[p]);
-            float pop = (endAnim % 0.55f) / 0.55f;
-            float sc = 2.1f + (n > 0 && n == shownStars && pop < 0.3f ? 0.25f * (1f - pop / 0.3f) : 0f);
-            android.graphics.Bitmap b = Theme.starsBadge(Math.max(0, n));
-            float w = b.getWidth() * sc, h = b.getHeight() * sc;
-            R.set(cx - w / 2f, 330f - h / 2f, cx + w / 2f, 330f + h / 2f);
-            c.drawBitmap(b, null, R, null);
             if (players == 2) {
-                Theme.drawCentered(c, p == 0 ? "Player 1" : "Player 2", cx, 480f, 48f, Theme.playerColour(p));
+                Theme.drawCentered(c, p == 0 ? "Player 1" : "Player 2", layout.colX[p], layout.nameBaseline(p),
+                        EndLayout.NAME_SIZE, Theme.playerColour(p));
             }
-            Theme.drawCentered(c, NUM[Math.max(0, Math.min(MAX_NUM, finalScore[p]))], cx, players == 2 ? 570f : 500f,
-                    players == 2 ? 80f : 96f, Theme.INK);
+            Theme.drawCentered(c, NUM[clampNum(burst.shownScore(p))], layout.colX[p], layout.scoreBaseline(p),
+                    EndLayout.SCORE_SIZE, Theme.INK);
         }
-        if (menuReady) menu.draw(c);
+        burst.drawStars(c);
+        if (menuReady && tilesShown) menu.draw(c);
     }
 }

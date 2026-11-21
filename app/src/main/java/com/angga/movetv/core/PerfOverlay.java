@@ -30,6 +30,9 @@ public final class PerfOverlay {
     private int lockState = 0, lockRejected = 0;
     private String lockText = "";
 
+    // camera line: picture size and frames per second actually delivered (0 = no camera)
+    private int camW, camH, camFps;
+
     // frame timing
     private long lastNanos = 0;
     private long secStartNanos = 0;
@@ -89,6 +92,18 @@ public final class PerfOverlay {
     public void setLock(int state, int rejected) {
         lockState = state;
         lockRejected = rejected;
+    }
+
+    /**
+     * Reports the camera's picture size and speed for the stats line (call every frame while the overlay shows).
+     * @param w picture width in px (0 when there is no camera, for example in test mode)
+     * @param h picture height in px
+     * @param fps frames per second the camera really delivers
+     */
+    public void setCamera(int w, int h, int fps) {
+        camW = w;
+        camH = h;
+        camFps = fps;
     }
 
     /** Removes the pointer debug line (no hand is showing). */
@@ -167,6 +182,8 @@ public final class PerfOverlay {
             else if (lockState == 2) sb.append("lock LOCKED");
             else sb.append("lock off");
             sb.append("  rejected ").append(lockRejected);
+            if (camW > 0) sb.append("  cam ").append(camW).append('x').append(camH).append(" @").append(camFps);
+            else sb.append("  cam none");
             lockText = sb.toString();
             boolean fresh = dbgNs != 0 && System.nanoTime() - dbgNs < 300_000_000L;
             if (fresh) {
@@ -181,7 +198,7 @@ public final class PerfOverlay {
         }
         boolean line2 = pointerText.length() > 0;
         float bottom = line2 ? 140f : 96f;
-        c.drawRect(0f, 0f, line2 ? 900f : 760f, bottom, panelPaint);
+        c.drawRect(0f, 0f, line2 ? 1000f : 860f, bottom, panelPaint);
         c.drawText(text, 16f, 38f, textPaint);
         c.drawText(lockText, 16f, 82f, textPaint);
         if (line2) c.drawText(pointerText, 16f, 126f, textPaint);

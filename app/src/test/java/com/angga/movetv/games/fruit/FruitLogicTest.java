@@ -29,18 +29,49 @@ public class FruitLogicTest {
     private static final HandTrack[] NONE = new HandTrack[] {null};
 
     @Test
-    public void starsThresholds() {
-        assertEquals(1, FruitLogic.stars(1, 0));
-        assertEquals(1, FruitLogic.stars(1, 24));
-        assertEquals(2, FruitLogic.stars(1, 25));
-        assertEquals(3, FruitLogic.stars(1, 45));
-        assertEquals(1, FruitLogic.stars(2, 37));
-        assertEquals(2, FruitLogic.stars(2, 38));
-        assertEquals(2, FruitLogic.stars(2, 67));
-        assertEquals(3, FruitLogic.stars(2, 68));
-        assertEquals(2, FruitLogic.stars(3, 50));
-        assertEquals(2, FruitLogic.stars(3, 89));
-        assertEquals(3, FruitLogic.stars(3, 90));
+    public void starsUseTheFairShareOfWhatWasOffered() {
+        assertEquals(1, FruitLogic.stars(0, 60));
+        assertEquals(1, FruitLogic.stars(23, 60));
+        assertEquals(2, FruitLogic.stars(24, 60));
+        assertEquals(2, FruitLogic.stars(41, 60));
+        assertEquals(3, FruitLogic.stars(42, 60));
+    }
+
+    @Test
+    public void offeredCountsEveryItemLaunchedExceptTheCoconut() {
+        for (int level = 1; level <= 2; level++) {
+            Counter cn = new Counter();
+            FruitLogic l = new FruitLogic(level, 1, 31L + level, 0f, 1920f, cn);
+            long now = 0;
+            // slice every fruit that is not a coconut for 60 seconds, then let the field empty
+            for (int i = 0; i < 60 * 60 || l.activeCount() > 0; i++) {
+                l.update(0.016f, now, NONE, i < 60 * 60);
+                now += 16;
+                for (int k = 0; k < l.activeCount(); k++) {
+                    if (l.at(k).kind != FruitLogic.COCONUT) {
+                        l.forceSlice(k, now);
+                        break;
+                    }
+                }
+                assertTrue(i < 200000);
+            }
+            assertTrue(l.offered() > 0);
+            assertEquals("level " + level, l.offered(), l.score());
+            assertEquals(3, FruitLogic.stars(l.score(), l.offered()));
+        }
+    }
+
+    @Test
+    public void aPlayerWhoSlicesNothingStillGetsOneStar() {
+        FruitLogic l = new FruitLogic(1, 1, 5L, 0f, 1920f, new Counter());
+        long now = 0;
+        for (int i = 0; i < 60 * 40; i++) {
+            l.update(0.016f, now, NONE, true);
+            now += 16;
+        }
+        assertTrue(l.offered() > 0);
+        assertEquals(0, l.score());
+        assertEquals(1, FruitLogic.stars(l.score(), l.offered()));
     }
 
     @Test

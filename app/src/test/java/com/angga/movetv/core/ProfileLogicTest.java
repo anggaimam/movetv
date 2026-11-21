@@ -1,6 +1,8 @@
 package com.angga.movetv.core;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 import org.junit.Test;
 
@@ -73,5 +75,36 @@ public class ProfileLogicTest {
         assertEquals(1.0f, ProfileLogic.pointerGain("hand"), 0f);
         assertEquals(1.6f, ProfileLogic.pointerGain("reach"), 0f);
         assertEquals(1.0f, ProfileLogic.pointerGain(null), 0f);
+    }
+
+    @Test
+    public void camViewIsOnUnlessSavedOffAndRecoversFromJunk() {
+        assertTrue(ProfileLogic.cleanCamView(null));
+        assertTrue(ProfileLogic.cleanCamView(Boolean.TRUE));
+        assertFalse(ProfileLogic.cleanCamView(Boolean.FALSE));
+        assertFalse(ProfileLogic.cleanCamView(Integer.valueOf(0)));
+        assertTrue(ProfileLogic.cleanCamView(Integer.valueOf(1)));
+        assertFalse(ProfileLogic.cleanCamView("false"));
+        assertTrue(ProfileLogic.cleanCamView("banana"));
+        assertTrue(ProfileLogic.cleanCamView(new Object()));
+    }
+
+    @Test
+    public void rulesSeenIsNotSeenForMissingOrDamagedValues() {
+        assertFalse(ProfileLogic.cleanRulesSeen(null));
+        assertFalse(ProfileLogic.cleanRulesSeen("banana"));
+        assertFalse(ProfileLogic.cleanRulesSeen(new Object()));
+        assertFalse(ProfileLogic.cleanRulesSeen(Boolean.FALSE));
+        assertTrue(ProfileLogic.cleanRulesSeen(Boolean.TRUE));
+        assertTrue(ProfileLogic.cleanRulesSeen(Integer.valueOf(1)));
+        assertTrue(ProfileLogic.cleanRulesSeen("true"));
+    }
+
+    @Test
+    public void rulesSeenKeysAreKeptPerGameAndLevel() {
+        assertEquals("rulesSeen_fruit_1", ProfileLogic.rulesSeenKey("fruit", 1));
+        assertEquals("rulesSeen_fruit_3", ProfileLogic.rulesSeenKey("fruit", 3));
+        assertEquals("rulesSeen_sky_1", ProfileLogic.rulesSeenKey("sky", 0));
+        assertEquals("rulesSeen_sky_1", ProfileLogic.rulesSeenKey("sky", 9));
     }
 }

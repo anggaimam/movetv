@@ -217,4 +217,99 @@ public class ScreenshotTest {
                 });
         check(f);
     }
+
+    /** A bare scene that shows the shared end screen of the Hud, to check the layout and the star animation. */
+    private static final class EndScene implements Scene {
+        private final TileMenu.Env env;
+        private final com.angga.movetv.games.common.Hud hud;
+        private final int players, s0, s1, score0, score1;
+
+        EndScene(TileMenu.Env env, int players, int s0, int s1, int score0, int score1) {
+            this.env = env;
+            this.hud = new com.angga.movetv.games.common.Hud(env, 75f, "fruit");
+            this.players = players;
+            this.s0 = s0;
+            this.s1 = s1;
+            this.score0 = score0;
+            this.score1 = score1;
+        }
+
+        @Override public void enter(SceneArgs args) {
+            hud.start(players, false);
+            hud.finish(s0, s1, score0, score1);
+        }
+
+        @Override public void exit() { }
+
+        @Override public void update(float dt, Frame f) {
+            hud.update(dt, f);
+        }
+
+        @Override public void draw(android.graphics.Canvas c) {
+            com.angga.movetv.ui.Theme.drawBackdrop(c, null, 0f);
+            hud.draw(c, 0, 0);
+        }
+    }
+
+    @Test
+    public void endScreenOnePlayer() throws Exception {
+        int[] frames = {45, 100, 140, 260};
+        for (int i = 0; i < frames.length; i++) {
+            check(ShotRig.shoot("end_1p_" + (i + 1), new EndScene(env(), 1, 3, 0, 102, 0), Scene.SceneArgs.EMPTY, 1,
+                    frames[i], null));
+        }
+    }
+
+    @Test
+    public void endScreenTwoPlayersFourDigits() throws Exception {
+        int[] frames = {45, 130, 260};
+        for (int i = 0; i < frames.length; i++) {
+            check(ShotRig.shoot("end_2p_" + (i + 1), new EndScene(env(), 2, 3, 2, 1234, 87), Scene.SceneArgs.EMPTY, 2,
+                    frames[i], null));
+        }
+    }
+
+    @Test
+    public void endScreenOneStar() throws Exception {
+        check(ShotRig.shoot("end_1star", new EndScene(env(), 1, 1, 0, 3, 0), Scene.SceneArgs.EMPTY, 1, 200, null));
+    }
+
+    @Test
+    public void fruitCameraOff() throws Exception {
+        FruitScene.initArt(org.robolectric.RuntimeEnvironment.getApplication());
+        FruitScene.setRulesSeen(true);
+        TileMenu.Env e = env();
+        e.toggleCamView();
+        File f = ShotRig.shoot("fruit_camera_off", new FruitScene(e), Scene.SceneArgs.of("level", 2, "players", 1), 1, 700,
+                (frame, now, body, input) -> {
+                    if (frame == 0) body.pointerDown(300, 700);
+                    float t = frame / 60f;
+                    body.pointerMove(960 + (float) Math.sin(t * 5f) * 700f, 500 + (float) Math.cos(t * 7f) * 300f);
+                });
+        check(f);
+    }
+
+    @Test
+    public void fruitCameraOffTwoPlayersRules() throws Exception {
+        FruitScene.initArt(org.robolectric.RuntimeEnvironment.getApplication());
+        FruitScene.setRulesSeen(false);
+        TileMenu.Env e = env();
+        e.toggleCamView();
+        check(ShotRig.shoot("fruit_rules_camera_off", new FruitScene(e), Scene.SceneArgs.of("level", 2, "players", 2), 2, 60,
+                null));
+    }
+
+    @Test
+    public void settingsShowsCameraTile() throws Exception {
+        TileMenu.Env e = env();
+        e.toggleCamView(); // off: the camera on the tile is crossed out
+        SettingsOverlay overlay = new SettingsOverlay(e);
+        e.settings = overlay;
+        File f = ShotRig.shoot("menu_settings_cam_off", overlay.host(new PlayersScene(e)), Scene.SceneArgs.EMPTY, 1, 40,
+                (frame, now, body, input) -> {
+                    if (frame == 3) input.keyDown(KeyEvent.KEYCODE_MENU);
+                    if (frame == 4) input.keyUp(KeyEvent.KEYCODE_MENU);
+                });
+        check(f);
+    }
 }

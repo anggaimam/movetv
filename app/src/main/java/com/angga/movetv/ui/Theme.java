@@ -758,6 +758,49 @@ public final class Theme {
         c.drawCircle(w * 0.5f, h * 0.60f, w * 0.05f, FILL);
     }
 
+    private static void cameraBody(Canvas c, int w, int h) {
+        R.set(w * 0.34f, h * 0.20f, w * 0.60f, h * 0.36f);
+        FILL.setColor(INK);
+        c.drawRoundRect(R, w * 0.03f, w * 0.03f, FILL);
+        R.set(w * 0.10f, h * 0.30f, w * 0.90f, h * 0.80f);
+        c.drawRoundRect(R, w * 0.08f, w * 0.08f, FILL);
+        FILL.setColor(PAPER);
+        c.drawCircle(w * 0.50f, h * 0.55f, w * 0.17f, FILL);
+        FILL.setColor(BLUE);
+        c.drawCircle(w * 0.50f, h * 0.55f, w * 0.11f, FILL);
+        FILL.setColor(0xFFFFFFFF);
+        c.drawCircle(w * 0.46f, h * 0.51f, w * 0.03f, FILL);
+        FILL.setColor(ORANGE);
+        c.drawCircle(w * 0.80f, h * 0.40f, w * 0.03f, FILL);
+    }
+
+    /**
+     * A camera (Camera picture on).
+     * @param c canvas
+     * @param w width
+     * @param h height
+     */
+    public static void paintCamera(Canvas c, int w, int h) {
+        cameraBody(c, w, h);
+    }
+
+    /**
+     * A camera crossed out (Camera picture off).
+     * @param c canvas
+     * @param w width
+     * @param h height
+     */
+    public static void paintCameraOff(Canvas c, int w, int h) {
+        cameraBody(c, w, h);
+        LINE.setStrokeCap(Paint.Cap.ROUND);
+        LINE.setColor(PAPER);
+        LINE.setStrokeWidth(w * 0.16f);
+        c.drawLine(w * 0.16f, h * 0.88f, w * 0.84f, h * 0.18f, LINE);
+        LINE.setColor(0xFFD64545);
+        LINE.setStrokeWidth(w * 0.09f);
+        c.drawLine(w * 0.16f, h * 0.88f, w * 0.84f, h * 0.18f, LINE);
+    }
+
     /**
      * Two forward arrows (Skip).
      * @param c canvas
