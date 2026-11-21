@@ -132,7 +132,7 @@ public class PuppetAnimTest {
             frames++;
         }
         assertTrue("hop " + maxHop, maxHop >= 20f && maxHop <= 40f);
-        assertTrue("lift " + minLift, minLift > 90f);
+        assertTrue("lift " + minLift, minLift > 78f);
         a.fill(p);
         assertEquals(0f, p.rootDy, 0.001f);
         assertTrue(Math.abs(p.armLift[0]) <= 2.01f && Math.abs(p.armLift[1]) <= 2.01f);

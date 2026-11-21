@@ -23,7 +23,7 @@ public final class PuppetAnim {
     /** Forearm bend while waving. */
     public static final float WAVE_BEND = 55f;
     /** Upper arm lift of a cheer (arms up in a V). */
-    public static final float CHEER_LIFT = 98f;
+    public static final float CHEER_LIFT = 84f;
 
     private static final int NONE = 0, WAVE = 1, CHEER = 2, POINT = 3;
     private static final float WAVE_UP = 0.4f, WAVE_DOWN = 0.5f, WAVE_HZ = 1.8f, WAVE_SWINGS = 3.5f;
@@ -223,7 +223,7 @@ public final class PuppetAnim {
                 float env = up * (1f - down);
                 for (int i = 0; i < 2; i++) {
                     o.armLift[i] = lerp(o.armLift[i], CHEER_LIFT, env);
-                    o.foreBend[i] = 8f * env;
+                    o.foreBend[i] = 12f * env;
                 }
                 float u = a / aLen;
                 float hop = u < 0.4f ? Ease.outBack(u / 0.4f) : 1f - Ease.outCubic((u - 0.4f) / 0.6f);
