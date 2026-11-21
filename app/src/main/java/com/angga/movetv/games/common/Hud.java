@@ -314,7 +314,7 @@ public final class Hud {
             boolean one = players == 1;
             float cx = one ? Stage.W / 2f : (p == 0 ? 600f : 1320f);
             float cy = one ? 440f : 470f;
-            float big = one ? 150f : 105f;          // radius of the middle star
+            float big = one ? 150f : 115f;          // radius of the middle star
             float small = one ? 88f : 62f;          // radius of the side stars
             float gap = one ? 260f : 185f;
             int n = Math.min(shownStars, stars[p]);
@@ -335,7 +335,8 @@ public final class Hud {
             int shown = Math.round(finalScore[p] * count);
             float pulse = 1f + (count < 1f ? 0.06f * (float) Math.sin(endAnim * 22f) : 0f);
             Theme.drawCentered(c, NUM[Math.max(0, Math.min(MAX_NUM, shown))], cx, cy + big * 0.30f,
-                    (one ? 150f : 100f) * pulse, Theme.INK);
+                    (one ? (finalScore[p] >= 100 ? 120f : 150f) : (finalScore[p] >= 100 ? 66f : 90f)) * pulse,
+                    Theme.INK);
         }
         if (menuReady) menu.draw(c);
     }
