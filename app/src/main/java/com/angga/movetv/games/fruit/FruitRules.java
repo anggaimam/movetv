@@ -155,10 +155,10 @@ final class FruitRules implements Hud.RulesPainter {
         Theme.drawCentered(c, "+3", cx + 125f, y2 + 18f, 52f, Theme.ORANGE);
         // more points, more stars: three stars for slicing most of what flies by
         Bitmap stars = Theme.starsBadge(3);
-        float sw = stars.getWidth() * 0.5f, sh = stars.getHeight() * 0.5f, sy = TOP + 262f;
+        float sw = stars.getWidth() * 0.42f, sh = stars.getHeight() * 0.42f, sy = TOP + 252f;
         r.set(cx - sw / 2f, sy - sh / 2f, cx + sw / 2f, sy + sh / 2f);
         c.drawBitmap(stars, null, r, sprite);
-        Theme.drawCentered(c, "Slice most: 3 stars!", cx, TOP + PH - 30f, 38f, Theme.INK);
+        Theme.drawCentered(c, "Slice most: 3 stars!", cx, TOP + PH - 26f, 38f, Theme.INK);
     }
 
     /** Panel 4: the grumpy coconut. */
