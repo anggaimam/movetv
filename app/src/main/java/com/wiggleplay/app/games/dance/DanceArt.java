@@ -342,6 +342,9 @@ final class DanceArt {
      */
     static void hostArmsPose(int which, int pose, float[] o) {
         Poses.drawAngles(pose, POSE_ANG);
+        // Rocket asks the child for arms leaning slightly inward, but the host's short arms would then cross its face:
+        // draw them straight up, beside the head
+        if (pose == Poses.ROCKET) for (int i = 0; i < 4; i++) POSE_ANG[i] = 178f;
         hostArmsAngles(which, POSE_ANG, o);
         int near = Poses.nearSide(pose);
         if (near < 0) return;
