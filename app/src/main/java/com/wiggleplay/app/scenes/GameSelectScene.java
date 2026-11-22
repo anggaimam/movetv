@@ -63,7 +63,9 @@ public final class GameSelectScene implements Scene {
     }
 
     private static TileMenu.Tile tile(GameInfo g, float x, float y, float w, float h) {
-        return new TileMenu.Tile(g.id, g.title, null, g.color, g.icon, x, y, w, h);
+        TileMenu.Tile t = new TileMenu.Tile(g.id, g.title, null, g.color, g.icon, x, y, w, h);
+        t.live = g.live;
+        return t;
     }
 
     @Override

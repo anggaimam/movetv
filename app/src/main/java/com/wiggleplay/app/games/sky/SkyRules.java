@@ -104,6 +104,7 @@ final class SkyRules implements Hud.RulesPainter {
     }
 
     private void plane(Canvas c, float cx, float cy, float scale, float steer, float climb) {
+        PlaneDraw.shared().setProp(t * 31f);
         PlaneDraw.shared().draw(c, planeType, planeTheme, PlaneDraw.rollFor(steer), PlaneDraw.yawFor(steer),
                 PlaneDraw.elevFor(climb), cx, cy, 88f * scale);
     }

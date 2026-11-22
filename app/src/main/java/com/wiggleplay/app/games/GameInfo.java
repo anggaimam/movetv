@@ -24,6 +24,8 @@ public final class GameInfo {
     public final int minPlayers;
     /** Most players the game supports. */
     public final int maxPlayers;
+    /** Optional picture that moves while the tile is highlighted, or null. */
+    public com.wiggleplay.app.ui.TileMenu.LiveIcon live;
     /** True if players take turns in front of the camera (the 1P/2P choice is ignored). */
     public final boolean turnBased;
 

@@ -370,6 +370,14 @@ public final class Theme {
      */
     public static void drawTile(Canvas c, Bitmap shadow, Bitmap body, Bitmap icon, Bitmap badge, Bitmap corner,
                                 float x, float y, float hover, float time) {
+        drawTile(c, shadow, body, icon, badge, corner, x, y, hover, time, null);
+    }
+
+    /**
+     * Draws a tile; a live picture, when given, replaces the baked one while the tile is highlighted.
+     */
+    public static void drawTile(Canvas c, Bitmap shadow, Bitmap body, Bitmap icon, Bitmap badge, Bitmap corner,
+                                float x, float y, float hover, float time, TileMenu.LiveIcon live) {
         float w = body.getWidth(), h = body.getHeight();
         float cx = x + w / 2f, cy = y + h / 2f;
         float s = 1f + 0.08f * Ease.outBack(hover);
@@ -386,7 +394,10 @@ public final class Theme {
             float rr = Math.min(w, h) * 0.12f;
             c.drawRoundRect(R, rr, rr, FILL);
         }
-        if (icon != null) {
+        if (icon != null && live != null && hover > 0f) {
+            float icy = y + h * 0.40f - (badge != null ? h * 0.05f : 0f);
+            live.draw(c, cx, icy, icon.getWidth(), hover, time);
+        } else if (icon != null) {
             float isz = icon.getWidth();
             float icx = cx, icy = y + h * 0.40f - (badge != null ? h * 0.05f : 0f);
             float wob = hover > 0f ? (float) Math.sin(time * 7f) * 4f * hover : 0f;

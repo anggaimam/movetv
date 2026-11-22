@@ -428,6 +428,7 @@ public final class SkyScene implements Scene {
         float x = planeSX(l), y = planeSY(l);
         float steer = l.steer();
         float roll = PlaneDraw.rollFor(steer) + (l.wobble() > 0f ? (float) Math.sin(time * 38f) * 12f * l.wobble() / 0.7f : 0f);
+        PlaneDraw.shared().setProp(time * 31f + p);
         PlaneDraw.shared().draw(c, planeType[p], planeTheme[p], roll, PlaneDraw.yawFor(steer), PlaneDraw.elevFor(l.climb()),
                 x, y, 88f * zoom);
     }

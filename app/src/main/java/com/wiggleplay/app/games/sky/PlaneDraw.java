@@ -27,6 +27,11 @@ final class PlaneDraw implements PlaneModel.Sink {
         return SHARED;
     }
 
+    /** Sets the turn of the propeller for the next drawings (radians). */
+    void setProp(float radians) {
+        model.setProp(radians);
+    }
+
     /** The roll of a plane for a steering value of -1..1. */
     static float rollFor(float steer) {
         return steer * 20f;

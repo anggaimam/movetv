@@ -192,6 +192,20 @@ public final class TileMenu {
     }
 
     /** One big tile. Create it, place it ({@code x y w h}) and give it to {@link TileMenu#setTiles}. */
+    /** A tile picture that moves while the tile is highlighted. Must not allocate. */
+    public interface LiveIcon {
+        /**
+         * Draws the picture.
+         * @param c canvas
+         * @param cx centre x
+         * @param cy centre y
+         * @param size width and height of the picture area
+         * @param hover how highlighted the tile is, 0..1
+         * @param time seconds, for animation
+         */
+        void draw(Canvas c, float cx, float cy, float size, float hover, float time);
+    }
+
     public static final class Tile {
         /** Unique id inside the menu; the id of the selected tile is what {@link TileMenu#update} returns. */
         public final String id;
@@ -213,6 +227,8 @@ public final class TileMenu {
         public Bitmap cornerBadge;
         /** True for the round corner buttons (Back, Home) made by {@link RoundButton}. */
         public boolean round;
+        /** Draws the picture live while the tile is highlighted (the baked picture is used otherwise), or null. */
+        public LiveIcon live;
 
         Bitmap body, shadow, iconBmp;
         float hover;
@@ -502,7 +518,7 @@ public final class TileMenu {
                 int pl = dwell.progressPlayer(t.id);
                 RoundButton.draw(c, t, dwell.progress(t.id), Theme.playerColour(pl < 0 ? 0 : pl));
             } else {
-                Theme.drawTile(c, t.shadow, t.body, t.iconBmp, t.badge, t.cornerBadge, t.x, t.y, t.hover, time);
+                Theme.drawTile(c, t.shadow, t.body, t.iconBmp, t.badge, t.cornerBadge, t.x, t.y, t.hover, time, t.live);
             }
         }
         if (focusShown) {

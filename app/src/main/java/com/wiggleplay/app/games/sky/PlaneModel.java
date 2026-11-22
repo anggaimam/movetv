@@ -76,22 +76,15 @@ final class PlaneModel {
     private static final float[] FIN_PROP_L = {-0.025f, 0.12f, -0.80f, -0.025f, 1.10f, -1.12f, -0.025f, 1.10f, -1.36f, -0.025f, 0.12f, -1.40f};
     private static final float[] FIN_PROP_R = {0.025f, 0.12f, -0.80f, 0.025f, 1.10f, -1.12f, 0.025f, 1.10f, -1.36f, 0.025f, 0.12f, -1.40f};
     private static final float[] DISC = new float[16 * 3];
-    private static final float[][] BLADE = new float[2][12];
+    private final float[] blade = new float[12];
+    private float propAngle = 0.5f;
 
-    private static final float[] LINER_FIN_BACK = {-0.08f, 0.25f, -2.45f, 0.08f, 0.25f, -2.45f, 0.08f, 1.4f, -2.58f, -0.08f, 1.4f, -2.58f};
-    private static final float[] JET_FIN_BACK = {-0.09f, 0.2f, -1.75f, 0.09f, 0.2f, -1.75f, 0.09f, 1.25f, -1.62f, -0.09f, 1.25f, -1.62f};
-    private static final float[] LINER_WING = {0.4f, 0f, 0.55f, 0.4f, 0f, -0.7f, 2.3f, 0.2f, -1.25f, 2.3f, 0.2f, -0.8f};
-    private static final float[] LINER_LET = {2.3f, 0.2f, -0.8f, 2.3f, 0.2f, -1.25f, 2.4f, 0.78f, -1.38f, 2.36f, 0.78f, -1.12f};
-    private static final float[] LINER_TAIL = {0.2f, 0.12f, -1.7f, 1.0f, 0.2f, -2.2f, 1.0f, 0.2f, -2.52f, 0.2f, 0.12f, -2.4f};
-    private static final float[] LINER_FIN_L = {-0.03f, 0.25f, -1.5f, -0.03f, 1.4f, -2.2f, -0.03f, 1.4f, -2.58f, -0.03f, 0.25f, -2.45f};
-    private static final float[] LINER_FIN_R = {0.03f, 0.25f, -1.5f, 0.03f, 1.4f, -2.2f, 0.03f, 1.4f, -2.58f, 0.03f, 0.25f, -2.45f};
-    private static final float[] LINER_WIN = new float[10 * 3];
+    /** Sets the turn of the propeller in radians (spin it a little every frame). */
+    void setProp(float radians) {
+        propAngle = radians;
+    }
 
-    private static final float[] JET_WING = {0.2f, 0f, 1.0f, 2.4f, 0.06f, -1.1f, 2.0f, 0.06f, -1.3f, 0.9f, 0f, -0.9f, 0.2f, 0f, -1.0f};
-    private static final float[] JET_TIP = {2.4f, 0.06f, -1.1f, 2.0f, 0.06f, -1.3f, 1.97f, 0.06f, -0.7f};
-    private static final float[] JET_FIN_L = {-0.03f, 0.2f, -0.3f, -0.03f, 1.25f, -1.3f, -0.03f, 1.25f, -1.62f, -0.03f, 0.2f, -1.75f};
-    private static final float[] JET_FIN_R = {0.03f, 0.2f, -0.3f, 0.03f, 1.25f, -1.3f, 0.03f, 1.25f, -1.62f, 0.03f, 0.2f, -1.75f};
-    private static final float[] JET_WIN = new float[7 * 3];
+
 
     private static final float[] SHIP_WING = {0.4f, 0f, 0.7f, 2.45f, 0.05f, -0.8f, 2.25f, 0.05f, -1.0f, 0.5f, 0f, -0.9f};
     private static final float[] SHIP_PANEL = {0.6f, 0.01f, 0.25f, 1.85f, 0.055f, -0.62f, 1.75f, 0.055f, -0.88f, 0.6f, 0.01f, -0.88f};
@@ -106,31 +99,6 @@ final class PlaneModel {
             DISC[t * 3 + 1] = (float) (0.62 * Math.sin(a));
             DISC[t * 3 + 2] = 1.38f;
         }
-        double[] ang = {0.5, 0.5 + Math.PI / 2};
-        for (int b = 0; b < 2; b++) {
-            double a = ang[b], ca = Math.cos(a), sa = Math.sin(a);
-            double[][] c = {{-0.64, 0.09}, {0.64, 0.09}, {0.64, -0.09}, {-0.64, -0.09}};
-            for (int i = 0; i < 4; i++) {
-                BLADE[b][i * 3] = (float) (c[i][0] * ca - c[i][1] * sa);
-                BLADE[b][i * 3 + 1] = (float) (c[i][0] * sa + c[i][1] * ca);
-                BLADE[b][i * 3 + 2] = 1.4f;
-            }
-        }
-        // windows sit on the side of the long body, a little above the middle
-        for (int i = 0; i < 10; i++) {
-            float z = -1.3f + i * 0.3f;
-            float sc = (float) Math.sqrt(Math.max(0.01, 1 - (z / 2.3) * (z / 2.3)));
-            LINER_WIN[i * 3] = (float) Math.sqrt(Math.max(0.001, 0.25 * sc * sc - 0.0144));
-            LINER_WIN[i * 3 + 1] = 0.12f;
-            LINER_WIN[i * 3 + 2] = z;
-        }
-        for (int i = 0; i < 7; i++) {
-            float z = -0.8f + i * 0.3f;
-            float sc = (float) Math.sqrt(Math.max(0.01, 1 - ((z - 0.1) / 1.9) * ((z - 0.1) / 1.9)));
-            JET_WIN[i * 3] = (float) Math.sqrt(Math.max(0.001, 0.0729 * sc * sc - 0.0100));
-            JET_WIN[i * 3 + 1] = 0.22f;
-            JET_WIN[i * 3 + 2] = z;
-        }
     }
 
     // ---- per-frame state ----
@@ -138,7 +106,7 @@ final class PlaneModel {
     private float cr, sr, cw, sw, ce, se;
     private float ox, oy, k, kw;
     private float tx, ty, tz;
-    private final float[] buf = new float[48];
+    private final float[] buf = new float[96];
     private final int[] pal = new int[14];
     private final float[] cen = new float[3];
     private final int[] order = new int[16];
@@ -148,15 +116,10 @@ final class PlaneModel {
     private static final float[][] CENTERS_PROP = {
             {0, 0, 1.38f}, {-0.6f, -0.66f, -0.5f}, {0.6f, -0.66f, -0.5f}, {-1.2f, 0.05f, 0.25f}, {1.2f, 0.05f, 0.25f},
             {0, 0, 0.1f}, {0, 0.36f, 0.34f}, {0, 0, -1.0f}, {0, 0.02f, -1.08f}, {0, 0.6f, -1.12f}};
-    private static final float[][] CENTERS_LINER = {
-            {-0.95f, -0.4f, 0.1f}, {0.95f, -0.4f, 0.1f}, {-1.3f, 0.1f, 0.4f}, {1.3f, 0.1f, 0.4f}, {0, 0, 0},
-            {0, 0.15f, -2.1f}, {0, 0.7f, -2.0f}};
-    private static final float[][] CENTERS_JET = {
-            {-1.0f, -0.2f, -0.9f}, {1.0f, -0.2f, -0.9f}, {0, 0, 0.6f}, {0, 0.12f, 0.1f}, {0, 0.7f, -1.1f}};
     private static final float[][] CENTERS_SHIP = {
             {-1.3f, 0, 0.35f}, {1.3f, 0, 0.35f}, {-0.62f, 0, -0.95f}, {0.62f, 0, -0.95f}, {0, 0.1f, 0.25f},
             {-0.75f, 0.7f, -0.7f}, {0.75f, 0.7f, -0.7f}, {0, 0.4f, -0.9f}};
-    private static final float[][][] CENTERS = {CENTERS_PROP, CENTERS_LINER, CENTERS_JET, CENTERS_SHIP};
+    private static final float[][][] CENTERS = {CENTERS_PROP, null, null, CENTERS_SHIP};
 
     /**
      * Draws one plane.
@@ -185,6 +148,14 @@ final class PlaneModel {
         oy = cy;
         k = scale * SIZE[planeType];
         kw = k / 118f;
+        if (planeType == AIRLINER) {
+            liner();
+            return;
+        }
+        if (planeType == JET) {
+            jet();
+            return;
+        }
         float[][] cs = CENTERS[planeType];
         int n = cs.length;
         for (int i = 0; i < n; i++) {
@@ -318,9 +289,17 @@ final class PlaneModel {
     private void part(int i) {
         switch (type) {
             case PROP: prop(i); break;
-            case AIRLINER: liner(i); break;
-            case JET: jet(i); break;
             default: ship(i); break;
+        }
+    }
+
+    private void bladeAt(float a) {
+        float ca = (float) Math.cos(a), sa = (float) Math.sin(a);
+        for (int i = 0; i < 4; i++) {
+            float bx = (i == 0 || i == 3) ? -0.64f : 0.64f, by = i < 2 ? 0.09f : -0.09f;
+            blade[i * 3] = bx * ca - by * sa;
+            blade[i * 3 + 1] = bx * sa + by * ca;
+            blade[i * 3 + 2] = 1.4f;
         }
     }
 
@@ -335,8 +314,10 @@ final class PlaneModel {
                     buf[t * 2 + 1] = oy - ty * k * q;
                 }
                 sink.poly(buf, 16, alpha(0xFFDDE2E8, 140), 0f);
-                poly(BLADE[0], 4, 1f, 0f, alpha(pal[GR], 190), 6f);
-                poly(BLADE[1], 4, 1f, 0f, alpha(pal[GR], 190), 6f);
+                bladeAt(propAngle);
+                poly(blade, 4, 1f, 0f, alpha(pal[GR], 190), 6f);
+                bladeAt(propAngle + 1.5707964f);
+                poly(blade, 4, 1f, 0f, alpha(pal[GR], 190), 6f);
                 ell(0, 0, 1.3f, 0.16f, 0.16f, 0.14f, pal[BS]);
                 break;
             }
@@ -379,79 +360,301 @@ final class PlaneModel {
         }
     }
 
-    // ---- the airliner ----
-    private void liner(int i) {
-        switch (i) {
-            case 0:
-            case 1: {
-                float sx = i == 0 ? -1f : 1f;
-                ell(sx * 0.95f, -0.4f, 0.15f, 0.21f, 0.21f, 0.5f, shade(pal[ENG], 0.8f));
-                ell(sx * 0.95f, -0.37f, 0.15f, 0.2f, 0.19f, 0.48f, pal[ENG]);
-                ell(sx * 0.95f, -0.4f, -0.36f, 0.16f, 0.16f, 0.04f, pal[D]);
-                break;
-            }
-            case 2:
-            case 3: {
-                float sx = i == 2 ? -1f : 1f;
-                poly(LINER_WING, 4, sx, -0.1f, pal[WS], 18f);
-                poly(LINER_LET, 4, sx, -0.1f, pal[AS], 14f);
-                poly(LINER_WING, 4, sx, 0f, pal[W], 18f);
-                poly(LINER_LET, 4, sx, 0f, pal[A], 14f);
-                break;
-            }
-            case 4:
-                hull(0, 0, 0f, 0.5f, 0.5f, 2.3f, pal[BS], pal[B], pal[BL]);
-                ell(0, 0.21f, 2.0f, 0.18f, 0.09f, 0.14f, pal[CS]);
-                windows(LINER_WIN, 10, 0f, alpha(pal[C], 230));
-                break;
-            case 5:
-                poly(LINER_TAIL, 4, -1f, -0.08f, pal[WS], 18f);
-                poly(LINER_TAIL, 4, 1f, -0.08f, pal[WS], 18f);
-                poly(LINER_TAIL, 4, -1f, 0f, pal[W], 18f);
-                poly(LINER_TAIL, 4, 1f, 0f, pal[W], 18f);
-                break;
-            default:
-                poly(LINER_FIN_L, 4, 1f, 0f, pal[AS], 10f);
-                poly(LINER_FIN_R, 4, 1f, 0f, pal[A], 10f);
-                poly(LINER_FIN_BACK, 4, 1f, 0f, pal[A], 8f);
-                break;
+    // ---- shared pieces for the ordered planes ----
+
+    /**
+     * A smooth tube through a chain of balls (x, y, z, r per ball): each ball is a circle on screen and neighbouring
+     * circles are joined by their outer tangent lines, so the tube has no seams and no gaps.
+     */
+    private void tube(float[] ch, int n, float dy, float rScale, int col) {
+        float px = 0, py = 0, pr = 0;
+        for (int i = 0; i < n; i++) {
+            proj(ch[i * 4], ch[i * 4 + 1] + dy, ch[i * 4 + 2]);
+            float x = cen[0], y = cen[1], r = ch[i * 4 + 3] * rScale * k * cen[2];
+            sink.ellipse(x, y, r, r, 0f, col);
+            if (i > 0) joint(px, py, pr, x, y, r, col);
+            px = x;
+            py = y;
+            pr = r;
         }
     }
 
-    // ---- the army jet ----
-    private void jet(int i) {
-        switch (i) {
-            case 0:
-            case 1: {
-                float sx = i == 0 ? -1f : 1f;
-                ell(sx, -0.2f, -0.9f, 0.34f, 0.22f, 0.5f, pal[BS]);
-                ell(sx, -0.17f, -0.9f, 0.33f, 0.21f, 0.48f, pal[B]);
-                ell(sx - 0.13f, -0.2f, -1.4f, 0.11f, 0.11f, 0.03f, pal[D]);
-                ell(sx + 0.13f, -0.2f, -1.4f, 0.11f, 0.11f, 0.03f, pal[D]);
-                break;
-            }
-            case 2: {
-                ell(0, -0.05f, -0.1f, 0.62f, 0.18f, 1.2f, pal[WS]);
-                ell(0, 0f, -0.12f, 0.6f, 0.17f, 1.17f, pal[W]);
-                poly(JET_WING, 5, -1f, -0.12f, pal[WS], 16f);
-                poly(JET_WING, 5, 1f, -0.12f, pal[WS], 16f);
-                poly(JET_WING, 5, -1f, 0f, pal[W], 16f);
-                poly(JET_WING, 5, 1f, 0f, pal[W], 16f);
-                poly(JET_TIP, 3, -1f, 0f, pal[A], 14f);
-                poly(JET_TIP, 3, 1f, 0f, pal[A], 14f);
-                break;
-            }
-            case 3:
-                hull(0, 0.12f, 0.1f, 0.27f, 0.27f, 1.9f, pal[BS], pal[B], pal[BL]);
-                ell(0, 0.34f, 1.45f, 0.1f, 0.05f, 0.2f, pal[CS]);
-                windows(JET_WIN, 7, 0f, alpha(pal[C], 230));
-                break;
-            default:
-                poly(JET_FIN_L, 4, 1f, 0f, pal[AS], 9f);
-                poly(JET_FIN_R, 4, 1f, 0f, pal[A], 9f);
-                poly(JET_FIN_BACK, 4, 1f, 0f, pal[A], 8f);
-                break;
+    private void joint(float x1, float y1, float r1, float x2, float y2, float r2, int col) {
+        float dx = x2 - x1, dy = y2 - y1, d = (float) Math.sqrt(dx * dx + dy * dy);
+        if (d < 1e-3f || d <= Math.abs(r1 - r2)) return;
+        float ux = dx / d, uy = dy / d, nx = -uy, ny = ux;
+        float sn = (r1 - r2) / d, cs = (float) Math.sqrt(Math.max(0f, 1f - sn * sn));
+        float ax = ux * sn + nx * cs, ay = uy * sn + ny * cs;
+        float bx = ux * sn - nx * cs, by = uy * sn - ny * cs;
+        buf[0] = x1 + r1 * ax;
+        buf[1] = y1 + r1 * ay;
+        buf[2] = x2 + r2 * ax;
+        buf[3] = y2 + r2 * ay;
+        buf[4] = x2 + r2 * bx;
+        buf[5] = y2 + r2 * by;
+        buf[6] = x1 + r1 * bx;
+        buf[7] = y1 + r1 * by;
+        sink.poly(buf, 4, col, 1.5f);
+    }
+
+    /** A shaded tube: dark underside, main colour a little higher, a soft light stripe along the top. */
+    private void body(float[] ch, int n, int shadeCol, int main, int lightCol) {
+        tube(ch, n, 0f, 1f, shadeCol);
+        tube(ch, n, 0.04f, 0.93f, main);
+        int m = n - 2;
+        for (int i = 0; i < m * 4; i += 4) {
+            light4[i] = ch[i + 4];
+            light4[i + 1] = ch[i + 5] + ch[i + 7] * 0.55f;
+            light4[i + 2] = ch[i + 6];
+            light4[i + 3] = ch[i + 7] * 0.2f;
         }
+        tube(light4, m, 0f, 1f, alpha(lightCol, 120));
+    }
+
+    private final float[] light4 = new float[40];
+
+    /** A flat slab seen from above (top colour on a darker edge) or from below (darker underside). */
+    private void wing(float[] pts, int n, float sx, boolean above, int top, int under, float round, float thick) {
+        if (above) {
+            poly(pts, n, sx, -thick, shade(top, 0.8f), round);
+            poly(pts, n, sx, 0f, top, round);
+        } else {
+            poly(pts, n, sx, 0f, shade(top, 0.8f), round);
+            poly(pts, n, sx, -thick, under, round);
+        }
+    }
+
+    /**
+     * An upright fin (4 points at x = 0: base front, top front, top back, base back). It is thicker at the base, the
+     * side facing the camera is drawn last and the back edge shows as a strip when seen from behind.
+     */
+    private void fin(float[] pts, float baseHalf, float topHalf, int main, int edge, float round) {
+        float s = faces(1f, 0f, 0f) ? 1f : -1f;
+        side(pts, -s, baseHalf, topHalf);
+        poly(tmp, 4, 1f, 0f, edge, round);
+        if (faces(0f, 0f, -1f)) {
+            // back edge: base back and top back points, both sides
+            for (int i = 0; i < 12; i++) tmp[i] = 0f;
+            putFin(tmp, 0, pts, 3, -baseHalf);
+            putFin(tmp, 1, pts, 3, baseHalf);
+            putFin(tmp, 2, pts, 2, topHalf);
+            putFin(tmp, 3, pts, 2, -topHalf);
+            poly(tmp, 4, 1f, 0f, edge, round * 0.6f);
+        }
+        side(pts, s, baseHalf, topHalf);
+        poly(tmp, 4, 1f, 0f, main, round);
+    }
+
+    private static void putFin(float[] out, int i, float[] pts, int j, float x) {
+        out[i * 3] = x;
+        out[i * 3 + 1] = pts[j * 3 + 1];
+        out[i * 3 + 2] = pts[j * 3 + 2];
+    }
+
+    private void side(float[] pts, float s, float baseHalf, float topHalf) {
+        putFin(tmp, 0, pts, 0, s * baseHalf);
+        putFin(tmp, 1, pts, 1, s * topHalf);
+        putFin(tmp, 2, pts, 2, s * topHalf);
+        putFin(tmp, 3, pts, 3, s * baseHalf);
+    }
+
+    private final float[] tmp = new float[96];
+
+    /** A disc seen from behind (an engine exhaust), only when the back of the plane faces the camera. */
+    private void exhaust(float x, float y, float z, float r, int ring, int hole) {
+        if (!faces(0f, 0f, -1f)) return;
+        ell(x, y, z, r, r, 0.02f, ring);
+        ell(x, y, z - 0.01f, r * 0.68f, r * 0.68f, 0.02f, hole);
+    }
+
+    // ---- the airliner (737 style): low swept wings, engines hung under them, upswept tail ----
+
+    private static final float[] LB = {
+            0f, -0.02f, 2.5f, 0.06f,
+            0f, 0f, 2.25f, 0.32f,
+            0f, 0f, 1.75f, 0.5f,
+            0f, 0f, -1.1f, 0.5f,
+            0f, 0.1f, -1.9f, 0.32f,
+            0f, 0.24f, -2.55f, 0.1f};
+    private static final float[] LW = {
+            0.3f, -0.22f, 0.65f, 2.25f, 0f, -0.78f, 2.3f, 0f, -1.02f, 1.05f, -0.14f, -0.72f, 0.3f, -0.22f, -0.6f};
+    private static final float[] LWL = {2.25f, 0f, -0.78f, 2.3f, 0f, -1.02f, 2.42f, 0.5f, -1.22f, 2.37f, 0.5f, -1.07f};
+    private static final float[] LN = {
+            0.95f, -0.42f, 0.85f, 0.2f,
+            0.95f, -0.42f, 0.55f, 0.23f,
+            0.95f, -0.42f, -0.05f, 0.2f,
+            0.95f, -0.41f, -0.22f, 0.15f};
+    private static final float[] LP = {0.95f, -0.3f, 0.45f, 0.95f, -0.16f, 0.35f, 0.95f, -0.16f, -0.4f, 0.95f, -0.3f, -0.3f};
+    private static final float[] LT = {0.08f, 0.15f, -1.85f, 1.05f, 0.25f, -2.3f, 1.05f, 0.25f, -2.52f, 0.08f, 0.15f, -2.45f};
+    private static final float[] LF = {0f, 0.3f, -1.45f, 0f, 1.35f, -2.15f, 0f, 1.35f, -2.45f, 0f, 0.25f, -2.52f};
+    private final float[] nac = new float[16];
+
+    private void liner() {
+        boolean above = faces(0f, 1f, 0f);
+        float far = faces(1f, 0f, 0f) ? -1f : 1f;
+        if (above) {
+            linerWing(far, true);
+            linerWing(-far, true);
+            linerBody();
+            wing(LT, 4, far, true, pal[W], shade(pal[W], 0.88f), 12f, 0.06f);
+            wing(LT, 4, -far, true, pal[W], shade(pal[W], 0.88f), 12f, 0.06f);
+            fin(LF, 0.1f, 0.035f, pal[A], pal[AS], 8f);
+        } else {
+            fin(LF, 0.1f, 0.035f, pal[A], pal[AS], 8f);
+            wing(LT, 4, far, false, pal[W], shade(pal[W], 0.88f), 12f, 0.06f);
+            wing(LT, 4, -far, false, pal[W], shade(pal[W], 0.88f), 12f, 0.06f);
+            linerBody();
+            linerWing(far, false);
+            linerWing(-far, false);
+        }
+    }
+
+    private void linerWing(float sx, boolean above) {
+        if (above) {
+            nacelle(sx);
+            poly(LP, 4, sx, 0f, pal[WS], 6f);
+            wing(LW, 5, sx, true, pal[W], shade(pal[W], 0.88f), 14f, 0.07f);
+            poly(LWL, 4, sx, 0f, pal[A], 8f);
+        } else {
+            poly(LWL, 4, sx, 0f, pal[AS], 8f);
+            wing(LW, 5, sx, false, pal[W], shade(pal[W], 0.88f), 14f, 0.07f);
+            poly(LP, 4, sx, 0f, pal[WS], 6f);
+            nacelle(sx);
+        }
+    }
+
+    private void nacelle(float sx) {
+        for (int i = 0; i < 16; i++) nac[i] = LN[i];
+        for (int i = 0; i < 4; i++) nac[i * 4] *= sx;
+        body(nac, 4, pal[BS], pal[B], pal[BL]);
+        exhaust(sx * 0.95f, -0.41f, -0.24f, 0.13f, 0xFF9AA6B2, pal[D]);
+    }
+
+    private void linerBody() {
+        body(LB, 6, pal[BS], pal[B], pal[BL]);
+        int win = alpha(pal[C], 235);
+        for (int side = -1; side <= 1; side += 2) {
+            if (!faces(side, 0.3f, 0f)) continue;
+            for (int i = 0; i < 12; i++) ell(side * 0.47f, 0.13f, 1.45f - i * 0.22f, 0.025f, 0.055f, 0.065f, win);
+        }
+        ell(0f, 0.22f, 2.05f, 0.24f, 0.09f, 0.13f, pal[C]);
+    }
+
+    // ---- the jet: a blended teal delta wing under a long cream body, twin engine pods, one fin ----
+
+    private static final float[] JW = new float[21 * 3];
+    private static final float[] JLE = new float[6 * 3];
+    private static final float[] JTIP = new float[4 * 3];
+    private static final float[] JB = {
+            0f, 0.1f, 2.7f, 0.03f,
+            0f, 0.12f, 2.25f, 0.16f,
+            0f, 0.14f, 1.5f, 0.27f,
+            0f, 0.14f, 0f, 0.3f,
+            0f, 0.16f, -1.2f, 0.25f,
+            0f, 0.22f, -1.75f, 0.1f};
+    private static final float[] JFAIR = {0f, 0.02f, 1.1f, 0.2f, 0f, 0.02f, -1.35f, 0.18f};
+    private static final float[] JF = {0f, 0.3f, -0.45f, 0f, 1.25f, -1.35f, 0f, 1.25f, -1.65f, 0f, 0.28f, -1.72f};
+    private final float[] pod = new float[8];
+
+    private static float bez(float a, float c, float b, float t) {
+        float u = 1f - t;
+        return u * u * a + 2f * u * t * c + t * t * b;
+    }
+
+    private static void jetPoint(float[] out, int i, float x, float z) {
+        out[i * 3] = x;
+        out[i * 3 + 1] = 0.02f + 0.04f * Math.abs(x) / 2.4f;
+        out[i * 3 + 2] = z;
+    }
+
+    static {
+        // right half: leading edge (curved), the tip, the trailing edge curving back in to a point at the tail
+        float[] hx = new float[11], hz = new float[11];
+        for (int i = 0; i < 6; i++) {
+            float t = i / 5f;
+            hx[i] = bez(0.22f, 0.55f, 2.4f, t);
+            hz[i] = bez(1.25f, -0.1f, -0.95f, t);
+        }
+        hx[6] = 2.2f;
+        hz[6] = -1.18f;
+        for (int i = 1; i <= 4; i++) {
+            float t = i / 4f;
+            hx[6 + i] = bez(2.2f, 1.1f, 0f, t);
+            hz[6 + i] = bez(-1.18f, -0.75f, -1.6f, t);
+        }
+        int n = 0;
+        for (int i = 0; i < 11; i++) jetPoint(JW, n++, hx[i], hz[i]);
+        for (int i = 9; i >= 0; i--) jetPoint(JW, n++, -hx[i], hz[i]);
+        // a lighter band along the leading edge
+        for (int i = 0; i < 3; i++) {
+            float t = 0.15f + i * 0.3f;
+            jetPoint(JLE, i, bez(0.22f, 0.55f, 2.4f, t), bez(1.25f, -0.1f, -0.95f, t));
+            jetPoint(JLE, 5 - i, bez(0.22f, 0.55f, 2.4f, t) - 0.05f, bez(1.25f, -0.1f, -0.95f, t) - 0.28f);
+        }
+        // orange tip
+        jetPoint(JTIP, 0, bez(0.22f, 0.55f, 2.4f, 0.86f), bez(1.25f, -0.1f, -0.95f, 0.86f));
+        jetPoint(JTIP, 1, 2.4f, -0.95f);
+        jetPoint(JTIP, 2, 2.2f, -1.18f);
+        jetPoint(JTIP, 3, bez(2.2f, 1.1f, 0f, 0.14f), bez(-1.18f, -0.75f, -1.6f, 0.14f));
+    }
+
+    private void jet() {
+        boolean above = faces(0f, 1f, 0f);
+        float far = faces(1f, 0f, 0f) ? -1f : 1f;
+        if (above) {
+            jetPods(far);
+            jetPods(-far);
+            jetWing(true);
+            jetBody();
+            fin(JF, 0.09f, 0.03f, pal[A], pal[AS], 8f);
+        } else {
+            fin(JF, 0.09f, 0.03f, pal[A], pal[AS], 8f);
+            jetBody();
+            jetWing(false);
+            tube(JFAIR, 2, 0f, 1f, shade(pal[W], 0.86f));
+            jetPods(far);
+            jetPods(-far);
+        }
+    }
+
+    private void jetWing(boolean above) {
+        wing(JW, 21, 1f, above, pal[W], shade(pal[W], 0.88f), 10f, 0.08f);
+        if (above) {
+            int band = alpha(light(pal[W], 0.25f), 200);
+            poly(JLE, 6, 1f, 0f, band, 6f);
+            poly(JLE, 6, -1f, 0f, band, 6f);
+        }
+        float dy = above ? 0f : -0.08f;
+        poly(JTIP, 4, 1f, dy, pal[A], 8f);
+        poly(JTIP, 4, -1f, dy, pal[A], 8f);
+    }
+
+    private void jetPods(float sx) {
+        for (int p = 0; p < 2; p++) {
+            float x = sx * (p == 0 ? 0.74f : 0.98f);
+            pod[0] = x;
+            pod[1] = -0.13f;
+            pod[2] = -0.35f;
+            pod[3] = 0.14f;
+            pod[4] = x;
+            pod[5] = -0.13f;
+            pod[6] = -1.15f;
+            pod[7] = 0.15f;
+            tube(pod, 2, 0f, 1f, pal[BS]);
+            tube(pod, 2, 0.02f, 0.92f, pal[B]);
+        }
+        exhaust(sx * 0.74f, -0.13f, -1.2f, 0.11f, pal[BS], pal[D]);
+        exhaust(sx * 0.98f, -0.13f, -1.2f, 0.11f, pal[BS], pal[D]);
+    }
+
+    private void jetBody() {
+        body(JB, 6, pal[BS], pal[B], light(pal[B], 0.6f));
+        int win = alpha(pal[C], 235);
+        for (int side = -1; side <= 1; side += 2) {
+            if (!faces(side, 0.3f, 0f)) continue;
+            for (int i = 0; i < 12; i++) ell(side * 0.27f, 0.22f, 1.65f - i * 0.2f, 0.018f, 0.035f, 0.045f, win);
+        }
+        ell(0f, 0.3f, 2.0f, 0.13f, 0.05f, 0.14f, pal[C]);
     }
 
     // ---- the spaceship ----

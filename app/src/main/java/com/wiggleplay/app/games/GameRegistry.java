@@ -28,7 +28,9 @@ public final class GameRegistry {
     static {
         List<GameInfo> g = new ArrayList<>();
         g.add(new GameInfo("fruit", "Fruit Splash", Theme.ORANGE, GameRegistry::paintFruit, "fruit", 1, 2, false));
-        g.add(new GameInfo("sky", "Sky Glider", Theme.BLUE, GameRegistry::paintSky, "skyplane", 1, 2, false));
+        GameInfo sky = new GameInfo("sky", "Sky Glider", Theme.BLUE, com.wiggleplay.app.games.sky.SkyCover::paint, "skyplane", 1, 2, false);
+        sky.live = com.wiggleplay.app.games.sky.SkyCover.LIVE;
+        g.add(sky);
         g.add(new GameInfo("dance", "Animal Dance Party", Theme.PINK, GameRegistry::paintDance, PLACEHOLDER_SCENE, 1, 2, false));
         g.add(new GameInfo("jungle", "Jungle Dash", Theme.SAGE, GameRegistry::paintJungle, PLACEHOLDER_SCENE, 1, 2, false));
         GAMES = Collections.unmodifiableList(g);
@@ -110,40 +112,6 @@ public final class GameRegistry {
         c.drawCircle(w * 0.80f, h * 0.30f, w * 0.15f, F);
         F.setColor(0x88FFFFFF);
         c.drawCircle(w * 0.75f, h * 0.25f, w * 0.04f, F);
-    }
-
-    /** Sky Glider, Flat storybook: three flat sky bands, a hill, a plane and a cloud. */
-    private static void paintSky(Canvas c, int w, int h) {
-        F.setColor(0xFFBFD8EC);
-        c.drawRect(w * 0.06f, h * 0.06f, w * 0.94f, h * 0.94f, F);
-        F.setColor(0xFFA6C8E4);
-        c.drawRect(w * 0.06f, h * 0.38f, w * 0.94f, h * 0.94f, F);
-        F.setColor(0xFF8DB8DA);
-        c.drawRect(w * 0.06f, h * 0.62f, w * 0.94f, h * 0.94f, F);
-        Path hill = new Path();
-        hill.moveTo(w * 0.06f, h * 0.94f);
-        hill.quadTo(w * 0.40f, h * 0.60f, w * 0.94f, h * 0.94f);
-        hill.close();
-        F.setColor(0xFF9CB89A);
-        c.drawPath(hill, F);
-        F.setColor(0xFFFFFFFF);
-        c.drawCircle(w * 0.24f, h * 0.24f, w * 0.07f, F);
-        c.drawCircle(w * 0.31f, h * 0.22f, w * 0.09f, F);
-        c.drawCircle(w * 0.39f, h * 0.25f, w * 0.06f, F);
-        Path plane = new Path();
-        plane.moveTo(w * 0.78f, h * 0.38f);
-        plane.lineTo(w * 0.52f, h * 0.48f);
-        plane.lineTo(w * 0.60f, h * 0.38f);
-        plane.close();
-        plane.moveTo(w * 0.52f, h * 0.48f);
-        plane.lineTo(w * 0.40f, h * 0.40f);
-        plane.lineTo(w * 0.48f, h * 0.52f);
-        plane.close();
-        F.setColor(0xFFE89A4C);
-        c.drawPath(plane, F);
-        F.setColor(0xFFE8A598);
-        R.set(w * 0.48f, h * 0.44f, w * 0.78f, h * 0.56f);
-        c.drawOval(R, F);
     }
 
     /** Animal Dance Party, Neon arcade: a dark panel, a glowing penguin face and a glowing star. */
