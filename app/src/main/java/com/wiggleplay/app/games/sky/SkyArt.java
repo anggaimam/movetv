@@ -267,6 +267,12 @@ final class SkyArt {
         }
     }
 
+    private static final int[][] SKY = {
+            {0xFF8EC1E6, 0xFFA7D2EE, 0xFFC0DFF3, 0xFFD9ECF7},
+            {0xFF5B5F97, 0xFF8E6FA6, 0xFFD88B8F, 0xFFF4B27A},
+            {0xFF121A3A, 0xFF1B2552, 0xFF263470, 0xFF33458A}};
+    private static final int[] GROUND = {0xFF9CB89A, 0xFF4F80AB, 0xFF224558};
+
     private static void paintBackground(Canvas c, int w, int h, int level) {
         float hz = HORIZON / 2f;
         int[] sky = SKY[level - 1];
