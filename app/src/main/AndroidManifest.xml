@@ -13,7 +13,7 @@
 
     <application
         android:label="Wiggle Play"
-        android:icon="@drawable/banner"
+        android:icon="@mipmap/ic_launcher"
         android:banner="@drawable/banner"
         android:hardwareAccelerated="true"
         android:largeHeap="true"
