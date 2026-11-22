@@ -448,17 +448,46 @@ final class DanceArt {
         if (b != null) c.drawBitmap(b, HEAD_OFF[which][0], HEAD_OFF[which][1], SPRITE);
         if (!wing) {
             rig(c);
+            // an arm held up high must not vanish behind the big head: draw its part above the shoulder in front of it
+            for (int side = 0; side < 2; side++) if (overhead(which, o, side)) frontArm(c, which, o, side);
             for (int side = 0; side < 2; side++) hand(c, which, o, side);
             c.restore();
         }
     }
 
+    /** Whether an arm is raised high enough that it would otherwise be hidden behind the head. */
+    private static boolean overhead(int which, float[] o, int side) {
+        float[] r = RIG[which];
+        float sy = r[0] + r[2];
+        return o[side * 4 + 1] < sy - 0.6f * r[3];
+    }
+
+    /**
+     * Draws the part of a raised arm that lies above the shoulder line a second time, on top of the head (same
+     * geometry as before, so the join with the part below is invisible). Call inside {@link #rig}.
+     */
+    private static void frontArm(Canvas c, int which, float[] o, int side) {
+        float[] r = RIG[which];
+        float sy = r[0] + r[2];
+        c.save();
+        c.clipRect(-1000f, -1000f, 1000f, sy - 6f);
+        arms(c, which, o, true, side);
+        arms(c, which, o, false, side);
+        c.restore();
+    }
+
     /** Both arms as tubes: the outline pass (wide, cyan) or the inside pass (narrow, stage colour). */
     private static void arms(Canvas c, int which, float[] o, boolean outline) {
+        arms(c, which, o, outline, -1);
+    }
+
+    /** One arm (side 0 or 1) or, with -1, both. */
+    private static void arms(Canvas c, int which, float[] o, boolean outline, int only) {
         float[] r = RIG[which];
         boolean hoof = HAND[which] == HAND_HOOF;
         ARM.setColor(outline ? RIG_CYAN : BG);
         for (int side = 0; side < 2; side++) {
+            if (only >= 0 && side != only) continue;
             float sx = 200f + (side == 0 ? -1f : 1f) * r[1], sy = r[0] + r[2];
             int b = side * 4;
             ARM.setStrokeCap(Paint.Cap.ROUND);
