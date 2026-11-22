@@ -141,12 +141,20 @@ public final class JungleScene implements Scene {
     private void buildTreeRow(long seed) {
         Random r = new Random(seed ^ 0x5DEECE66DL);
         float x = 0f;
-        int last = -1;
+        // deal the species like a shuffled deck, so all 10 appear before any repeats
+        for (int k = 0; k < SLOTS; k++) slotTree[k] = k % JungleArt.TREES;
+        for (int k0 = 0; k0 < SLOTS; k0 += JungleArt.TREES) {
+            int n = Math.min(JungleArt.TREES, SLOTS - k0);
+            for (int i = n - 1; i > 0; i--) {
+                int j = r.nextInt(i + 1), t = slotTree[k0 + i];
+                slotTree[k0 + i] = slotTree[k0 + j];
+                slotTree[k0 + j] = t;
+            }
+            if (k0 > 0 && slotTree[k0] == slotTree[k0 - 1]) {   // no twin across the seam
+                int t = slotTree[k0]; slotTree[k0] = slotTree[k0 + 1]; slotTree[k0 + 1] = t;
+            }
+        }
         for (int k = 0; k < SLOTS; k++) {
-            int t;
-            do { t = r.nextInt(JungleArt.TREES); } while (t == last);
-            last = t;
-            slotTree[k] = t;
             slotScale[k] = 0.95f + r.nextFloat() * 0.25f;
             slotX[k] = x;
             slotThing[k] = r.nextFloat() < 0.4f ? r.nextInt(JungleArt.THINGS) : -1;
