@@ -539,12 +539,15 @@ public final class DanceScene implements Scene {
                     act ? DanceArt.GOLD : DanceArt.CYAN, act ? pulse : 0f);
         }
         float tx = x0 + total / 2f;
+        paint.setColor(0xB0140B2E);
+        rect.set(tx - 250f, cy + ch + (two ? 14f : 20f), tx + 250f, cy + ch + (plan.tag[curSlot] != null ? (two ? 118f : 140f) : (two ? 76f : 92f)));
+        c.drawRoundRect(rect, 28f, 28f, paint);
         Theme.drawCentered(c, plan.title[curSlot], tx, cy + ch + (two ? 56f : 70f), parts == 1 ? (two ? 50f : 62f) : (two ? 36f : 44f),
                 DanceArt.WHITE);
         if (plan.tag[curSlot] != null) {
             int col = plan.type[curSlot] == Poses.T_FREEZE ? 0xFFA0E8FF : plan.type[curSlot] == Poses.T_SPEED ? DanceArt.ORANGE
                     : plan.type[curSlot] == Poses.T_MIRROR ? DanceArt.PINK : DanceArt.GREEN;
-            Theme.drawCentered(c, plan.tag[curSlot], tx, cy + ch + (two ? 100f : 120f), two ? 34f : 40f, col);
+            Theme.drawCentered(c, plan.tag[curSlot], tx, cy + ch + (two ? 100f : 120f), two ? 32f : 36f, col);
         }
     }
 

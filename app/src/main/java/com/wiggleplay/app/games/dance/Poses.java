@@ -553,7 +553,7 @@ public final class Poses {
                         pl.say[s] = "Do the other side! " + SAY[a];
                         break;
                     case T_FREEZE:
-                        pl.tag[s] = "Freeze! The music stops!";
+                        pl.tag[s] = "Music stops!";
                         pl.say[s] = "Freeze! " + SAY[a];
                         break;
                     case T_SPEED:

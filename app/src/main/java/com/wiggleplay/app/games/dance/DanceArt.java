@@ -206,7 +206,7 @@ final class DanceArt {
     // {left shoulder x, right shoulder x, shoulder y, nose x, nose y, left hip x, right hip x, hip y, arm length, arm width}
     private static final float[][] ANCHOR = {
             {118f, 322f, 335f, 220f, 270f, 170f, 270f, 520f, 0.5f, 34f},
-            {150f, 310f, 405f, 385f, 114f, 150f, 310f, 480f, 0.7f, 22f},
+            {150f, 310f, 405f, 385f, 114f, 150f, 310f, 480f, 0.5f, 24f},
             {135f, 305f, 385f, 220f, 262f, 175f, 265f, 530f, 0.65f, 28f},
             {140f, 310f, 345f, 360f, 105f, 190f, 260f, 430f, 0.55f, 20f}};
     private static final int[] HOST_COLOUR = {CYAN, ORANGE, ORANGE, PINK};
