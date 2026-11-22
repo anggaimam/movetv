@@ -316,6 +316,14 @@ final class DanceArt {
         HEAD_BMP[which] = file(HOST_FILES[which] + "_head");
     }
 
+    /** Lets go of the host pictures and the stage (called when the game is left); they load again on the next visit. */
+    static void unload() {
+        java.util.Arrays.fill(BODY_BMP, null);
+        java.util.Arrays.fill(HEAD_BMP, null);
+        java.util.Arrays.fill(TRIED, false);
+        SpriteCache.shared().removePrefix("dance_");
+    }
+
     private static Bitmap file(String name) {
         try (java.io.InputStream in = ctx.getAssets().open("dance/" + name + ".png")) {
             return android.graphics.BitmapFactory.decodeStream(in);

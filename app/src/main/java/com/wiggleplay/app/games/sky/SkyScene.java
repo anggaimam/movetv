@@ -123,6 +123,7 @@ public final class SkyScene implements Scene {
 
     @Override
     public void exit() {
+        SkyArt.unload();
         if (env.music != null) env.music.stop(300);
     }
 

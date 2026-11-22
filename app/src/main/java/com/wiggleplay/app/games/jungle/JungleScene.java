@@ -188,6 +188,7 @@ public final class JungleScene implements Scene {
 
     @Override
     public void exit() {
+        JungleArt.unload();
         if (env.music != null) env.music.stop(300);
     }
 

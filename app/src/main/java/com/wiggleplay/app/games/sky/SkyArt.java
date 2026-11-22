@@ -50,6 +50,13 @@ final class SkyArt {
 
     private SkyArt() { }
 
+    /** Lets go of every sky picture (called when the game is left); {@link #prepare} paints them again. */
+    static void unload() {
+        for (Bitmap[] a : new Bitmap[][]{BIRD, CLOUD, BG, FAR, NEAR}) java.util.Arrays.fill(a, null);
+        ring = coin = star = balloon = magnet = shadow = null;
+        SpriteCache.shared().removePrefix("sky_");
+    }
+
     /**
      * Paints (once) everything the game needs for a level. Call from the scene's {@code enter}.
      * @param level 1..3

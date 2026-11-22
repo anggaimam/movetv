@@ -75,6 +75,26 @@ public final class SpriteCache {
     }
 
     /**
+     * Forgets the sprites whose key starts with a prefix (a game leaving the screen frees its own pictures).
+     * Bitmaps are not recycled, so a scene still holding one can finish its frame; the next {@link #get} repaints.
+     * @param prefix start of the keys, e.g. "jg_"
+     * @return bytes freed from the cache's count
+     */
+    public synchronized long removePrefix(String prefix) {
+        long freed = 0;
+        java.util.Iterator<Map.Entry<String, Bitmap>> it = map.entrySet().iterator();
+        while (it.hasNext()) {
+            Map.Entry<String, Bitmap> e = it.next();
+            if (e.getKey().startsWith(prefix)) {
+                freed += e.getValue().getByteCount();
+                it.remove();
+            }
+        }
+        bytes -= freed;
+        return freed;
+    }
+
+    /**
      * Forgets every sprite (call when the system asks for memory back). Bitmaps are not recycled, so a scene
      * that still holds one can keep drawing it; the memory is freed once nobody holds it any more, and the
      * next {@link #get} paints a fresh copy.

@@ -130,6 +130,19 @@ final class JungleArt {
         fancy = ok;
     }
 
+    /** Lets go of every jungle picture (called when the game is left); {@link #prepare} brings them back. */
+    static void unload() {
+        for (Bitmap[] a : new Bitmap[][]{WALK_A, DUCK_A, JUMP_A, FALL_A, SKY_A, TREE_A, THING_A, BIRD_A, MORPHO_A, RUN_F,
+                JUMP_F, DUCK_F, STUMBLE_F, BG, FAR, MID, GROUND}) {
+            java.util.Arrays.fill(a, null);
+        }
+        farA = midA = groundA = null;
+        log = doubleLog = vine = banana = golden = markUp = markDown = shadow = tufts = null;
+        fancy = false;
+        tried = false;
+        SpriteCache.shared().removePrefix("jg_");
+    }
+
     /** @return true when the drawn art from assets is in use (trees, critters and birds are shown) */
     static boolean fancy() { return fancy; }
     static Bitmap tree(int i) { return TREE_A[Math.floorMod(i, TREES)]; }

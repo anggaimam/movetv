@@ -15,7 +15,7 @@ import java.util.List;
 /**
  * The list of games, in the order the menu shows them. Games that are not built yet point at
  * the placeholder scene ({@link #PLACEHOLDER_SCENE}); a game's ticket replaces its entry's scene name.
- * T-13 to T-15 add bowling, bubbles and mirror later. Each tile picture is a small preview in the game's
+ * T-13 (bowling) is in; T-14 and T-15 add bubbles and mirror later. Each tile picture is a small preview in the game's
  * own art style (flat storybook, crayon doodle or neon arcade), painted once.
  */
 public final class GameRegistry {
@@ -33,6 +33,7 @@ public final class GameRegistry {
         g.add(sky);
         g.add(new GameInfo("dance", "Animal Dance Party", 0xFF140B2E, GameRegistry::paintDance, "dance", 1, 2, false));
         g.add(new GameInfo("jungle", "Jungle Dash", Theme.SAGE, GameRegistry::paintJungle, "jungle", 1, 2, false));
+        g.add(new GameInfo("bowling", "Bowling", 0xFF140B2E, com.wiggleplay.app.games.bowling.BowlingArt::cover, "bowling", 1, 4, true));
         GAMES = Collections.unmodifiableList(g);
     }
 

@@ -9,6 +9,7 @@ import com.wiggleplay.app.core.DemoScene;
 import com.wiggleplay.app.core.Input;
 import com.wiggleplay.app.core.PerfOverlay;
 import com.wiggleplay.app.core.Scene;
+import com.wiggleplay.app.games.bowling.BowlingScene;
 import com.wiggleplay.app.games.fruit.FruitScene;
 import com.wiggleplay.app.games.dance.DanceScene;
 import com.wiggleplay.app.games.jungle.JungleScene;
@@ -354,6 +355,52 @@ public class ScreenshotTest {
     @Test
     public void danceMirrorFlipped() throws Exception {
         danceAt("dance_mirror_flipped", 3, 1, 580, false);
+    }
+
+    // ---- T-13 part 1: Bowling ----
+
+    @Test
+    public void bowlingPicker() throws Exception {
+        check(ShotRig.shoot("bowling_picker", new BowlingScene(env()), Scene.SceneArgs.of("level", 1), 1, 30, null));
+    }
+
+    /** Picks "1 player" with the remote, waits out the intro, holds OK from frame 150 to 190, then lets go. */
+    private void bowlingAt(String name, int level, int frames) throws Exception {
+        check(ShotRig.shoot(name, new BowlingScene(env()), Scene.SceneArgs.of("level", level), 1, frames,
+                (frame, now, body, input) -> {
+                    int[] taps = {10, 25};
+                    for (int t : taps) {
+                        if (frame == t) input.keyDown(KeyEvent.KEYCODE_DPAD_CENTER);
+                        if (frame == t + 1) input.keyUp(KeyEvent.KEYCODE_DPAD_CENTER);
+                    }
+                    if (frame == 150) input.keyDown(KeyEvent.KEYCODE_DPAD_CENTER);
+                    if (frame == 190) input.keyUp(KeyEvent.KEYCODE_DPAD_CENTER);
+                }));
+    }
+
+    @Test
+    public void bowlingAim() throws Exception {
+        bowlingAt("bowling_aim", 1, 120);
+    }
+
+    @Test
+    public void bowlingCharge() throws Exception {
+        bowlingAt("bowling_charge", 1, 175);
+    }
+
+    @Test
+    public void bowlingRolling() throws Exception {
+        bowlingAt("bowling_rolling", 1, 255);
+    }
+
+    @Test
+    public void bowlingResult() throws Exception {
+        bowlingAt("bowling_result", 1, 420);
+    }
+
+    @Test
+    public void bowlingHardResult() throws Exception {
+        bowlingAt("bowling_result_hard", 3, 420);
     }
 
     @Test

@@ -179,6 +179,7 @@ public final class DanceScene implements Scene {
 
     @Override
     public void exit() {
+        DanceArt.unload();
         if (env.music != null) {
             env.music.setBeatListener(null);
             env.music.stop(300);

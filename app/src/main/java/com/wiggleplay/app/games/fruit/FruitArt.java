@@ -85,6 +85,13 @@ final class FruitArt {
         return SPRITES[kind];
     }
 
+    /** Lets go of every fruit picture (called when the game is left); they load again on the next visit. */
+    static void unload() {
+        java.util.Arrays.fill(SPRITES, null);
+        for (Bitmap[] h : HALVES) java.util.Arrays.fill(h, null);
+        SpriteCache.shared().removePrefix("fruit_");
+    }
+
     private static Bitmap load(int kind) {
         if (ctx == null) return null;
         try (InputStream in = ctx.getAssets().open("fruit/" + FILES[kind] + ".png")) {

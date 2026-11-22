@@ -236,7 +236,7 @@ public final class Synth {
     /** Names of all sound effects. */
     public static final String[] EFFECTS = {
             "hover", "tick", "select", "back", "pop", "splat", "coin", "whoosh",
-            "boing", "star", "cheer", "count", "go", "jump", "duck", "bonk"};
+            "boing", "star", "cheer", "count", "go", "jump", "duck", "bonk", "roll", "pins", "strike"};
 
     private static float[] sine(float f0, float f1, float len, Env e) {
         return osc(Wave.SINE, f0, f1, len, e, 0f);
@@ -338,6 +338,33 @@ public final class Synth {
                 add(m, 0, noise(0.03f, Env.of(0.003f, 0.015f, 0f, 0.01f), 1500, 1500, false, 5), 0.3f);
                 add(m, 0.2f, sine(160, 80, 0.2f, Env.of(0.004f, 0.1f, 0f, 0.08f)), 0.4f);
                 break;
+            case "roll": // a low rumble (the ball on the wooden lane), short so it can be repeated
+                m = noise(0.6f, Env.of(0.08f, 0.1f, 0.7f, 0.2f), 80, 420, false, 6);
+                scale(m, 0.6f);
+                break;
+            case "pins": { // wooden clatter: a burst of knocks at uneven times
+                m = new float[samples(0.9f)];
+                float[] at = {0f, 0.05f, 0.11f, 0.17f, 0.22f, 0.3f, 0.37f, 0.47f};
+                float[] fr = {420f, 560f, 380f, 640f, 470f, 520f, 400f, 450f};
+                for (int i = 0; i < at.length; i++) {
+                    add(m, at[i], sine(fr[i], fr[i] * 0.55f, 0.12f, Env.of(0.002f, 0.07f, 0f, 0.04f)), 0.32f);
+                    add(m, at[i], noise(0.03f, Env.of(0.002f, 0.015f, 0f, 0.01f), 1800, 1800, false, 7 + i), 0.22f);
+                }
+                break;
+            }
+            case "strike": { // the clatter, then a bright fanfare
+                m = new float[samples(1.15f)];
+                float[] at = {0f, 0.04f, 0.09f, 0.14f, 0.2f, 0.26f};
+                float[] fr = {430f, 590f, 390f, 650f, 480f, 520f};
+                for (int i = 0; i < at.length; i++) {
+                    add(m, at[i], sine(fr[i], fr[i] * 0.55f, 0.12f, Env.of(0.002f, 0.07f, 0f, 0.04f)), 0.3f);
+                }
+                float[] notes = {784f, 988f, 1175f, 1568f};
+                for (int i = 0; i < notes.length; i++) {
+                    add(m, 0.3f + i * 0.09f, tri(notes[i], notes[i], 0.5f, Env.of(0.005f, 0.2f, 0.3f, 0.2f)), 0.22f);
+                }
+                break;
+            }
             default:
                 return null;
         }

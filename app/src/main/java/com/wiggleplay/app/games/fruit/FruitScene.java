@@ -153,6 +153,7 @@ public final class FruitScene implements Scene {
 
     @Override
     public void exit() {
+        FruitArt.unload();
         if (env.music != null) env.music.stop(300);
     }
 
