@@ -52,12 +52,12 @@ final class DanceRules implements Hud.RulesPainter {
                     Theme.drawCentered(c, "Look", cx, TOP + PH - 26f, 60f, DanceArt.WHITE);
                     break;
                 case 1:
-                    DanceArt.figure(c, pose, cx, TOP + 140f, 110f, DanceArt.CYAN, 6f);
+                    DanceArt.figure(c, pose, cx, TOP + 120f, 62f, DanceArt.CYAN, 6f);
                     Theme.drawCentered(c, "Copy it", cx, TOP + PH - 26f, 60f, DanceArt.WHITE);
                     break;
                 default: {
                     float k = (float) (0.5 + 0.5 * Math.sin(t * 3f));
-                    DanceArt.figure(c, pose, cx - 90f, TOP + 140f, 90f, k > 0.5f ? DanceArt.GOLD : DanceArt.WHITE, 6f);
+                    DanceArt.figure(c, pose, cx - 90f, TOP + 120f, 62f, k > 0.5f ? DanceArt.GOLD : DanceArt.WHITE, 6f);
                     DanceArt.star(c, cx + 110f, TOP + 90f, 52f + 8f * k, DanceArt.GOLD);
                     DanceArt.star(c, cx + 190f, TOP + 190f, 34f, DanceArt.GOLD);
                     DanceArt.star(c, cx + 60f, TOP + 220f, 28f, DanceArt.GOLD);

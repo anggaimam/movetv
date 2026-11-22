@@ -380,7 +380,6 @@ final class DanceArt {
         // legs
         line(c, cx - 0.35f * sw, hipY, cx - 0.4f * sw, hipY + 1.3f * sw, colour, width);
         line(c, cx + 0.35f * sw, hipY, cx + 0.4f * sw, hipY + 1.3f * sw, colour, width);
-        line(c, cx - 0.35f * sw, hipY, cx + 0.35f * sw, hipY, colour, width);
         c.save();
         c.rotate(tilt, cx, hipY);
         line(c, cx, cy, cx, hipY, colour, width);
@@ -497,10 +496,10 @@ final class DanceArt {
             LINE.setStyle(Paint.Style.STROKE);
             LINE.setColor((base & 0x00FFFFFF) | (70 << 24));
             LINE.setStrokeWidth(width * 3.2f);
-            c.drawCircle(nose.x, nose.y - sw * 0.12f, sw * 0.38f, LINE);
+            c.drawCircle(nose.x, nose.y - sw * 0.12f, sw * 0.32f, LINE);
             LINE.setColor(base);
             LINE.setStrokeWidth(width);
-            c.drawCircle(nose.x, nose.y - sw * 0.12f, sw * 0.38f, LINE);
+            c.drawCircle(nose.x, nose.y - sw * 0.12f, sw * 0.32f, LINE);
         }
     }
 
