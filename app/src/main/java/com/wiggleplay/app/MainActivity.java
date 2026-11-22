@@ -155,6 +155,7 @@ public class MainActivity extends Activity {
         scenes.register("dance", settings.host(new com.wiggleplay.app.games.dance.DanceScene(env)));
         scenes.register("skyplane", settings.host(new com.wiggleplay.app.games.sky.SkyPlaneScene(env)));
         scenes.register("sky", settings.host(new com.wiggleplay.app.games.sky.SkyScene(env)));
+        scenes.register("jungle", settings.host(new com.wiggleplay.app.games.jungle.JungleScene(env)));
         // the sound and speed test keeps its own quick keys, so it is not wrapped
         scenes.register("demo", new DemoScene(perf, sfx, music));
         gameView = new GameView(this, hub, scenes, perf);

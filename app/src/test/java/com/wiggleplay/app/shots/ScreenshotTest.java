@@ -11,6 +11,7 @@ import com.wiggleplay.app.core.PerfOverlay;
 import com.wiggleplay.app.core.Scene;
 import com.wiggleplay.app.games.fruit.FruitScene;
 import com.wiggleplay.app.games.dance.DanceScene;
+import com.wiggleplay.app.games.jungle.JungleScene;
 import com.wiggleplay.app.games.sky.SkyPlaneScene;
 import com.wiggleplay.app.games.sky.SkyScene;
 import com.wiggleplay.app.pose.TestPoseSource;
@@ -350,5 +351,54 @@ public class ScreenshotTest {
     @Test
     public void danceParty2p() throws Exception {
         danceAt("dance_party_2p", 3, 2, 1500, true);
+    }
+
+    @Test
+    public void jungleRules() throws Exception {
+        JungleScene.setRulesSeen(false);
+        check(ShotRig.shoot("jungle_rules", new JungleScene(env()),
+                Scene.SceneArgs.of("level", 1, "players", 1), 1, 40, null));
+    }
+
+    @Test
+    public void jungleCountdown() throws Exception {
+        JungleScene.setRulesSeen(true);
+        check(ShotRig.shoot("jungle_countdown", new JungleScene(env()),
+                Scene.SceneArgs.of("level", 1, "players", 1), 1, 60, null));
+    }
+
+    private void junglePlay(String name, int level, int players, int frames) throws Exception {
+        JungleScene.setRulesSeen(true);
+        check(ShotRig.shoot(name, new JungleScene(env()),
+                Scene.SceneArgs.of("level", level, "players", players), players, frames,
+                (frame, now, body, input) -> {
+                    if (frame > 400 && frame % 90 == 0) body.jump(now);
+                    body.setHeld(TestPoseSource.CTRL_DUCK, frame > 400 && (frame / 45) % 5 == 3);
+                }));
+    }
+
+    @Test
+    public void junglePlayEasy() throws Exception {
+        junglePlay("jungle_play_easy", 1, 1, 900);
+    }
+
+    @Test
+    public void junglePlayMedium() throws Exception {
+        junglePlay("jungle_play_medium", 2, 1, 900);
+    }
+
+    @Test
+    public void junglePlayHard() throws Exception {
+        junglePlay("jungle_play_hard", 3, 1, 900);
+    }
+
+    @Test
+    public void junglePlayTwoPlayers() throws Exception {
+        junglePlay("jungle_play_2p", 2, 2, 900);
+    }
+
+    @Test
+    public void jungleEnd() throws Exception {
+        junglePlay("jungle_end_1p", 1, 1, 6000);
     }
 }

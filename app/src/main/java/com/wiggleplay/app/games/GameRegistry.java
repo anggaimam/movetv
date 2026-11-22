@@ -32,7 +32,7 @@ public final class GameRegistry {
         sky.live = com.wiggleplay.app.games.sky.SkyCover.LIVE;
         g.add(sky);
         g.add(new GameInfo("dance", "Animal Dance Party", 0xFF140B2E, GameRegistry::paintDance, "dance", 1, 2, false));
-        g.add(new GameInfo("jungle", "Jungle Dash", Theme.SAGE, GameRegistry::paintJungle, PLACEHOLDER_SCENE, 1, 2, false));
+        g.add(new GameInfo("jungle", "Jungle Dash", Theme.SAGE, GameRegistry::paintJungle, "jungle", 1, 2, false));
         GAMES = Collections.unmodifiableList(g);
     }
 
