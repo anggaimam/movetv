@@ -275,17 +275,20 @@ public class ScreenshotTest {
 
     @Test
     public void danceRules() throws Exception {
+        DanceScene.initArt(org.robolectric.RuntimeEnvironment.getApplication());
         DanceScene.setRulesSeen(false);
         check(ShotRig.shoot("dance_rules", new DanceScene(env()), Scene.SceneArgs.of("level", 1, "players", 1), 1, 75, null));
     }
 
     @Test
     public void danceCountdown() throws Exception {
+        DanceScene.initArt(org.robolectric.RuntimeEnvironment.getApplication());
         DanceScene.setRulesSeen(true);
         check(ShotRig.shoot("dance_countdown", new DanceScene(env()), Scene.SceneArgs.of("level", 1, "players", 1), 1, 100, null));
     }
 
     private void dancePlay(String name, int level, int players, int frames, int preset) throws Exception {
+        DanceScene.initArt(org.robolectric.RuntimeEnvironment.getApplication());
         DanceScene.setRulesSeen(true);
         check(ShotRig.shoot(name, new DanceScene(env()), Scene.SceneArgs.of("level", level, "players", players), players,
                 frames, (frame, now, body, input) -> {

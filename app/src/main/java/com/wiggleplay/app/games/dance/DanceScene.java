@@ -33,7 +33,8 @@ public final class DanceScene implements Scene {
             "+12"};
     private static final String[] STREAK = new String[21];
     private static final String[] BONUS = {"", "Streak bonus +1!", "Streak bonus +2!", "Streak bonus +3!"};
-    private static final String[] NEW_HOST = {"Giraffe", "Monkey", "Flamingo"};
+    private static final String[] NEW_HOST = {"Flamingo", "Fox", "Gecko"};
+    private static final int FIRST_HOSTS = 5; // monkey, sheep, bear, dog and cat are there from the start
     private static final boolean[] RULES_SEEN = new boolean[4];
     private static boolean unlockAll;
     private static final float[] GUEST_X_1P = {520f, 1300f, 690f}, GUEST_X_2P = {700f, 1220f, 840f};
@@ -96,6 +97,14 @@ public final class DanceScene implements Scene {
     }
 
     /**
+     * Gives the host pictures access to the app's assets (call once at start, before the game is played).
+     * @param context any context
+     */
+    public static void initArt(android.content.Context context) {
+        DanceArt.init(context);
+    }
+
+    /**
      * Creates the game.
      * @param env what the screens share
      */
@@ -117,17 +126,18 @@ public final class DanceScene implements Scene {
     }
 
     private void readUnlocks() {
-        hostsOpen = 1;
+        hostsOpen = FIRST_HOSTS;
         themesOpen = 1;
-        hostOpen[0] = true;
+        for (int i = 0; i < FIRST_HOSTS; i++) hostOpen[i] = true;
         for (int l = 1; l <= 3; l++) {
             boolean three = unlockAll || (env.profile != null && env.profile.stars(GAME_ID, l) >= 3);
-            hostOpen[l] = three;
+            hostOpen[FIRST_HOSTS - 1 + l] = three;
             if (three) {
                 hostsOpen++;
                 themesOpen++;
             }
         }
+        for (int i = 0; i < DanceArt.HOSTS; i++) if (hostOpen[i]) DanceArt.preload(i);
     }
 
     private int hostForSlot(int slot) {

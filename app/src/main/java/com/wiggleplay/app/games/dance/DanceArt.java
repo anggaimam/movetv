@@ -16,8 +16,8 @@ import com.wiggleplay.app.pose.PlayerPose;
 import java.util.Random;
 
 /**
- * Neon arcade art for Animal Dance Party: a dark stage with a glowing floor, four animal hosts (penguin, giraffe,
- * monkey, flamingo) drawn as glowing outlines, sweeping stage lights, pose cards with a stick figure, and the glowing
+ * Neon arcade art for Animal Dance Party: a dark stage with a glowing floor, eight animal hosts (monkey, sheep, bear,
+ * dog, cat, flamingo, fox, gecko) drawn as neon outlines, sweeping stage lights, pose cards with a stick figure, and the glowing
  * outline of the players' own bodies. Glow is a wide low-opacity line under a thin bright one: no blur, no gradients.
  * Everything big is baked once into {@link SpriteCache}; per frame only a few lines and one bitmap per host are drawn.
  */
@@ -27,9 +27,6 @@ final class DanceArt {
     static final int CYAN = 0xFF7FF4FF, PINK = 0xFFFF4FD8, ORANGE = 0xFFFFC27A, GREEN = 0xFF6BFF8E, GOLD = 0xFFFFD84A,
             WHITE = 0xFFFFFFFF;
 
-    static final int HOSTS = 4;
-    static final String[] HOST_NAMES = {"Penguin", "Giraffe", "Monkey", "Flamingo"};
-    private static final String[] HOST_KEYS = {"dance_host_0", "dance_host_1", "dance_host_2", "dance_host_3"};
     static final int HOST_W = 440, HOST_H = 620;
 
     private static final Paint LINE = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -201,37 +198,189 @@ final class DanceArt {
     }
 
     // ---- hosts ----
+    //
+    // Each host is two pictures drawn ahead of time from the approved sketches (assets/dance/<name>_body.png and
+    // <name>_head.png, made at 440 x 620 and cropped) plus arms and hands drawn every frame. Drawing order makes the
+    // outline look like one line: arm outlines, then the body (its inside is filled with the stage colour, so it hides
+    // the arm outline under it), then the arm insides (they wipe the body outline where an arm leaves the body), then
+    // the head (arms pass behind it), then the hands on top of everything. The flamingo's wings sit behind its body.
+    //
+    // Arms and hands use the sketches' own units ("rig" units): the floor is at y = 352, the middle at x = 200,
+    // and one rig unit is S host-picture pixels.
 
-    // where each host's arms start and what they reach, in the host picture's own pixels (440 x 620)
-    // {left shoulder x, right shoulder x, shoulder y, nose x, nose y, left hip x, right hip x, hip y, arm length, arm width}
-    private static final float[][] ANCHOR = {
-            {118f, 322f, 335f, 220f, 270f, 170f, 270f, 520f, 0.5f, 34f},
-            {150f, 310f, 405f, 385f, 114f, 150f, 310f, 480f, 0.5f, 24f},
-            {135f, 305f, 385f, 220f, 262f, 175f, 265f, 530f, 0.65f, 28f},
-            {140f, 310f, 345f, 360f, 105f, 190f, 260f, 430f, 0.55f, 20f}};
-    private static final int[] HOST_COLOUR = {CYAN, ORANGE, ORANGE, PINK};
-    private static final Path ARM = new Path();
+    private static final float S = 1.7f, T = 4.5f;
+    private static final int RIG_CYAN = 0xFF22E3F0, RIG_PINK = 0xFFFF4DA6, RIG_FLAMINGO = 0xFFFF5CB8;
+
+    static final int HOSTS = 8;
+    static final String[] HOST_NAMES = {"Monkey", "Sheep", "Bear", "Dog", "Cat", "Flamingo", "Fox", "Gecko"};
+    private static final String[] HOST_FILES = {"monkey", "sheep", "bear", "dog", "cat", "flamingo", "fox", "gecko"};
+    // top-left corner of each cropped picture inside the 440 x 620 host picture
+    private static final int[][] BODY_OFF = {{115, 270}, {127, 255}, {94, 253}, {118, 258}, {123, 256}, {145, 170},
+            {125, 263}, {110, 236}};
+    private static final int[][] HEAD_OFF = {{36, 32}, {38, 56}, {60, 42}, {18, 61}, {82, 34}, {135, 18}, {65, 32},
+            {76, 39}};
+    private static final int HAND_MONKEY = 0, HAND_HOOF = 1, HAND_PAW = 2, HAND_GECKO = 3, HAND_WING = 4;
+    private static final int[] HAND = {HAND_MONKEY, HAND_HOOF, HAND_PAW, HAND_PAW, HAND_PAW, HAND_WING, HAND_PAW,
+            HAND_GECKO};
+    // rig: hip y, shoulder half-width, shoulder y (from the hip), upper arm, forearm, upper arm width, forearm width,
+    // nose y (from the hip), hip half-width (where a hand on the hip goes)
+    private static final float[][] RIG = {
+            {268f, 28f, -84f, 50f, 44f, 15f, 13f, -134f, 34f},
+            {272f, 28f, -96f, 40f, 36f, 10f, 10f, -134f, 40f},
+            {262f, 38f, -84f, 44f, 38f, 11f, 11f, -138f, 48f},
+            {257f, 36f, -78f, 46f, 40f, 11f, 11f, -133f, 46f},
+            {262f, 31f, -84f, 44f, 40f, 11f, 11f, -135f, 42f},
+            {270f, 26f, -74f, 48f, 72f, 0f, 0f, -164f, 38f},
+            {272f, 31f, -88f, 44f, 40f, 11f, 11f, -138f, 42f},
+            {252f, 28f, -84f, 46f, 38f, 9f, 9f, -135f, 36f}};
+
+    private static android.content.Context ctx;
+    private static final Bitmap[] BODY_BMP = new Bitmap[HOSTS], HEAD_BMP = new Bitmap[HOSTS];
+    private static final boolean[] TRIED = new boolean[HOSTS];
+
+    private static final Paint ARM = new Paint(Paint.ANTI_ALIAS_FLAG), ARM_FILL = new Paint(Paint.ANTI_ALIAS_FLAG),
+            WING = new Paint(Paint.ANTI_ALIAS_FLAG), DOT = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private static final Path WING_UPPER, WING_FORE, WING_UPPER_LINE, WING_FORE_LINE, WING_FORE_BLUE, MITTEN;
+    private static final float[] GECKO_FINGERS = {-50f, 18f, -17f, 20f, 16f, 20f, 48f, 17f};
+
+    static {
+        ARM.setStyle(Paint.Style.STROKE);
+        ARM.setStrokeJoin(Paint.Join.ROUND);
+        ARM_FILL.setStyle(Paint.Style.FILL_AND_STROKE);
+        ARM_FILL.setStrokeJoin(Paint.Join.ROUND);
+        WING.setStyle(Paint.Style.FILL_AND_STROKE);
+        WING.setStrokeJoin(Paint.Join.ROUND);
+        WING.setShader(new android.graphics.LinearGradient(-20f, 0f, 30f, 0f,
+                new int[]{RIG_FLAMINGO, RIG_FLAMINGO, RIG_CYAN, RIG_CYAN}, new float[]{0f, 0.5f, 0.5f, 1f},
+                android.graphics.Shader.TileMode.CLAMP));
+        DOT.setStyle(Paint.Style.FILL);
+        WING_UPPER = union(circle(1f, 0f, 12f), poly(-10f, 0f, -11f, 48f, 14f, 48f, 12f, 0f), circle(13f, 9f, 8f),
+                circle(14f, 24f, 8f), circle(14f, 38f, 8f));
+        Path fore = new Path();
+        fore.moveTo(-11f, 0f);
+        fore.quadTo(-9f, 45f, 0f, 80f);
+        fore.lineTo(6f, 72f);
+        fore.lineTo(14f, 50f);
+        fore.lineTo(18f, 20f);
+        fore.lineTo(16f, 0f);
+        fore.close();
+        WING_FORE = union(circle(2f, 0f, 13f), fore, circle(19f, 8f, 9f), circle(21f, 23f, 9f), circle(19f, 38f, 9f),
+                circle(15f, 52f, 8f), circle(9f, 65f, 7f), circle(3f, 76f, 5f));
+        WING_UPPER_LINE = scallops(-1f, 6f, -1f, 21f, -1f, 36f);
+        WING_FORE_LINE = scallops(-2f, 6f, -1f, 20f, 0f, 34f);
+        WING_FORE_BLUE = scallops(8f, 8f, 9f, 22f, 8f, 36f, 5f, 50f);
+        MITTEN = new Path();
+        MITTEN.moveTo(-4.6f, 17f);
+        R.set(-11f, -4f, 11f, 18f);
+        MITTEN.arcTo(R, 114.7f, 310.6f, false);
+        MITTEN.lineTo(0f, 10f);
+        MITTEN.close();
+    }
+
+    private static Path union(Path... parts) {
+        Path p = new Path(parts[0]);
+        for (int i = 1; i < parts.length; i++) p.op(parts[i], Path.Op.UNION);
+        return p;
+    }
+
+    /** Half-circle bumps through the given points, bulging to the right of the direction of travel. */
+    private static Path scallops(float... xy) {
+        Path p = new Path();
+        p.moveTo(xy[0], xy[1]);
+        for (int i = 2; i < xy.length; i += 2) {
+            float x0 = xy[i - 2], y0 = xy[i - 1], x1 = xy[i], y1 = xy[i + 1];
+            float mx = (x0 + x1) / 2f, my = (y0 + y1) / 2f;
+            float r = (float) Math.hypot(x1 - x0, y1 - y0) / 2f;
+            R.set(mx - r, my - r, mx + r, my + r);
+            p.arcTo(R, (float) Math.toDegrees(Math.atan2(y0 - my, x0 - mx)), 180f, false);
+        }
+        return p;
+    }
+
+    /**
+     * Gives the host pictures access to the app's assets (call once at start).
+     * @param context any context
+     */
+    static void init(android.content.Context context) {
+        ctx = context.getApplicationContext();
+    }
+
+    /**
+     * Loads a host's two pictures if they are not loaded yet (do it before the host is first drawn).
+     * @param which host 0..HOSTS-1
+     */
+    static void preload(int which) {
+        if (which < 0 || which >= HOSTS || TRIED[which] || ctx == null) return;
+        TRIED[which] = true;
+        BODY_BMP[which] = file(HOST_FILES[which] + "_body");
+        HEAD_BMP[which] = file(HOST_FILES[which] + "_head");
+    }
+
+    private static Bitmap file(String name) {
+        try (java.io.InputStream in = ctx.getAssets().open("dance/" + name + ".png")) {
+            return android.graphics.BitmapFactory.decodeStream(in);
+        } catch (java.io.IOException e) {
+            return null;
+        }
+    }
+
+    private static final float[] POSE_ANG = new float[4];
 
     /**
      * Where a host's elbows and wrists are when it does a pose.
-     * @param which host 0..3
+     * @param which host 0..HOSTS-1
      * @param pose pose number
-     * @param o receives left elbow x, y, left wrist x, y, right elbow x, y, right wrist x, y (host picture pixels)
+     * @param o receives left elbow x, y, left wrist x, y, right elbow x, y, right wrist x, y (rig units)
      */
     static void hostArmsPose(int which, int pose, float[] o) {
-        float[] a = ANCHOR[which];
-        Poses.arms(pose, a[0], a[1], a[2], a[3], a[4], a[5], a[6], a[7], a[8], o);
+        Poses.drawAngles(pose, POSE_ANG);
+        hostArmsAngles(which, POSE_ANG, o);
+        int near = Poses.nearSide(pose);
+        if (near < 0) return;
+        float[] r = RIG[which];
+        float dir = near == 0 ? -1f : 1f, sx = 200f + dir * r[1], sy = r[0] + r[2], sw = 2f * r[1];
+        float tx, ty;
+        if (Poses.nearNose(pose)) {
+            tx = 200f + dir * 0.15f * sw;
+            ty = r[0] + r[7] + 0.15f * sw;
+        } else {
+            tx = 200f + dir * (r[8] + 4f);
+            ty = r[0] - 24f;
+        }
+        float l1 = r[3], l2 = r[4];
+        float dx = tx - sx, dy = ty - sy, full = Math.max(1f, (float) Math.sqrt(dx * dx + dy * dy));
+        float d = Math.max(1f, Math.min(full, l1 + l2 - 1f));
+        float a = (l1 * l1 - l2 * l2 + d * d) / (2f * d);
+        float h = (float) Math.sqrt(Math.max(0f, l1 * l1 - a * a));
+        float ux = dx / full, uy = dy / full, px = sx + ux * a, py = sy + uy * a, ox = -uy, oy = ux;
+        if (ox * dir < 0f) {
+            ox = -ox;
+            oy = -oy;
+        }
+        int b = near * 4;
+        o[b] = px + ox * h;
+        o[b + 1] = py + oy * h;
+        o[b + 2] = sx + ux * d;
+        o[b + 3] = sy + uy * d;
     }
 
     /**
      * Where a host's elbows and wrists are for four arm directions.
-     * @param which host 0..3
+     * @param which host 0..HOSTS-1
      * @param ang four angles LU, LF, RU, RF (0 = down, 90 = out, 180 = up)
      * @param o receives the eight coordinates (see {@link #hostArmsPose})
      */
     static void hostArmsAngles(int which, float[] ang, float[] o) {
-        float[] a = ANCHOR[which];
-        Poses.armsFromAngles(a[0], a[1], a[2], a[8], ang, o);
+        float[] r = RIG[which];
+        for (int side = 0; side < 2; side++) {
+            float dir = side == 0 ? -1f : 1f, sx = 200f + dir * r[1], sy = r[0] + r[2];
+            double a = Math.toRadians(ang[side * 2]), b = Math.toRadians(ang[side * 2 + 1]);
+            float ex = sx + dir * r[3] * (float) Math.sin(a), ey = sy + r[3] * (float) Math.cos(a);
+            o[side * 4] = ex;
+            o[side * 4 + 1] = ey;
+            o[side * 4 + 2] = ex + dir * r[4] * (float) Math.sin(b);
+            o[side * 4 + 3] = ey + r[4] * (float) Math.cos(b);
+        }
     }
 
     /**
@@ -252,7 +401,7 @@ final class DanceArt {
     /**
      * Draws a host that just dances: arms swinging on the beat.
      * @param c canvas
-     * @param which host 0..3
+     * @param which host 0..HOSTS-1
      * @param cx centre x
      * @param bottom floor y
      * @param scale 1 = full size
@@ -265,42 +414,193 @@ final class DanceArt {
         host(c, which, cx, bottom, scale, beatPos, excite, DANCE_ARMS, 0f, false);
     }
 
-    /** The body picture and the two arms, drawn in the host picture's pixels. */
-    private static void hostBody(Canvas c, int which, float[] o) {
-        Bitmap b = SpriteCache.shared().get(HOST_KEYS[which], HOST_W, HOST_H, PAINTERS[which]);
-        c.drawBitmap(b, 0f, 0f, SPRITE);
-        float[] a = ANCHOR[which];
-        limb(c, a[0], a[2], o[0], o[1], o[2], o[3], HOST_COLOUR[which], a[9]);
-        limb(c, a[1], a[2], o[4], o[5], o[6], o[7], HOST_COLOUR[which], a[9]);
+    /** Switches the canvas from host-picture pixels to rig units (pair with {@code c.restore()}). */
+    private static void rig(Canvas c) {
+        c.save();
+        c.translate(220f - 200f * S, 620f - 372f * S);
+        c.scale(S, S);
     }
 
-    private static void limb(Canvas c, float sx, float sy, float ex, float ey, float wx, float wy, int colour, float w) {
-        ARM.reset();
-        ARM.moveTo(sx, sy);
-        ARM.lineTo(ex, ey);
-        ARM.lineTo(wx, wy);
-        LINE.setStyle(Paint.Style.STROKE);
-        LINE.setColor((colour & 0x00FFFFFF) | (70 << 24));
-        LINE.setStrokeWidth(w * 1.9f);
-        c.drawPath(ARM, LINE);
-        LINE.setColor(colour);
-        LINE.setStrokeWidth(w);
-        c.drawPath(ARM, LINE);
-        LINE.setColor(PANEL);
-        LINE.setStrokeWidth(Math.max(4f, w - 10f));
-        c.drawPath(ARM, LINE);
-        FILL.setStyle(Paint.Style.FILL);
-        FILL.setColor(PANEL);
-        c.drawCircle(wx, wy, w * 0.62f, FILL);
-        LINE.setColor(colour);
-        LINE.setStrokeWidth(Math.max(4f, w * 0.22f));
-        c.drawCircle(wx, wy, w * 0.62f, LINE);
+    /** The body, the head and the arms, drawn in the host picture's pixels. */
+    private static void hostBody(Canvas c, int which, float[] o) {
+        preload(which);
+        boolean wing = HAND[which] == HAND_WING;
+        rig(c);
+        if (wing) wings(c, o);
+        else arms(c, which, o, true);
+        c.restore();
+        Bitmap b = BODY_BMP[which];
+        if (b != null) c.drawBitmap(b, BODY_OFF[which][0], BODY_OFF[which][1], SPRITE);
+        if (!wing) {
+            rig(c);
+            arms(c, which, o, false);
+            c.restore();
+        }
+        b = HEAD_BMP[which];
+        if (b != null) c.drawBitmap(b, HEAD_OFF[which][0], HEAD_OFF[which][1], SPRITE);
+        if (!wing) {
+            rig(c);
+            for (int side = 0; side < 2; side++) hand(c, which, o, side);
+            c.restore();
+        }
+    }
+
+    /** Both arms as tubes: the outline pass (wide, cyan) or the inside pass (narrow, stage colour). */
+    private static void arms(Canvas c, int which, float[] o, boolean outline) {
+        float[] r = RIG[which];
+        boolean hoof = HAND[which] == HAND_HOOF;
+        ARM.setColor(outline ? RIG_CYAN : BG);
+        for (int side = 0; side < 2; side++) {
+            float sx = 200f + (side == 0 ? -1f : 1f) * r[1], sy = r[0] + r[2];
+            int b = side * 4;
+            ARM.setStrokeCap(Paint.Cap.ROUND);
+            ARM.setStrokeWidth(r[5] + (outline ? 2f * T : 0f));
+            c.drawLine(sx, sy, o[b], o[b + 1], ARM);
+            float wx = o[b + 2], wy = o[b + 3];
+            if (hoof) {
+                ARM.setStrokeCap(Paint.Cap.BUTT);
+                if (!outline) {
+                    float dx = wx - o[b], dy = wy - o[b + 1], d = Math.max(1f, (float) Math.sqrt(dx * dx + dy * dy));
+                    wx += dx / d * 4f;
+                    wy += dy / d * 4f;
+                }
+            }
+            ARM.setStrokeWidth(r[6] + (outline ? 2f * T : 0f));
+            c.drawLine(o[b], o[b + 1], wx, wy, ARM);
+        }
+    }
+
+    /**
+     * Turns the canvas so the wrist is at (0, 0) and the forearm points along +y (the right hand is mirrored, as in
+     * the sketches). Pair with {@code c.restore()}.
+     */
+    private static void segment(Canvas c, float px, float py, float qx, float qy, boolean mirror, boolean atEnd) {
+        c.save();
+        float dx = qx - px, dy = qy - py;
+        if (atEnd) c.translate(qx, qy);
+        else c.translate(px, py);
+        if (mirror) {
+            c.scale(-1f, 1f);
+            dx = -dx;
+        }
+        c.rotate((float) Math.toDegrees(Math.atan2(-dx, dy)));
+    }
+
+    /** One hand on the top layer: the last bit of the forearm, the hand itself, then its pads. */
+    private static void hand(Canvas c, int which, float[] o, int side) {
+        int b = side * 4, kind = HAND[which];
+        float w = RIG[which][6];
+        segment(c, o[b], o[b + 1], o[b + 2], o[b + 3], side == 1, true);
+        for (int pass = 0; pass < 2; pass++) {
+            boolean outline = pass == 0;
+            int col = outline ? RIG_CYAN : BG;
+            float grow = outline ? 2f * T : 0f;
+            ARM.setColor(col);
+            ARM.setStrokeCap(Paint.Cap.BUTT);
+            ARM.setStrokeWidth(w + grow);
+            c.drawLine(0f, outline ? -14f : -20f, 0f, kind == HAND_HOOF && !outline ? 4f : 0f, ARM);
+            ARM_FILL.setColor(col);
+            ARM_FILL.setStrokeWidth(grow);
+            switch (kind) {
+                case HAND_MONKEY:
+                    c.drawCircle(0f, 6f, 10f, ARM_FILL);
+                    ARM.setStrokeCap(Paint.Cap.ROUND);
+                    ARM.setStrokeWidth(5f + grow);
+                    for (int k = -1; k <= 1; k++) {
+                        double a = Math.toRadians(38 * k);
+                        float sn = (float) Math.sin(a), cs = (float) Math.cos(a);
+                        c.drawLine(-sn * 6f, 2f + cs * 6f, -sn * 19f, 2f + cs * 19f, ARM);
+                    }
+                    break;
+                case HAND_PAW:
+                    c.drawCircle(0f, 0f, 15f, ARM_FILL);
+                    break;
+                case HAND_GECKO:
+                    c.drawCircle(0f, 2f, 7f, ARM_FILL);
+                    ARM.setStrokeCap(Paint.Cap.ROUND);
+                    ARM.setStrokeWidth(3.2f + grow);
+                    for (int k = 0; k < 8; k += 2) {
+                        double a = Math.toRadians(GECKO_FINGERS[k]);
+                        float l = GECKO_FINGERS[k + 1];
+                        c.drawLine(0f, 2f, -(float) Math.sin(a) * l, 2f + (float) Math.cos(a) * l, ARM);
+                    }
+                    break;
+                default:
+                    break;
+            }
+        }
+        DOT.setStyle(Paint.Style.FILL);
+        switch (kind) {
+            case HAND_HOOF:
+                DOT.setColor(BG);
+                c.drawPath(MITTEN, DOT);
+                ARM.setColor(RIG_PINK);
+                ARM.setStrokeWidth(5f);
+                c.drawPath(MITTEN, ARM);
+                break;
+            case HAND_PAW:
+                DOT.setColor(RIG_PINK);
+                R.set(-6f, -6f, 6f, 4f);
+                c.drawOval(R, DOT);
+                c.drawCircle(-7f, 7.5f, 2.8f, DOT);
+                c.drawCircle(0f, 10f, 2.8f, DOT);
+                c.drawCircle(7f, 7.5f, 2.8f, DOT);
+                break;
+            case HAND_GECKO:
+                for (int k = 0; k < 8; k += 2) {
+                    double a = Math.toRadians(GECKO_FINGERS[k]);
+                    float l = GECKO_FINGERS[k + 1] + 3f;
+                    float x = -(float) Math.sin(a) * l, y = 2f + (float) Math.cos(a) * l;
+                    DOT.setColor(0x59FF4DA6);
+                    c.drawCircle(x, y, 5.5f, DOT);
+                    ARM.setColor(RIG_PINK);
+                    ARM.setStrokeWidth(3.5f);
+                    c.drawCircle(x, y, 5.5f, ARM);
+                }
+                break;
+            default:
+                break;
+        }
+        c.restore();
+    }
+
+    /** The flamingo's wings, behind its body: outline pass, inside pass, then the feather lines. */
+    private static void wings(Canvas c, float[] o) {
+        float[] r = RIG[5];
+        for (int pass = 0; pass < 3; pass++) {
+            for (int side = 0; side < 2; side++) {
+                int b = side * 4;
+                float sx = 200f + (side == 0 ? -1f : 1f) * r[1], sy = r[0] + r[2];
+                for (int part = 0; part < 2; part++) {
+                    if (part == 0) segment(c, sx, sy, o[b], o[b + 1], side == 1, false);
+                    else segment(c, o[b], o[b + 1], o[b + 2], o[b + 3], side == 1, false);
+                    Path shape = part == 0 ? WING_UPPER : WING_FORE;
+                    if (pass == 0) {
+                        WING.setStrokeWidth(2f * T);
+                        c.drawPath(shape, WING);
+                    } else if (pass == 1) {
+                        DOT.setColor(BG);
+                        c.drawPath(shape, DOT);
+                    } else {
+                        ARM.setStrokeCap(Paint.Cap.ROUND);
+                        ARM.setStrokeWidth(3.5f);
+                        ARM.setColor(RIG_FLAMINGO);
+                        c.drawPath(part == 0 ? WING_UPPER_LINE : WING_FORE_LINE, ARM);
+                        if (part == 1) {
+                            ARM.setColor(RIG_CYAN);
+                            c.drawPath(WING_FORE_BLUE, ARM);
+                        }
+                    }
+                    c.restore();
+                }
+            }
+        }
     }
 
     /**
      * Draws a dancing host: it hops on every beat, squashes a little and sways.
      * @param c canvas
-     * @param which 0..3 penguin, giraffe, monkey, flamingo
+     * @param which host 0..HOSTS-1 (see {@link #HOST_NAMES})
      * @param cx centre x
      * @param bottom y of the floor under the host
      * @param scale 1 = full size (440 x 620)
@@ -331,24 +631,6 @@ final class DanceArt {
         c.restore();
     }
 
-    private static final SpriteCache.Painter[] PAINTERS = {
-            DanceArt::paintPenguin, DanceArt::paintGiraffe, DanceArt::paintMonkey, DanceArt::paintFlamingo};
-
-    private static Path oval(float l, float t, float r, float b) {
-        Path p = new Path();
-        R.set(l, t, r, b);
-        p.addOval(R, Path.Direction.CW);
-        return p;
-    }
-
-    private static Path rotOval(float cx, float cy, float rx, float ry, float deg) {
-        Path p = oval(cx - rx, cy - ry, cx + rx, cy + ry);
-        android.graphics.Matrix m = new android.graphics.Matrix();
-        m.setRotate(deg, cx, cy);
-        p.transform(m);
-        return p;
-    }
-
     private static Path circle(float cx, float cy, float r) {
         Path p = new Path();
         p.addCircle(cx, cy, r, Path.Direction.CW);
@@ -361,154 +643,6 @@ final class DanceArt {
         for (int i = 2; i < xy.length; i += 2) p.lineTo(xy[i], xy[i + 1]);
         p.close();
         return p;
-    }
-
-    private static void shape(Canvas c, Path p, int fill, int colour, float w) {
-        Paint f = new Paint(Paint.ANTI_ALIAS_FLAG);
-        f.setColor(fill);
-        c.drawPath(p, f);
-        Brushes.neonStroke(c, p, colour, w);
-    }
-
-    /** A glowing tube along a path: a wide coloured stroke with a dark one on top. */
-    private static void tube(Canvas c, Path p, int colour, float width) {
-        Paint s = new Paint(Paint.ANTI_ALIAS_FLAG);
-        s.setStyle(Paint.Style.STROKE);
-        s.setStrokeCap(Paint.Cap.ROUND);
-        s.setStrokeJoin(Paint.Join.ROUND);
-        s.setColor((colour & 0x00FFFFFF) | (70 << 24));
-        s.setStrokeWidth(width * 1.9f);
-        c.drawPath(p, s);
-        s.setColor(colour | 0xFF000000);
-        s.setStrokeWidth(width);
-        c.drawPath(p, s);
-        s.setColor(PANEL);
-        s.setStrokeWidth(width - 10f);
-        c.drawPath(p, s);
-    }
-
-    private static void eye(Canvas c, float x, float y, float r) {
-        shape(c, circle(x, y, r), PANEL, WHITE, 5f);
-        Paint f = new Paint(Paint.ANTI_ALIAS_FLAG);
-        f.setColor(WHITE);
-        c.drawCircle(x + r * 0.15f, y + r * 0.1f, r * 0.42f, f);
-    }
-
-    private static void paintPenguin(Canvas c, int w, int h) {
-        shape(c, oval(150f, 548f, 218f, 594f), PANEL, ORANGE, 6f);
-        shape(c, oval(222f, 548f, 290f, 594f), PANEL, ORANGE, 6f);
-        shape(c, oval(100f, 150f, 340f, 570f), PANEL, CYAN, 8f);
-        shape(c, oval(150f, 285f, 290f, 545f), PANEL_LIGHT, WHITE, 5f);
-        Path tuft = new Path();
-        tuft.moveTo(200f, 152f);
-        tuft.lineTo(190f, 110f);
-        tuft.moveTo(220f, 150f);
-        tuft.lineTo(222f, 96f);
-        tuft.moveTo(240f, 152f);
-        tuft.lineTo(256f, 112f);
-        Paint s = new Paint(Paint.ANTI_ALIAS_FLAG);
-        s.setStyle(Paint.Style.STROKE);
-        s.setStrokeCap(Paint.Cap.ROUND);
-        Brushes.neonStroke(c, tuft, PINK, 7f);
-        eye(c, 182f, 228f, 24f);
-        eye(c, 258f, 228f, 24f);
-        shape(c, poly(196f, 266f, 244f, 266f, 220f, 308f), PANEL, ORANGE, 6f);
-        shape(c, circle(150f, 272f, 14f), PANEL, PINK, 4f);
-        shape(c, circle(290f, 272f, 14f), PANEL, PINK, 4f);
-    }
-
-    private static void paintGiraffe(Canvas c, int w, int h) {
-        int body = ORANGE;
-        Path tail = new Path();
-        tail.moveTo(112f, 410f);
-        tail.cubicTo(70f, 430f, 70f, 480f, 90f, 520f);
-        Brushes.neonStroke(c, tail, body, 7f);
-        shape(c, rotOval(90f, 530f, 12f, 18f, 0f), PANEL, PINK, 5f);
-        float[] legX = {140f, 188f, 262f, 310f};
-        for (float lx : legX) shape(c, poly(lx, 470f, lx + 30f, 470f, lx + 30f, 592f, lx, 592f), PANEL, body, 7f);
-        shape(c, poly(235f, 395f, 290f, 120f, 336f, 132f, 302f, 400f), PANEL, body, 8f);
-        shape(c, oval(105f, 350f, 355f, 500f), PANEL, body, 8f);
-        shape(c, rotOval(338f, 108f, 64f, 38f, -18f), PANEL, body, 8f);
-        Path horns = new Path();
-        horns.moveTo(312f, 76f);
-        horns.lineTo(306f, 44f);
-        horns.moveTo(342f, 78f);
-        horns.lineTo(352f, 48f);
-        Brushes.neonStroke(c, horns, PINK, 6f);
-        shape(c, circle(306f, 38f, 9f), PANEL, PINK, 4f);
-        shape(c, circle(353f, 42f, 9f), PANEL, PINK, 4f);
-        eye(c, 336f, 98f, 11f);
-        shape(c, circle(388f, 114f, 5f), PANEL, PINK, 3f);
-        float[][] spots = {{165f, 410f, 20f}, {228f, 445f, 17f}, {290f, 410f, 19f}, {272f, 250f, 15f}, {288f, 320f, 13f},
-                {196f, 380f, 11f}, {320f, 450f, 12f}};
-        for (float[] s : spots) shape(c, circle(s[0], s[1], s[2]), PANEL_LIGHT, PINK, 4f);
-        Path mane = new Path();
-        mane.moveTo(236f, 380f);
-        mane.lineTo(290f, 130f);
-        Brushes.neonStroke(c, mane, GREEN, 4f);
-    }
-
-    private static void paintMonkey(Canvas c, int w, int h) {
-        Path tail = new Path();
-        tail.moveTo(312f, 505f);
-        tail.cubicTo(420f, 500f, 430f, 400f, 380f, 330f);
-        tube(c, tail, ORANGE, 24f);
-        shape(c, oval(130f, 548f, 208f, 596f), PANEL, ORANGE, 6f);
-        shape(c, oval(232f, 548f, 310f, 596f), PANEL, ORANGE, 6f);
-        shape(c, oval(125f, 340f, 315f, 565f), PANEL, ORANGE, 8f);
-        shape(c, oval(160f, 400f, 280f, 540f), PANEL_LIGHT, PINK, 5f);
-        shape(c, circle(98f, 215f, 46f), PANEL, ORANGE, 7f);
-        shape(c, circle(342f, 215f, 46f), PANEL, ORANGE, 7f);
-        shape(c, circle(98f, 215f, 24f), PANEL_LIGHT, PINK, 4f);
-        shape(c, circle(342f, 215f, 24f), PANEL_LIGHT, PINK, 4f);
-        shape(c, circle(220f, 210f, 122f), PANEL, ORANGE, 8f);
-        shape(c, oval(140f, 195f, 300f, 330f), PANEL_LIGHT, PINK, 5f);
-        eye(c, 185f, 232f, 17f);
-        eye(c, 255f, 232f, 17f);
-        Path mouth = new Path();
-        R.set(180f, 262f, 260f, 312f);
-        mouth.addArc(R, 10f, 160f);
-        Brushes.neonStroke(c, mouth, WHITE, 6f);
-        Path nose = new Path();
-        nose.addCircle(210f, 262f, 4f, Path.Direction.CW);
-        nose.addCircle(230f, 262f, 4f, Path.Direction.CW);
-        Brushes.neonStroke(c, nose, PINK, 4f);
-        Path hair = new Path();
-        hair.moveTo(190f, 100f);
-        hair.quadTo(220f, 60f, 250f, 100f);
-        Brushes.neonStroke(c, hair, GREEN, 6f);
-    }
-
-    private static void paintFlamingo(Canvas c, int w, int h) {
-        Path leg1 = new Path();
-        leg1.moveTo(200f, 430f);
-        leg1.lineTo(200f, 590f);
-        Path foot1 = new Path();
-        foot1.moveTo(160f, 592f);
-        foot1.lineTo(240f, 592f);
-        Path leg2 = new Path();
-        leg2.moveTo(250f, 430f);
-        leg2.lineTo(292f, 505f);
-        leg2.lineTo(215f, 520f);
-        tube(c, leg2, PINK, 18f);
-        tube(c, leg1, PINK, 18f);
-        Brushes.neonStroke(c, foot1, ORANGE, 8f);
-        shape(c, rotOval(110f, 345f, 70f, 28f, -30f), PANEL, PINK, 6f);
-        Path neck = new Path();
-        neck.moveTo(305f, 340f);
-        neck.cubicTo(400f, 290f, 230f, 190f, 330f, 112f);
-        tube(c, neck, PINK, 34f);
-        shape(c, oval(115f, 295f, 335f, 440f), PANEL, PINK, 8f);
-        shape(c, rotOval(205f, 355f, 62f, 38f, -12f), PANEL_LIGHT, WHITE, 5f);
-        shape(c, circle(335f, 100f, 36f), PANEL, PINK, 7f);
-        shape(c, poly(358f, 88f, 420f, 108f, 372f, 128f), PANEL, ORANGE, 6f);
-        eye(c, 340f, 90f, 11f);
-        Path crest = new Path();
-        crest.moveTo(318f, 70f);
-        crest.lineTo(306f, 44f);
-        crest.moveTo(334f, 66f);
-        crest.lineTo(336f, 36f);
-        Brushes.neonStroke(c, crest, CYAN, 5f);
     }
 
     // ---- stick figure ----
@@ -613,7 +747,7 @@ final class DanceArt {
         LINE.setColor(colour);
         LINE.setStrokeWidth(5f);
         c.drawRoundRect(R, 36f, 36f, LINE);
-        float sc = Math.min(w / (HOST_W * 1.15f), h * 0.9f / HOST_H);
+        float sc = Math.min(w / (HOST_W * 1.3f), h * 0.9f / HOST_H);
         hostArmsPose(which, pose, CARD_ARMS);
         c.save();
         c.translate(x + w / 2f, y + h * 0.95f);
