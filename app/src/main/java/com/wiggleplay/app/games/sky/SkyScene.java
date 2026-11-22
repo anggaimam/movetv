@@ -56,6 +56,11 @@ public final class SkyScene implements Scene {
     private final RectF rect = new RectF();
     private final Rect src = new Rect();
 
+    /** The plane picked last in the menu (used when the game starts without the plane menu). */
+    static int lastPlane;
+
+    private final int[] planeType = new int[2];
+    private final int[] planeTheme = new int[2];
     private int level = 1, players = 1;
     private float time, demoT;
     private int sparkCap = 120;
@@ -87,6 +92,8 @@ public final class SkyScene implements Scene {
         level = Math.max(1, Math.min(3, args.getInt("level", 1)));
         players = args.getInt("players", env.players) == 2 ? 2 : 1;
         SkyArt.prepare(level);
+        planeType[0] = Math.floorMod(args.getInt("plane", lastPlane), PlaneModel.COUNT);
+        planeType[1] = Math.floorMod(args.getInt("plane2", planeType[0] + 1), PlaneModel.COUNT);
         hud.setRules(rules);
         beginRound(!RULES_SEEN[level]);
         RULES_SEEN[level] = true;
@@ -97,6 +104,12 @@ public final class SkyScene implements Scene {
         for (int i = popups.size() - 1; i >= 0; i--) popups.freeAt(i);
         demoT = 0f;
         long seed = System.nanoTime();
+        // a new colour theme for each plane every round
+        int t0 = (int) (Math.abs(seed >> 7) % PlaneModel.themes(planeType[0]));
+        planeTheme[0] = t0;
+        planeTheme[1] = (int) (Math.abs(seed >> 13) % PlaneModel.themes(planeType[1]));
+        if (planeType[0] == planeType[1] && planeTheme[0] == planeTheme[1]) planeTheme[1]++;
+        rules.setPlane(planeType[0], planeTheme[0]);
         for (int p = 0; p < 2; p++) {
             if (p >= players) {
                 logic[p] = null;
@@ -176,6 +189,10 @@ public final class SkyScene implements Scene {
                 env.sfx("star", 1.35f);
                 burst(player, 18, Theme.ORANGE, 24f);
                 popup(player, points, Theme.ORANGE);
+                break;
+            case SkyLogic.EV_MAGNET:
+                env.sfx("star", 1.2f);
+                burst(player, 16, 0xFFE8504A, 22f);
                 break;
             case SkyLogic.EV_BUMP:
                 env.sfx("boing");
@@ -325,13 +342,15 @@ public final class SkyScene implements Scene {
             SkyLogic.Item it = l.item(i);
             float dz = it.z - camZ;
             if (!planeDone && dz <= SkyLogic.FOCAL) {
-                drawPlane(c, l);
+                drawPlane(c, l, p);
                 planeDone = true;
             }
             if (dz < NEAR_CUT || dz > FAR) continue;
             drawItem(c, it, dz);
         }
-        if (!planeDone) drawPlane(c, l);
+        if (!planeDone) drawPlane(c, l, p);
+        drawSpeedLines(c, l);
+        if (l.magnet() > 0f) drawMagnetAura(c, l);
         if (l.fog() > 0f) {
             paint.setColor(0xFFFFFFFF);
             paint.setAlpha((int) (170 * l.fog() / 0.7f));
@@ -386,6 +405,10 @@ public final class SkyScene implements Scene {
                 blit(c, SkyArt.star(), x, y, 96f * scale * (1f + 0.06f * (float) Math.sin(time * 5f + it.seed * 6f)),
                         96f * scale);
                 break;
+            case SkyLogic.MAGNET:
+                if (it.hit) break;
+                blit(c, SkyArt.magnet(), x, y + 6f * scale * (float) Math.sin(time * 4f + it.seed * 6f), 80f * scale, 80f * scale);
+                break;
             case SkyLogic.BALLOON:
                 blit(c, SkyArt.balloon(), x, y - 30f * scale, 140f * scale, 186f * scale);
                 break;
@@ -401,15 +424,61 @@ public final class SkyScene implements Scene {
         }
     }
 
-    private void drawPlane(Canvas c, SkyLogic l) {
+    private void drawPlane(Canvas c, SkyLogic l, int p) {
         float x = planeSX(l), y = planeSY(l);
-        float roll = l.steer() * 5f + (l.wobble() > 0f ? (float) Math.sin(time * 38f) * 12f * l.wobble() / 0.7f : 0f);
-        float hw = SkyArt.PLANE_W / 2f * zoom, hh = SkyArt.PLANE_H / 2f * zoom;
-        c.save();
-        c.rotate(roll, x, y);
-        rect.set(x - hw, y - hh, x + hw, y + hh);
-        c.drawBitmap(SkyArt.plane(Math.round(l.steer() * 2f)), null, rect, sprite);
-        c.restore();
+        float steer = l.steer();
+        float roll = PlaneDraw.rollFor(steer) + (l.wobble() > 0f ? (float) Math.sin(time * 38f) * 12f * l.wobble() / 0.7f : 0f);
+        PlaneDraw.shared().draw(c, planeType[p], planeTheme[p], roll, PlaneDraw.yawFor(steer), PlaneDraw.elevFor(l.climb()),
+                x, y, 88f * zoom);
+    }
+
+    /** Thin streaks that rush past when the plane turns, climbs or dives; they go the other way from the move. */
+    private void drawSpeedLines(Canvas c, SkyLogic l) {
+        float sx = l.steer(), cl = l.climb();
+        float mag = Math.max(Math.abs(sx), Math.abs(cl));
+        if (mag < 0.3f) return;
+        float k = Math.min(1f, (mag - 0.3f) / 0.5f);
+        float dx = -sx, dy = cl * 0.9f;
+        float n = (float) Math.sqrt(dx * dx + dy * dy);
+        if (n < 0.01f) return;
+        dx /= n;
+        dy /= n;
+        float len = (60f + 120f * k) * zoom, speed = 1500f * zoom;
+        float px = planeSX(l), py = planeSY(l), keep = 150f * zoom;
+        int lines = GameView.quality == GameView.LOW ? 8 : 16;
+        paint.setStrokeWidth(Math.max(2f, 6f * zoom));
+        paint.setStrokeCap(Paint.Cap.ROUND);
+        paint.setColor(0xFFFFFFFF);
+        paint.setAlpha((int) (190 * k));
+        for (int i = 0; i < lines; i++) {
+            float fx = (i * 0.6180339f) % 1f, fy = (i * 0.3819660f + 0.13f) % 1f;
+            float run = time * speed * (0.7f + 0.6f * ((i * 0.37f) % 1f)) + i * 131f;
+            float x = vx + (((fx * vw + dx * run) % vw) + vw) % vw;
+            float y = (((fy * Stage.H + dy * run) % Stage.H) + Stage.H) % Stage.H;
+            float ex = x - px, ey = y - py;
+            if (ex * ex + ey * ey < keep * keep) continue;
+            c.drawLine(x, y, x - dx * len, y - dy * len, paint);
+        }
+        paint.setAlpha(255);
+    }
+
+    /** A soft golden glow round the plane with the magnet and a bar that shrinks as the time runs out. */
+    private void drawMagnetAura(Canvas c, SkyLogic l) {
+        float x = planeSX(l), y = planeSY(l);
+        float left = l.magnet() / SkyLogic.MAGNET_TIME;
+        float pulse = 1f + 0.07f * (float) Math.sin(time * 9f);
+        paint.setColor(0xFFFFE08A);
+        paint.setAlpha(left < 0.25f && ((int) (time * 8f) & 1) == 0 ? 25 : 60);
+        c.drawCircle(x, y, 190f * zoom * pulse, paint);
+        paint.setAlpha(255);
+        float by = y - 190f * zoom, bw = 90f * zoom;
+        blit(c, SkyArt.magnet(), x, by - 26f * zoom, 30f * zoom, 30f * zoom);
+        paint.setColor(0x55000000);
+        rect.set(x - bw / 2f, by + 12f * zoom, x + bw / 2f, by + 22f * zoom);
+        c.drawRoundRect(rect, 5f, 5f, paint);
+        paint.setColor(0xFFE8504A);
+        rect.set(x - bw / 2f, by + 12f * zoom, x - bw / 2f + bw * left, by + 22f * zoom);
+        c.drawRoundRect(rect, 5f, 5f, paint);
     }
 
     private void drawGust(Canvas c, float gust) {

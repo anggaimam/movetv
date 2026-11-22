@@ -24,11 +24,6 @@ final class SkyArt {
     private static final int BG_W = 960, BG_H = 540;
     private static final int LAYER_W = 1440;
 
-    /** Number of bank pictures of the plane (-2..2). */
-    static final int BANKS = 5;
-    /** Plane picture size. */
-    static final int PLANE_W = 360, PLANE_H = 220;
-
     /** Stripe colours of the ground (near, far) per level; the stripes slide toward the plane to show speed. */
     static final int[][] STRIPE = {
             {0xFFA9C4A6, 0xFF9CB89A},
@@ -39,10 +34,9 @@ final class SkyArt {
     private static final Paint L = new Paint(Paint.ANTI_ALIAS_FLAG);
     private static final RectF R = new RectF();
 
-    private static Bitmap ring, coin, star, balloon;
+    private static Bitmap ring, coin, star, balloon, magnet;
     private static final Bitmap[] BIRD = new Bitmap[2];
     private static final Bitmap[] CLOUD = new Bitmap[3];
-    private static final Bitmap[] PLANE = new Bitmap[BANKS];
     private static final Bitmap[] BG = new Bitmap[3];
     private static final Bitmap[] FAR = new Bitmap[3];
     private static final Bitmap[] NEAR = new Bitmap[3];
@@ -67,6 +61,7 @@ final class SkyArt {
             ring = sc.get("sky_ring", 512, 512, SkyArt::paintRing);
             coin = sc.get("sky_coin", 128, 128, SkyArt::paintCoin);
             star = sc.get("sky_star", 192, 192, SkyArt::paintStar);
+            magnet = sc.get("sky_magnet", 192, 192, SkyArt::paintMagnet);
             balloon = sc.get("sky_balloon", 256, 340, SkyArt::paintBalloon);
             shadow = sc.get("sky_shadow", 256, 96, (c, w, h) -> {
                 F.setColor(0x55000000);
@@ -78,10 +73,6 @@ final class SkyArt {
             CLOUD[0] = sc.get("sky_cloud0", 400, 200, (c, w, h) -> paintCloud(c, w, h, 0));
             CLOUD[1] = sc.get("sky_cloud1", 400, 200, (c, w, h) -> paintCloud(c, w, h, 1));
             CLOUD[2] = sc.get("sky_cloud2", 400, 200, (c, w, h) -> paintCloud(c, w, h, 2));
-            for (int b = 0; b < BANKS; b++) {
-                final int bank = b - 2;
-                PLANE[b] = sc.get("sky_plane" + b, PLANE_W, PLANE_H, (c, w, h) -> paintPlane(c, w, h, bank));
-            }
         }
         if (BG[i] == null) {
             final int lv = level;
@@ -97,10 +88,10 @@ final class SkyArt {
     static Bitmap ring() { return ring; }
     static Bitmap coin() { return coin; }
     static Bitmap star() { return star; }
+    static Bitmap magnet() { return magnet; }
     static Bitmap balloon() { return balloon; }
     static Bitmap bird(int frame) { return BIRD[frame & 1]; }
     static Bitmap cloud(int variant) { return CLOUD[variant % 3]; }
-    static Bitmap plane(int bank) { return PLANE[Math.max(-2, Math.min(2, bank)) + 2]; }
     static Bitmap shadow() { return shadow; }
 
     // ---- sprites ----
@@ -122,6 +113,30 @@ final class SkyArt {
         L.setStrokeWidth(10f);
         R.set(cx - 205f, cy - 205f, cx + 205f, cy + 205f);
         c.drawArc(R, 200f, 70f, false, L);
+    }
+
+    /** A red horseshoe magnet with silver tips, opening downward. */
+    private static void paintMagnet(Canvas c, int w, int h) {
+        float cx = w / 2f, cy = h * 0.5f, r = 48f;
+        for (int pass = 0; pass < 2; pass++) {
+            float o = pass == 0 ? 5f : 0f;
+            L.setStrokeCap(Paint.Cap.BUTT);
+            L.setStrokeWidth(34f);
+            L.setColor(pass == 0 ? 0xFF9C2F2A : 0xFFE8504A);
+            R.set(cx - r + o, cy - r - 10f + o, cx + r + o, cy + r - 10f + o);
+            c.drawArc(R, 180f, 180f, false, L);
+            c.drawLine(cx - r + o, cy - 10f + o, cx - r + o, cy + 40f + o, L);
+            c.drawLine(cx + r + o, cy - 10f + o, cx + r + o, cy + 40f + o, L);
+        }
+        L.setColor(0xFFE3E8EE);
+        L.setStrokeWidth(34f);
+        c.drawLine(cx - r, cy + 40f, cx - r, cy + 70f, L);
+        c.drawLine(cx + r, cy + 40f, cx + r, cy + 70f, L);
+        L.setStrokeCap(Paint.Cap.ROUND);
+        L.setColor(0x66FFFFFF);
+        L.setStrokeWidth(8f);
+        R.set(cx - r, cy - r - 10f, cx + r, cy + r - 10f);
+        c.drawArc(R, 200f, 60f, false, L);
     }
 
     private static void paintCoin(Canvas c, int w, int h) {
@@ -241,71 +256,6 @@ final class SkyArt {
             float px = sx > 0 ? p[0] : 1f - p[0];
             c.drawCircle(px * w, p[1] * h * 0.8f, p[2] * w * 0.75f * (0.9f + 0.1f * variant), F);
         }
-    }
-
-    /**
-     * The plane seen from behind: tail fin, body, two wings. Banking tilts the wing tips (the left wing of the
-     * screen drops when bank is negative).
-     */
-    private static void paintPlane(Canvas c, int w, int h, int bank) {
-        float cx = w / 2f, cy = h * 0.55f;
-        float tipDy = bank * 26f;
-        Path wings = new Path();
-        wings.moveTo(cx - 20f, cy - 8f);
-        wings.lineTo(cx - 168f, cy - 6f - tipDy);
-        wings.lineTo(cx - 150f, cy + 22f - tipDy);
-        wings.lineTo(cx - 20f, cy + 22f);
-        wings.close();
-        wings.moveTo(cx + 20f, cy - 8f);
-        wings.lineTo(cx + 168f, cy - 6f + tipDy);
-        wings.lineTo(cx + 150f, cy + 22f + tipDy);
-        wings.lineTo(cx + 20f, cy + 22f);
-        wings.close();
-        F.setColor(0x33000000);
-        c.save();
-        c.translate(5f, 8f);
-        c.drawPath(wings, F);
-        c.restore();
-        F.setColor(Theme.MUSTARD);
-        c.drawPath(wings, F);
-        F.setColor(Theme.ORANGE);
-        // wing tips
-        Path tips = new Path();
-        tips.moveTo(cx - 168f, cy - 6f - tipDy);
-        tips.lineTo(cx - 150f, cy + 22f - tipDy);
-        tips.lineTo(cx - 128f, cy + 21f - tipDy * 0.85f);
-        tips.lineTo(cx - 144f, cy - 6f - tipDy * 0.85f);
-        tips.close();
-        tips.moveTo(cx + 168f, cy - 6f + tipDy);
-        tips.lineTo(cx + 150f, cy + 22f + tipDy);
-        tips.lineTo(cx + 128f, cy + 21f + tipDy * 0.85f);
-        tips.lineTo(cx + 144f, cy - 6f + tipDy * 0.85f);
-        tips.close();
-        c.drawPath(tips, F);
-        // tail fin
-        Path fin = new Path();
-        fin.moveTo(cx - 14f, cy - 10f);
-        fin.lineTo(cx, cy - 78f);
-        fin.lineTo(cx + 14f, cy - 10f);
-        fin.close();
-        F.setColor(Theme.PINK);
-        c.drawPath(fin, F);
-        // body
-        F.setColor(0xFFC77C2E);
-        R.set(cx - 38f + 4f, cy - 44f + 6f, cx + 38f + 4f, cy + 64f + 6f);
-        c.drawOval(R, F);
-        F.setColor(Theme.ORANGE);
-        R.set(cx - 38f, cy - 44f, cx + 38f, cy + 64f);
-        c.drawOval(R, F);
-        // little pilot head in the canopy
-        F.setColor(0xFFF1D3B3);
-        c.drawCircle(cx, cy - 18f, 18f, F);
-        F.setColor(Theme.BLUE);
-        R.set(cx - 22f, cy - 38f, cx + 22f, cy - 14f);
-        c.drawArc(R, 180f, 180f, true, F);
-        F.setColor(0x88FFFFFF);
-        R.set(cx - 22f, cy + 8f, cx - 8f, cy + 40f);
-        c.drawOval(R, F);
     }
 
     // ---- backgrounds ----

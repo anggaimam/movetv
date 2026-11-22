@@ -18,9 +18,9 @@ import java.util.Random;
 public final class SkyLogic {
 
     /** Item kinds. */
-    public static final int RING = 0, COIN = 1, STAR = 2, BALLOON = 3, BIRD = 4, CLOUD = 5;
+    public static final int RING = 0, COIN = 1, STAR = 2, BALLOON = 3, BIRD = 4, CLOUD = 5, MAGNET = 6;
     /** Event kinds sent to the {@link Listener}. */
-    public static final int EV_RING = 0, EV_RING_MISS = 1, EV_COIN = 2, EV_STAR = 3, EV_BUMP = 4, EV_FOG = 5;
+    public static final int EV_RING = 0, EV_RING_MISS = 1, EV_COIN = 2, EV_STAR = 3, EV_BUMP = 4, EV_FOG = 5, EV_MAGNET = 6;
 
     /** Distance between the camera and the plane; things at this distance are drawn at scale 1. */
     public static final float FOCAL = 600f;
@@ -58,6 +58,9 @@ public final class SkyLogic {
     private static final float[] STAR_P = {0.12f, 0.16f, 0.20f};
     private static final int CAP = 96;
     private static final float KEEP_BEHIND = 300f;
+    /** Seconds the magnet pulls coins in after it is picked up. */
+    public static final float MAGNET_TIME = 6f;
+    private static final float PULL_Z = 3000f;
 
     /** One thing in the world. Objects are reused; do not keep references past a frame. */
     public static final class Item {
@@ -100,6 +103,8 @@ public final class SkyLogic {
     private int score, offered, missStreak;
 
     private float courseZ, pathX, pathY;
+    private float magnetLeft;
+    private int stepNo, magnetA, magnetB, magnetsMade;
     private float nextGust, gustLeft, gustDir, gustV;
 
     /**
@@ -119,6 +124,10 @@ public final class SkyLogic {
         this.wind = new Random(windSeed);
         this.listener = listener;
         for (int k = 0; k < CAP; k++) items[k] = new Item();
+        // one magnet early in the round and, half of the time, a second one later (own random numbers: the course stays the same)
+        Random mr = new Random(courseSeed * 31L + 7L);
+        magnetA = 8 + mr.nextInt(6);
+        magnetB = mr.nextBoolean() ? 26 + mr.nextInt(7) : -1;
         planeY = START_Y;
         pathY = START_Y;
         nextGust = 5f + wind.nextFloat() * 4f;
@@ -255,6 +264,19 @@ public final class SkyLogic {
         wobble = Math.max(0f, wobble - dt);
         fog = Math.max(0f, fog - dt);
         buildAhead();
+        if (magnetLeft > 0f) {
+            magnetLeft = Math.max(0f, magnetLeft - dt);
+            float pull = 1f - (float) Math.exp(-dt / 0.28f);
+            for (int i = 0; i < count; i++) {
+                Item it = items[i];
+                if (it.done) continue;
+                if (it.z > planeZ + PULL_Z) break;
+                if (it.kind == COIN) {
+                    it.x += (planeX - it.x) * pull;
+                    it.y += (planeY - it.y) * pull;
+                }
+            }
+        }
         int keepFrom = 0;
         for (int i = 0; i < count; i++) {
             Item it = items[i];
@@ -310,6 +332,13 @@ public final class SkyLogic {
                     it.hit = true;
                     score += STAR_POINTS;
                     send(EV_STAR, it, STAR_POINTS);
+                }
+                break;
+            case MAGNET:
+                if (d <= it.r) {
+                    it.hit = true;
+                    magnetLeft = MAGNET_TIME;
+                    send(EV_MAGNET, it, 0);
                 }
                 break;
             case BALLOON:
@@ -373,7 +402,14 @@ public final class SkyLogic {
         float ny = clamp(py0 + (course.nextFloat() * 2f - 1f) * maxDy, 0f, Y_MAX);
         float midX = (px0 + nx) * 0.5f, midY = (py0 + ny) * 0.5f;
         add(RING, nx, ny, zNew, ringR, course.nextFloat());
+        boolean magnetStep = stepNo == magnetA || stepNo == magnetB;
+        stepNo++;
+        if (magnetStep) {
+            magnetsMade++;
+            add(MAGNET, px0 + (nx - px0) * 0.5f, py0 + (ny - py0) * 0.5f, zPrev + spacing * 0.5f, 140f, course.nextFloat());
+        }
         for (int k = 1; k <= 3; k++) {
+            if (magnetStep && k == 2) continue;
             float f = k * 0.25f;
             add(COIN, px0 + (nx - px0) * f, py0 + (ny - py0) * f, zPrev + spacing * f, 110f, course.nextFloat());
         }
@@ -463,6 +499,12 @@ public final class SkyLogic {
     public float wobble() { return wobble; }
     /** @return sideways push of the wind right now (px/s), 0 outside gusts and on Easy and Medium */
     public float gust() { return gustV; }
+    /** @return seconds of magnet left (0 when it is not on) */
+    public float magnet() { return magnetLeft; }
+    /** @return how many magnets the course has made so far (1 or 2 per round) */
+    int magnetsMade() { return magnetsMade; }
+    /** Starts the magnet (tests). */
+    void startMagnet() { magnetLeft = MAGNET_TIME; }
     /** @return seconds left of fog after flying through a cloud */
     public float fog() { return fog; }
     /** @return points collected */

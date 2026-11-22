@@ -10,6 +10,7 @@ import com.wiggleplay.app.core.Input;
 import com.wiggleplay.app.core.PerfOverlay;
 import com.wiggleplay.app.core.Scene;
 import com.wiggleplay.app.games.fruit.FruitScene;
+import com.wiggleplay.app.games.sky.SkyPlaneScene;
 import com.wiggleplay.app.games.sky.SkyScene;
 import com.wiggleplay.app.pose.TestPoseSource;
 import com.wiggleplay.app.scenes.AttractScene;
@@ -199,8 +200,13 @@ public class ScreenshotTest {
     }
 
     private void skyPlay(String name, int level, int players, int frames) throws Exception {
+        skyPlay(name, level, players, frames, 0);
+    }
+
+    private void skyPlay(String name, int level, int players, int frames, int plane) throws Exception {
         SkyScene.setRulesSeen(true);
-        File f = ShotRig.shoot(name, new SkyScene(env()), Scene.SceneArgs.of("level", level, "players", players), players,
+        File f = ShotRig.shoot(name, new SkyScene(env()),
+                Scene.SceneArgs.of("level", level, "players", players, "plane", plane, "plane2", plane + 1), players,
                 frames, (frame, now, body, input) -> {
                     int phase = (frame / 70) % 4;
                     body.setHeld(TestPoseSource.CTRL_LEAN_LEFT, phase == 0);
@@ -234,5 +240,32 @@ public class ScreenshotTest {
     @Test
     public void skyEndOnePlayer() throws Exception {
         skyPlay("sky_end_1p", 1, 1, 6000);
+    }
+
+    @Test
+    public void skyPlaneMenu() throws Exception {
+        File f = ShotRig.shoot("sky_plane_menu", new SkyPlaneScene(env()),
+                Scene.SceneArgs.of("gameId", "sky", "level", 1, "players", 1), 1, 40, null);
+        check(f);
+    }
+
+    @Test
+    public void skyPlayAirliner() throws Exception {
+        skyPlay("sky_play_airliner", 1, 1, 300, 1);
+    }
+
+    @Test
+    public void skyPlayJet() throws Exception {
+        skyPlay("sky_play_jet", 2, 1, 300, 2);
+    }
+
+    @Test
+    public void skyPlaySpaceship() throws Exception {
+        skyPlay("sky_play_spaceship", 3, 1, 300, 3);
+    }
+
+    @Test
+    public void skyPlayTwoPlanes() throws Exception {
+        skyPlay("sky_play_2p_planes", 1, 2, 300, 1);
     }
 }

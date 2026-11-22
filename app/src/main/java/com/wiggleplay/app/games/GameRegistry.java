@@ -28,7 +28,7 @@ public final class GameRegistry {
     static {
         List<GameInfo> g = new ArrayList<>();
         g.add(new GameInfo("fruit", "Fruit Splash", Theme.ORANGE, GameRegistry::paintFruit, "fruit", 1, 2, false));
-        g.add(new GameInfo("sky", "Sky Glider", Theme.BLUE, GameRegistry::paintSky, "sky", 1, 2, false));
+        g.add(new GameInfo("sky", "Sky Glider", Theme.BLUE, GameRegistry::paintSky, "skyplane", 1, 2, false));
         g.add(new GameInfo("dance", "Animal Dance Party", Theme.PINK, GameRegistry::paintDance, PLACEHOLDER_SCENE, 1, 2, false));
         g.add(new GameInfo("jungle", "Jungle Dash", Theme.SAGE, GameRegistry::paintJungle, PLACEHOLDER_SCENE, 1, 2, false));
         GAMES = Collections.unmodifiableList(g);
@@ -74,6 +74,8 @@ public final class GameRegistry {
     public static boolean isGameScene(String sceneName) {
         if (sceneName == null) return false;
         if (PLACEHOLDER_SCENE.equals(sceneName)) return true;
+        if ("sky".equals(sceneName)) return true;   // the plane menu "skyplane" is a menu, the flying itself is "sky"
+        if ("skyplane".equals(sceneName)) return false;
         for (GameInfo g : GAMES) if (g.sceneName.equals(sceneName)) return true;
         return false;
     }

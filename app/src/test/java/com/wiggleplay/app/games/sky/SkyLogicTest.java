@@ -32,7 +32,7 @@ public class SkyLogicTest {
     }
 
     private static final class Log implements SkyLogic.Listener {
-        int rings, missed, coins, stars, bumps, fogs, ringPoints;
+        int rings, missed, coins, stars, bumps, fogs, ringPoints, magnets;
         int markedHits, markedBumps, markedFogs;
 
         @Override
@@ -44,6 +44,7 @@ public class SkyLogicTest {
                 case SkyLogic.EV_COIN: coins++; break;
                 case SkyLogic.EV_STAR: stars++; break;
                 case SkyLogic.EV_BUMP: bumps++; if (marked) markedBumps++; break;
+                case SkyLogic.EV_MAGNET: magnets++; break;
                 default: fogs++; if (marked) markedFogs++; break;
             }
         }
@@ -318,5 +319,63 @@ public class SkyLogicTest {
         assertEquals(200f, new SkyLogic(2, 1L, 1L, null).ringRadius(), 0f);
         assertEquals(150f, new SkyLogic(3, 1L, 1L, null).ringRadius(), 0f);
         assertFalse(new SkyLogic(1, 1L, 1L, null).itemCount() == 0);
+    }
+
+    @Test
+    public void oneOrTwoMagnetsPerRoundOnEveryLevel() {
+        for (int level = 1; level <= 3; level++) {
+            for (long seed = 1; seed <= 25; seed++) {
+                SkyLogic l = new SkyLogic(level, seed * 17L, 1L, null);
+                for (int i = 0; i < 80 * 60; i++) l.update(1f / 60f);
+                int n = l.magnetsMade();
+                assertTrue("level " + level + " seed " + seed + " made " + n, n == 1 || n == 2);
+            }
+        }
+    }
+
+    @Test
+    public void magnetsDoNotChangeTheRestOfTheCourse() {
+        SkyLogic a = new SkyLogic(2, 5L, 1L, null), b = new SkyLogic(2, 5L, 1L, null);
+        for (int i = 0; i < 20 * 60; i++) {
+            a.update(1f / 60f);
+            b.update(1f / 60f);
+        }
+        assertEquals(a.itemCount(), b.itemCount());
+    }
+
+    @Test
+    public void pickingUpAMagnetPullsCoinsInAndGivesPoints() {
+        Log log = new Log();
+        SkyLogic l = new SkyLogic(1, 3L, 4L, log);
+        l.setPlane(0f, 300f);
+        l.startMagnet();
+        assertEquals(SkyLogic.MAGNET_TIME, l.magnet(), 1e-4);
+        // a coin 600 px to the side and 400 up, ahead of the plane: far outside the normal touch radius of 110
+        SkyLogic.Item coin = l.add(SkyLogic.COIN, 600f, 700f, l.planeZ() + 2200f, 110f, 0.5f);
+        for (int i = 0; i < 4 * 60 && !coin.done; i++) l.update(1f / 60f);
+        assertTrue("the coin should be pulled in and collected", coin.hit);
+        assertTrue(log.coins >= 1);
+    }
+
+    @Test
+    public void withoutTheMagnetThatCoinIsMissed() {
+        SkyLogic l = new SkyLogic(1, 3L, 4L, null);
+        l.setPlane(0f, 300f);
+        SkyLogic.Item coin = l.add(SkyLogic.COIN, 600f, 700f, l.planeZ() + 2200f, 110f, 0.5f);
+        for (int i = 0; i < 4 * 60 && !coin.done; i++) l.update(1f / 60f);
+        assertFalse(coin.hit);
+    }
+
+    @Test
+    public void magnetRunsOutAndFlyingThroughOneStartsIt() {
+        Log log = new Log();
+        SkyLogic l = new SkyLogic(1, 3L, 4L, log);
+        l.setPlane(0f, 300f);
+        l.add(SkyLogic.MAGNET, 0f, 300f, l.planeZ() + 500f, 140f, 0.5f);
+        for (int i = 0; i < 90 && log.magnets == 0; i++) l.update(1f / 60f);
+        assertEquals(1, log.magnets);
+        assertTrue(l.magnet() > SkyLogic.MAGNET_TIME - 1f);
+        for (int i = 0; i < 7 * 60; i++) l.update(1f / 60f);
+        assertEquals(0f, l.magnet(), 1e-4);
     }
 }

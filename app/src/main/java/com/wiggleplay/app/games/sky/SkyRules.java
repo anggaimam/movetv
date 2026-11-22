@@ -91,14 +91,21 @@ final class SkyRules implements Hud.RulesPainter {
         c.restore();
     }
 
-    private void plane(Canvas c, float cx, float cy, float scale, float steer) {
-        c.save();
-        c.translate(cx, cy);
-        c.rotate(steer * 10f);
-        c.scale(scale, scale);
-        r.set(-SkyArt.PLANE_W / 2f, -SkyArt.PLANE_H / 2f, SkyArt.PLANE_W / 2f, SkyArt.PLANE_H / 2f);
-        c.drawBitmap(SkyArt.plane(Math.round(steer * 2f)), null, r, sprite);
-        c.restore();
+    private int planeType, planeTheme;
+
+    /**
+     * Chooses the plane shown in the pictures.
+     * @param type PlaneModel plane kind
+     * @param theme colour theme number
+     */
+    void setPlane(int type, int theme) {
+        planeType = type;
+        planeTheme = theme;
+    }
+
+    private void plane(Canvas c, float cx, float cy, float scale, float steer, float climb) {
+        PlaneDraw.shared().draw(c, planeType, planeTheme, PlaneDraw.rollFor(steer), PlaneDraw.yawFor(steer),
+                PlaneDraw.elevFor(climb), cx, cy, 88f * scale);
     }
 
     private void arrow(Canvas c, float cx, float cy, float dir, float len, int colour) {
@@ -123,7 +130,7 @@ final class SkyRules implements Hud.RulesPainter {
     private void steer(Canvas c, float cx) {
         float s = (float) Math.sin(t * 1.5f);
         kid(c, cx - 130f, TOP + 110f, 0.78f, s * 16f, 0f, Theme.P1);
-        plane(c, cx + 140f, TOP + 100f, 0.55f, s);
+        plane(c, cx + 140f, TOP + 100f, 0.55f, s, 0f);
         arrow(c, cx + 140f, TOP + 190f, s >= 0 ? 1f : -1f, 60f, Theme.ORANGE);
         Theme.drawCentered(c, "Lean to steer", cx, TOP + PH - 36f, 44f, Theme.INK);
     }
@@ -133,7 +140,7 @@ final class SkyRules implements Hud.RulesPainter {
         float s = (float) Math.sin(t * 1.5f);
         kid(c, cx - 130f, TOP + 110f, 0.78f, 0f, s * 45f, Theme.P1);
         float py = TOP + 110f - s * 36f;
-        plane(c, cx + 140f, py, 0.55f, 0f);
+        plane(c, cx + 140f, py, 0.55f, 0f, s);
         arrowV(c, cx + 140f, TOP + 220f, s >= 0 ? 1f : -1f, 50f, Theme.ORANGE);
         Theme.drawCentered(c, "Arms up or down", cx, TOP + PH - 36f, 44f, Theme.INK);
     }
@@ -145,7 +152,7 @@ final class SkyRules implements Hud.RulesPainter {
         r.set(cx - rs, TOP + 30f, cx + rs, TOP + 30f + rs * 2f);
         c.drawBitmap(SkyArt.ring(), null, r, sprite);
         float py = TOP + 200f - k * 70f, sc = 0.42f - 0.12f * k;
-        plane(c, cx, py, sc, 0f);
+        plane(c, cx, py, sc, 0f, 0f);
         if (k > 0.55f) Theme.drawCentered(c, "+3", cx + 120f, TOP + 70f, 56f, Theme.ORANGE);
         r.set(cx - 215f, TOP + 110f, cx - 155f, TOP + 170f);
         c.drawBitmap(SkyArt.coin(), null, r, sprite);
