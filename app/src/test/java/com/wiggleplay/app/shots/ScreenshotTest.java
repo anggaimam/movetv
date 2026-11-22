@@ -317,4 +317,38 @@ public class ScreenshotTest {
     public void danceEnd() throws Exception {
         dancePlay("dance_end", 1, 1, 4000, 0);
     }
+
+    private void danceAt(String name, int level, int players, int frames, boolean unlockAll) throws Exception {
+        DanceScene.setUnlockAll(unlockAll);
+        try {
+            dancePlay(name, level, players, frames, 0);
+        } finally {
+            DanceScene.setUnlockAll(false);
+        }
+    }
+
+    @Test
+    public void danceFreeze() throws Exception {
+        danceAt("dance_freeze", 1, 1, 1010, false);
+    }
+
+    @Test
+    public void danceMove() throws Exception {
+        danceAt("dance_move", 1, 1, 2240, false);
+    }
+
+    @Test
+    public void danceMirrorRound() throws Exception {
+        danceAt("dance_mirror", 2, 1, 880, false);
+    }
+
+    @Test
+    public void danceParty() throws Exception {
+        danceAt("dance_party", 1, 1, 1800, true);
+    }
+
+    @Test
+    public void danceParty2p() throws Exception {
+        danceAt("dance_party_2p", 3, 2, 1500, true);
+    }
 }

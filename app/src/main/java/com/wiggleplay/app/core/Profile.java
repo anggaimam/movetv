@@ -14,7 +14,7 @@ import java.util.Map;
 public final class Profile {
 
     private static final String FILE = "movetv_profile";
-    private static final String K_HOLD = "hold_ms", K_PLAYERS = "players", K_BOOST = "light_boost", K_POINTER = "pointer";
+    private static final String K_HOLD = "hold_ms", K_PLAYERS = "players", K_BOOST = "light_boost", K_POINTER = "pointer", K_DANCE_CAM = "dance_camera";
 
     private final SharedPreferences prefs;
 
@@ -121,5 +121,21 @@ public final class Profile {
     public void recordStars(String gameId, int level, int stars) {
         int best = Math.max(stars(gameId, level), ProfileLogic.cleanStars(stars));
         prefs.edit().putInt(ProfileLogic.starsKey(gameId, level), best).apply();
+    }
+
+    /**
+     * Whether Animal Dance Party shows a small camera picture in a neon frame.
+     * @return true for a camera box (default false: only the glowing outline)
+     */
+    public boolean danceCamera() {
+        return readBool(K_DANCE_CAM, false);
+    }
+
+    /**
+     * Saves the Animal Dance Party camera box setting.
+     * @param on true to show the camera box
+     */
+    public void setDanceCamera(boolean on) {
+        prefs.edit().putBoolean(K_DANCE_CAM, on).apply();
     }
 }

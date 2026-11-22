@@ -135,6 +135,88 @@ public class PosesTest {
         assertEquals("Keep trying!", Poses.label(0.1f));
     }
 
+    private static PlayerPose skeleton(int pose) {
+        float[] x = new float[Kp.COUNT], y = new float[Kp.COUNT];
+        Poses.skeleton(pose, 960f, 400f, 180f, x, y);
+        PlayerPose p = new PlayerPose(0);
+        p.present = true;
+        for (int k = 0; k < Kp.COUNT; k++) {
+            p.kps[k].x = x[k];
+            p.kps[k].y = y[k];
+            p.kps[k].s = 0.9f;
+        }
+        return p;
+    }
+
+    @Test
+    public void everyPoseScoresHighOnItsOwnSkeleton() {
+        for (int i = 0; i < Poses.COUNT; i++) {
+            float q = Poses.match(i, skeleton(i), null);
+            assertTrue(Poses.NAMES[i] + " scored " + q, q >= 0.9f);
+        }
+    }
+
+    @Test
+    public void noPoseIsPerfectOnAnotherPose() {
+        StringBuilder bad = new StringBuilder();
+        for (int a = 0; a < Poses.COUNT; a++) {
+            for (int b = 0; b < Poses.COUNT; b++) {
+                if (a == b) continue;
+                float q = Poses.match(b, skeleton(a), null);
+                // a pose that asks for less is satisfied by one that asks for more
+                boolean subset = a == Poses.PALM && (b == Poses.LEAN_LEFT || b == Poses.REACH);
+                if (q >= Poses.PERFECT && !subset) bad.append(Poses.NAMES[a]).append(" on ").append(Poses.NAMES[b]).append(' ').append(q).append("; ");
+            }
+        }
+        assertEquals("", bad.toString());
+    }
+
+    @Test
+    public void oppositeModeWantsTheOtherSide() {
+        int[] asym = {Poses.FLAMINGO, Poses.MONKEY, Poses.LEAN_LEFT, Poses.LEAN_RIGHT, Poses.REACH, Poses.SURFER,
+                Poses.PALM, Poses.BIRD};
+        for (int pose : asym) {
+            PlayerPose same = skeleton(pose);
+            PlayerPose other = skeleton(pose);
+            mirrorBody(other);
+            assertTrue(Poses.NAMES[pose] + " opposite on the mirror image", Poses.match(pose, other, null, true) >= 0.9f);
+            assertTrue(Poses.NAMES[pose] + " opposite on the same side", Poses.match(pose, same, null, true) < 0.6f);
+        }
+    }
+
+    @Test
+    public void measureReadsTheArmDirections() {
+        float[] ang = new float[4];
+        assertTrue(Poses.measure(skeleton(Poses.AIRPLANE), ang));
+        for (int i = 0; i < 4; i++) assertEquals(90f, ang[i], 1f);
+        assertTrue(Poses.measure(skeleton(Poses.ROBOT), ang));
+        assertEquals(90f, ang[0], 1f);
+        assertEquals(180f, Math.abs(ang[1]), 1f);
+        PlayerPose p = skeleton(Poses.STAR);
+        p.kps[Kp.L_WRIST].s = 0f;
+        assertTrue(Poses.measure(p, ang));
+        assertTrue(Float.isNaN(ang[1]));
+        p.kps[Kp.R_SHOULDER].s = 0f;
+        assertFalse(Poses.measure(p, ang));
+        assertEquals(-20f, Poses.tiltOf(skeleton(Poses.LEAN_LEFT)), 0.5f);
+        assertEquals(0f, Poses.tiltOf(skeleton(Poses.STAR)), 0.5f);
+    }
+
+    @Test
+    public void armsReachTheirPointsAndKeepTheirLengths() {
+        float[] o = new float[8];
+        Poses.arms(Poses.MONKEY, 870f, 1050f, 400f, 960f, 256f, 897f, 1023f, 670f, 1f, o);
+        // right wrist near the nose, arm lengths unchanged
+        assertEquals(960f + 0.15f * 180f, o[6], 3f);
+        assertEquals(256f + 0.15f * 180f, o[7], 3f);
+        float upper = (float) Math.hypot(o[4] - 1050f, o[5] - 400f), fore = (float) Math.hypot(o[6] - o[4], o[7] - o[5]);
+        assertEquals(0.9f * 180f, upper, 1f);
+        assertEquals(0.8f * 180f, fore, 1f);
+        // a short-armed host cannot reach: the arm just stretches towards the point
+        Poses.arms(Poses.MONKEY, 870f, 1050f, 400f, 960f, 100f, 897f, 1023f, 670f, 0.5f, o);
+        assertTrue(Math.hypot(o[6] - 1050f, o[7] - 400f) <= 0.85f * 180f * 0.5f * 2f);
+    }
+
     @Test
     public void bestWindowFindsTheBestSecond() {
         // 3 seconds at 10 samples a second: bad, then a good second, then bad
@@ -157,36 +239,82 @@ public class PosesTest {
         assertEquals(100, Poses.bpm(1));
         assertEquals(112, Poses.bpm(2));
         assertEquals(124, Poses.bpm(3));
-        assertEquals(8, Poses.slots(1));
-        assertEquals(12, Poses.slots(2));
-        assertEquals(16, Poses.slots(3));
         assertEquals(6, Poses.windowBeats(1));
         assertEquals(4, Poses.windowBeats(3));
+        int[] slots = {8, 12, 16};
         for (int level = 1; level <= 3; level++) {
-            for (long seed = 0; seed < 50; seed++) {
-                int n = Poses.slots(level);
-                int[] a = new int[n], b = new int[n];
-                Poses.plan(level, seed, a, b);
-                int prev = -1;
-                for (int s = 0; s < n; s++) {
-                    assertTrue(a[s] >= 0 && a[s] < Poses.COUNT);
-                    assertTrue(a[s] != prev);
-                    if (level == 1) assertTrue(Poses.symmetric(a[s]));
-                    assertEquals(Poses.isCombo(level, s), b[s] >= 0);
-                    if (b[s] >= 0) {
-                        assertTrue(b[s] != a[s]);
-                        prev = b[s];
+            boolean sawFreeze = false, sawSpeed = false, sawMove = false, sawMirror = false;
+            for (long seed = 0; seed < 100; seed++) {
+                Poses.Plan pl = Poses.plan(level, seed);
+                assertEquals(slots[level - 1], pl.slots);
+                int beat = 0, prev = -1;
+                for (int s = 0; s < pl.slots; s++) {
+                    assertEquals(beat, pl.start[s]);
+                    beat += pl.length(s);
+                    assertTrue(pl.parts[s] >= 1 && pl.parts[s] <= 3);
+                    assertTrue(pl.title[s] != null && pl.say[s] != null);
+                    if (pl.type[s] == Poses.T_MOVE) {
+                        sawMove = true;
+                        assertEquals(pl.parts[s] * 2, pl.hold[s]);
+                        assertTrue(pl.parts[s] >= 2);
                     } else {
-                        prev = a[s];
+                        assertEquals(1, pl.parts[s]);
                     }
+                    if (pl.type[s] == Poses.T_FREEZE) sawFreeze = true;
+                    if (pl.type[s] == Poses.T_SPEED) {
+                        sawSpeed = true;
+                        assertTrue(pl.hold[s] < Poses.windowBeats(level) + 1);
+                    }
+                    if (pl.type[s] == Poses.T_MIRROR) {
+                        sawMirror = true;
+                        assertFalse(Poses.symmetric(pl.pose[s][0]));
+                    }
+                    assertTrue(pl.pose[s][0] != prev);
+                    for (int k = 0; k < pl.parts[s]; k++) {
+                        int p = pl.pose[s][k];
+                        assertTrue(p >= 0 && p < Poses.COUNT);
+                        if (level == 1) assertTrue(Poses.NAMES[p] + " on Easy", Poses.symmetric(p));
+                        if (k > 0) assertTrue(p != pl.pose[s][k - 1]);
+                    }
+                    prev = pl.pose[s][pl.parts[s] - 1];
                 }
+                assertEquals(beat, pl.totalBeats);
             }
+            assertTrue(sawFreeze && sawSpeed && sawMove);
+            assertEquals(level > 1, sawMirror);
         }
-        assertFalse(Poses.isCombo(1, 5));
-        assertFalse(Poses.isCombo(2, 5));
-        assertEquals(24, Poses.maxPoints(1));
-        assertEquals(36, Poses.maxPoints(2));
-        assertEquals(48 + 5 * 3, Poses.maxPoints(3));
+    }
+
+    @Test
+    public void poseAtFollowsTheMove() {
+        Poses.Plan pl = null;
+        for (long seed = 0; pl == null; seed++) {
+            Poses.Plan t = Poses.plan(2, seed);
+            for (int s = 0; s < t.slots; s++) if (t.type[s] == Poses.T_MOVE && t.parts[s] == 2) pl = t;
+        }
+        int s = 0;
+        while (pl.type[s] != Poses.T_MOVE || pl.parts[s] != 2) s++;
+        assertEquals(pl.pose[s][0], pl.poseAt(s, -1f));
+        assertEquals(pl.pose[s][0], pl.poseAt(s, 1f));
+        assertEquals(pl.pose[s][1], pl.poseAt(s, pl.hold[s] - 0.5f));
+        assertEquals(pl.pose[s][1], pl.poseAt(s, pl.hold[s] + 5f));
+    }
+
+    @Test
+    public void streakBonusAndMaxPoints() {
+        assertEquals(0, Poses.streakBonus(2));
+        assertEquals(1, Poses.streakBonus(3));
+        assertEquals(2, Poses.streakBonus(6));
+        assertEquals(3, Poses.streakBonus(9));
+        assertEquals(3, Poses.streakBonus(20));
+        for (int level = 1; level <= 3; level++) {
+            Poses.Plan pl = Poses.plan(level, 5);
+            int max = Poses.maxPoints(pl);
+            int base = 0;
+            for (int s = 0; s < pl.slots; s++) base += 3 * pl.parts[s];
+            assertTrue(max > base);
+            assertTrue(max <= base + 3 * pl.slots);
+        }
     }
 
     @Test

@@ -19,14 +19,19 @@ public final class Poses {
 
     /** Pose numbers. */
     public static final int STAR = 0, AIRPLANE = 1, ROCKET = 2, ROBOT = 3, CRAB = 4, FLAMINGO = 5, PENGUIN = 6,
-            MONKEY = 7, LEAN_LEFT = 8, LEAN_RIGHT = 9, COUNT = 10;
+            MONKEY = 7, LEAN_LEFT = 8, LEAN_RIGHT = 9, GIRAFFE = 10, FROG = 11, SCARECROW = 12, REACH = 13,
+            SURFER = 14, BUNNY = 15, SUPERHERO = 16, KOALA = 17, CHICKEN = 18, PALM = 19, EAGLE = 20, BIRD = 21,
+            COUNT = 22;
 
     /** Names shown on the cards. */
     public static final String[] NAMES = {"Star", "Airplane", "Rocket", "Robot", "Crab", "Flamingo", "Penguin",
-            "Monkey", "Lean left", "Lean right"};
+            "Monkey", "Lean left", "Lean right", "Giraffe", "Frog", "Scarecrow", "Reach up", "Surfer", "Bunny", "Superhero",
+            "Koala", "Chicken", "Palm tree", "Eagle", "Bird"};
     /** What the host says. */
     public static final String[] SAY = {"Be a star!", "Be an airplane!", "Be a rocket!", "Be a robot!", "Be a crab!",
-            "Be a flamingo!", "Be a penguin!", "Be a monkey!", "Lean to the left!", "Lean to the right!"};
+            "Be a flamingo!", "Be a penguin!", "Be a monkey!", "Lean to the left!", "Lean to the right!", "Be a giraffe!",
+            "Be a frog!", "Be a scarecrow!", "Reach up high!", "Be a surfer!", "Be a bunny!", "Be a superhero!",
+            "Hug like a koala!", "Be a chicken!", "Be a palm tree!", "Be an eagle!", "Be a bird!"};
 
     /** An arm angle error of this many degrees scores zero. */
     public static final float TOLERANCE_DEG = 45f;
@@ -80,6 +85,18 @@ public final class Poses {
         DEFS[MONKEY] = new Def(new float[]{30, 20, NAN, NAN}, NAN, 1, NOSE_POINT, true, false);
         DEFS[LEAN_LEFT] = new Def(new float[]{NAN, NAN, NAN, NAN}, -20f, -1, 0, false, false);
         DEFS[LEAN_RIGHT] = new Def(new float[]{NAN, NAN, NAN, NAN}, 20f, -1, 0, false, false);
+        DEFS[GIRAFFE] = new Def(new float[]{160, 160, 160, 160}, NAN, -1, 0, false, true);
+        DEFS[FROG] = new Def(new float[]{40, 175, 40, 175}, NAN, -1, 0, false, true);
+        DEFS[SCARECROW] = new Def(new float[]{90, 0, 90, 0}, NAN, -1, 0, false, true);
+        DEFS[REACH] = new Def(new float[]{10, 5, 180, 180}, NAN, -1, 0, true, false);
+        DEFS[SURFER] = new Def(new float[]{45, 45, 135, 135}, NAN, -1, 0, true, false);
+        DEFS[BUNNY] = new Def(new float[]{120, 240, 120, 240}, NAN, -1, 0, false, true);
+        DEFS[SUPERHERO] = new Def(new float[]{65, 330, 65, 330}, NAN, -1, 0, false, true);
+        DEFS[KOALA] = new Def(new float[]{30, 285, 30, 285}, NAN, -1, 0, false, true);
+        DEFS[CHICKEN] = new Def(new float[]{90, 270, 90, 270}, NAN, -1, 0, false, true);
+        DEFS[PALM] = new Def(new float[]{NAN, NAN, 180, 180}, -20f, -1, 0, true, false);
+        DEFS[EAGLE] = new Def(new float[]{60, 60, 60, 60}, NAN, -1, 0, false, true);
+        DEFS[BIRD] = new Def(new float[]{10, 5, 90, 90}, NAN, -1, 0, true, false);
     }
 
     private Poses() { }
@@ -113,7 +130,20 @@ public final class Poses {
      * @return quality 0..1 (0 when too little of the body is visible)
      */
     public static float match(int pose, PlayerPose p, Result out) {
+        return match(pose, p, out, false);
+    }
+
+    /**
+     * Scores a body against a pose, optionally only against the opposite side ("do the opposite" rounds).
+     * @param pose pose number
+     * @param p the body (stage pixels)
+     * @param out receives the details (may be null)
+     * @param opposite true to score only the mirror image of the pose
+     * @return quality 0..1
+     */
+    public static float match(int pose, PlayerPose p, Result out, boolean opposite) {
         Def d = DEFS[pose];
+        if (opposite) return score(d, true, p, out != null ? out : TMP_A);
         Result a = out != null ? out : TMP_A;
         float q = score(d, false, p, a);
         if (d.mirrorOk) {
@@ -161,6 +191,9 @@ public final class Poses {
 
         float sum = 0f, weight = 0f;
         int defined = 0, used = 0;
+        boolean anyArm = false;
+        for (int i = 0; i < 4; i++) if (!Float.isNaN(d.arm[i])) anyArm = true;
+        float tiltWeight = anyArm ? 2f : W_TILT;
 
         // arms: index 0..3 in the pose, mirrored poses swap left and right
         for (int i = 0; i < 4; i++) {
@@ -219,8 +252,8 @@ public final class Poses {
                 float target = mirror ? -d.tilt : d.tilt;
                 float s = clamp01(1f - Math.abs(target - tilt) / TILT_TOLERANCE_DEG);
                 out.torso = s;
-                sum += s * W_TILT;
-                weight += W_TILT;
+                sum += s * tiltWeight;
+                weight += tiltWeight;
                 used++;
             }
         }
@@ -300,6 +333,54 @@ public final class Poses {
         return best;
     }
 
+    // ---- measuring a body ----
+
+    /**
+     * Measures the four arm directions of a body, in the same convention as the poses (0 = down, 90 = out, 180 = up).
+     * @param p the body
+     * @param out four angles LU, LF, RU, RF; NaN where a keypoint is missing
+     * @return true if the shoulders are visible (otherwise all four are NaN)
+     */
+    public static boolean measure(PlayerPose p, float[] out) {
+        for (int i = 0; i < 4; i++) out[i] = NAN;
+        if (p == null || !p.present) return false;
+        Keypoint ls = p.kps[Kp.L_SHOULDER], rs = p.kps[Kp.R_SHOULDER];
+        if (!ok(ls) || !ok(rs)) return false;
+        float dx = rs.x - ls.x, dy = rs.y - ls.y;
+        float sw = (float) Math.sqrt(dx * dx + dy * dy);
+        if (sw < 1f) return false;
+        float ux = dx / sw, uy = dy / sw, vx = -uy, vy = ux;
+        for (int i = 0; i < 4; i++) {
+            boolean left = i < 2, upper = (i & 1) == 0;
+            Keypoint a = p.kps[left ? (upper ? Kp.L_SHOULDER : Kp.L_ELBOW) : (upper ? Kp.R_SHOULDER : Kp.R_ELBOW)];
+            Keypoint b = p.kps[left ? (upper ? Kp.L_ELBOW : Kp.L_WRIST) : (upper ? Kp.R_ELBOW : Kp.R_WRIST)];
+            if (!ok(a) || !ok(b)) continue;
+            float ex = b.x - a.x, ey = b.y - a.y;
+            float outward = (ex * ux + ey * uy) * (left ? -1f : 1f);
+            float down = ex * vx + ey * vy;
+            out[i] = (float) Math.toDegrees(Math.atan2(outward, down));
+        }
+        return true;
+    }
+
+    /**
+     * How far a body leans.
+     * @param p the body
+     * @return degrees (negative = towards the left of the screen), 0 if the shoulders are not visible
+     */
+    public static float tiltOf(PlayerPose p) {
+        if (p == null || !p.present) return 0f;
+        Keypoint ls = p.kps[Kp.L_SHOULDER], rs = p.kps[Kp.R_SHOULDER];
+        if (!ok(ls) || !ok(rs)) return 0f;
+        Keypoint lh = p.kps[Kp.L_HIP], rh = p.kps[Kp.R_HIP];
+        if (ok(lh) && ok(rh)) {
+            float smx = (ls.x + rs.x) / 2f, smy = (ls.y + rs.y) / 2f;
+            float hmx = (lh.x + rh.x) / 2f, hmy = (lh.y + rh.y) / 2f;
+            return (float) Math.toDegrees(Math.atan2(smx - hmx, hmy - smy));
+        }
+        return (float) Math.toDegrees(Math.atan2(rs.y - ls.y, rs.x - ls.x));
+    }
+
     // ---- levels ----
 
     /**
@@ -312,16 +393,7 @@ public final class Poses {
     }
 
     /**
-     * Number of poses (slots) in a round.
-     * @param level 1..3
-     * @return 8, 12 or 16
-     */
-    public static int slots(int level) {
-        return level == 1 ? 8 : level == 2 ? 12 : 16;
-    }
-
-    /**
-     * Length of the hold window in beats.
+     * Length of the hold window of an ordinary pose in beats.
      * @param level 1..3
      * @return 6, 5 or 4
      */
@@ -329,56 +401,196 @@ public final class Poses {
         return level == 1 ? 6 : level == 2 ? 5 : 4;
     }
 
-    /**
-     * Whether a slot of a level is a two-pose combo ("Rocket then Robot!").
-     * @param level 1..3
-     * @param slot slot number
-     * @return true for combos (Hard level, every third pose after the first two)
-     */
-    public static boolean isCombo(int level, int slot) {
-        return level == 3 && slot >= 2 && slot % 3 == 2;
+    // ---- round types and plans ----
+
+    /** Ordinary pose, opposite side, freeze (the music stops), quick (short hold), move (several poses in a row). */
+    public static final int T_NORMAL = 0, T_MIRROR = 1, T_FREEZE = 2, T_SPEED = 3, T_MOVE = 4;
+    /** Beats to get ready (quick poses get one), and beats to show the result. */
+    public static final int READY_BEATS = 2, QUICK_READY_BEATS = 1, REST_BEATS = 1;
+
+    private static final int[] SYMMETRIC_POOL;
+    private static final int[] ASYMMETRIC_POOL;
+    private static final int[] ALL_POOL;
+
+    /** Named moves: a few poses in a row, two beats each. */
+    public static final String[] MOVE_NAMES = {"Jumping jacks", "Wing flaps", "Pump it up", "Rocket launch", "Sway",
+            "Sunrise"};
+    private static final int[][] MOVES = {
+            {PENGUIN, STAR}, {AIRPLANE, ROBOT}, {ROBOT, ROCKET}, {PENGUIN, GIRAFFE, ROCKET}, {LEAN_LEFT, LEAN_RIGHT},
+            {PENGUIN, EAGLE, AIRPLANE}};
+
+    static {
+        int sym = 0, asym = 0;
+        for (int i = 0; i < COUNT; i++) if (DEFS[i].symmetric) sym++; else asym++;
+        SYMMETRIC_POOL = new int[sym];
+        ASYMMETRIC_POOL = new int[asym];
+        ALL_POOL = new int[COUNT];
+        sym = 0;
+        asym = 0;
+        for (int i = 0; i < COUNT; i++) {
+            ALL_POOL[i] = i;
+            if (DEFS[i].symmetric) SYMMETRIC_POOL[sym++] = i; else ASYMMETRIC_POOL[asym++] = i;
+        }
     }
 
-    /**
-     * Picks the poses of a round: never the same pose twice in a row, only symmetric arm poses on Easy.
-     * @param level 1..3
-     * @param seed random seed
-     * @param first receives the first pose of each slot (length = slots)
-     * @param second receives the second pose of combo slots, otherwise -1
-     */
-    public static void plan(int level, long seed, int[] first, int[] second) {
-        Random r = new Random(seed);
-        int n = slots(level);
-        int[] pool = new int[COUNT];
-        int m = 0;
-        for (int i = 0; i < COUNT; i++) if (level != 1 || DEFS[i].symmetric) pool[m++] = i;
-        int prev = -1;
-        for (int s = 0; s < n; s++) {
-            int a;
-            do {
-                a = pool[r.nextInt(m)];
-            } while (a == prev);
-            first[s] = a;
-            prev = a;
-            int b = -1;
-            if (isCombo(level, s)) {
-                do {
-                    b = pool[r.nextInt(m)];
-                } while (b == a);
-                prev = b;
-            }
-            second[s] = b;
+    private static final int N = T_NORMAL, MI = T_MIRROR, F = T_FREEZE, S = T_SPEED, M = T_MOVE;
+    private static final int[][] LEVEL_TYPES = {
+            {N, N, F, N, S, N, M, N},
+            {N, N, MI, F, N, M, S, MI, N, F, M, N},
+            {N, MI, M, F, S, M, MI, N, F, M, S, MI, M, F, S, M}};
+
+    /** The poses of a round: for each slot its type, poses and timing in beats. */
+    public static final class Plan {
+        /** Number of slots. */
+        public final int slots;
+        /** Type of each slot (T_ constants). */
+        public final int[] type = new int[16];
+        /** Number of poses in each slot (1 for everything but moves). */
+        public final int[] parts = new int[16];
+        /** The poses of each slot. */
+        public final int[][] pose = new int[16][3];
+        /** Beats to get ready, to hold, and the beat the slot starts on (the first slot starts on 0). */
+        public final int[] ready = new int[16], hold = new int[16], start = new int[16];
+        /** Big title (e.g. "Flamingo" or "Penguin then Star!"). */
+        public final String[] title = new String[16];
+        /** Small line under the title, or null. */
+        public final String[] tag = new String[16];
+        /** What the host says. */
+        public final String[] say = new String[16];
+        /** Beats of the whole round after the intro. */
+        public int totalBeats;
+
+        Plan(int slots) {
+            this.slots = slots;
+        }
+
+        /**
+         * Beats in a slot from the start of get-ready to the end of the result.
+         * @param s slot
+         * @return beats
+         */
+        public int length(int s) {
+            return ready[s] + hold[s] + REST_BEATS;
+        }
+
+        /**
+         * The pose asked for at a time inside a slot.
+         * @param s slot
+         * @param beatsIntoHold beats since the hold window began (negative while getting ready)
+         * @return pose number
+         */
+        public int poseAt(int s, float beatsIntoHold) {
+            if (parts[s] == 1 || beatsIntoHold <= 0f) return pose[s][0];
+            int idx = (int) (beatsIntoHold / hold[s] * parts[s]);
+            return pose[s][Math.min(parts[s] - 1, idx)];
         }
     }
 
     /**
-     * Most points a round can give.
+     * Picks the poses of a round: no pose twice in a row, only symmetric arm poses on Easy, opposite-side and move rounds
+     * from Medium on.
      * @param level 1..3
-     * @return 3 per pose, 6 per combo
+     * @param seed random seed
+     * @return the plan
      */
-    public static int maxPoints(int level) {
-        int n = slots(level), total = 0;
-        for (int s = 0; s < n; s++) total += isCombo(level, s) ? 6 : 3;
+    public static Plan plan(int level, long seed) {
+        Random r = new Random(seed);
+        int[] types = LEVEL_TYPES[Math.max(1, Math.min(3, level)) - 1];
+        Plan pl = new Plan(types.length);
+        int[] pool = level == 1 ? SYMMETRIC_POOL : ALL_POOL;
+        int prev = -1, beat = 0;
+        for (int s = 0; s < pl.slots; s++) {
+            int t = types[s];
+            pl.type[s] = t;
+            pl.ready[s] = t == T_SPEED ? QUICK_READY_BEATS : READY_BEATS;
+            pl.hold[s] = t == T_SPEED ? 3 : windowBeats(level);
+            pl.parts[s] = 1;
+            if (t == T_MOVE) {
+                int[] mv;
+                int moveIdx;
+                if (level == 3 && r.nextInt(3) == 0) {
+                    moveIdx = -1; // a made-up sequence
+                    mv = new int[3];
+                    for (int k = 0; k < 3; k++) {
+                        int a;
+                        do {
+                            a = pool[r.nextInt(pool.length)];
+                        } while ((k > 0 && a == mv[k - 1]) || (k == 0 && a == prev));
+                        mv[k] = a;
+                    }
+                } else {
+                    int[] okMoves = level == 1 ? new int[]{0, 1, 2} : level == 2 ? new int[]{0, 1, 2, 3, 4} :
+                            new int[]{0, 1, 2, 3, 4, 5};
+                    do {
+                        moveIdx = okMoves[r.nextInt(okMoves.length)];
+                        mv = MOVES[moveIdx];
+                    } while (mv[0] == prev);
+                }
+                pl.parts[s] = mv.length;
+                System.arraycopy(mv, 0, pl.pose[s], 0, mv.length);
+                pl.hold[s] = mv.length * 2;
+                if (moveIdx >= 0) {
+                    pl.title[s] = MOVE_NAMES[moveIdx];
+                    pl.say[s] = MOVE_NAMES[moveIdx] + "! Follow me!";
+                } else {
+                    StringBuilder sb = new StringBuilder();
+                    for (int k = 0; k < mv.length; k++) sb.append(k > 0 ? " then " : "").append(NAMES[mv[k]]);
+                    pl.title[s] = sb.append('!').toString();
+                    pl.say[s] = pl.title[s];
+                }
+                pl.tag[s] = "Follow me!";
+            } else {
+                int a;
+                int[] from = t == T_MIRROR ? ASYMMETRIC_POOL : pool;
+                do {
+                    a = from[r.nextInt(from.length)];
+                } while (a == prev);
+                pl.pose[s][0] = a;
+                pl.title[s] = NAMES[a];
+                switch (t) {
+                    case T_MIRROR:
+                        pl.tag[s] = "Do the other side!";
+                        pl.say[s] = "Do the other side! " + SAY[a];
+                        break;
+                    case T_FREEZE:
+                        pl.tag[s] = "Freeze! The music stops!";
+                        pl.say[s] = "Freeze! " + SAY[a];
+                        break;
+                    case T_SPEED:
+                        pl.tag[s] = "Quick!";
+                        pl.say[s] = "Quick! " + SAY[a];
+                        break;
+                    default:
+                        pl.tag[s] = null;
+                        pl.say[s] = SAY[a];
+                        break;
+                }
+            }
+            prev = pl.pose[s][pl.parts[s] - 1];
+            pl.start[s] = beat;
+            beat += pl.ready[s] + pl.hold[s] + REST_BEATS;
+        }
+        pl.totalBeats = beat;
+        return pl;
+    }
+
+    /**
+     * Extra points for a run of Great or better results: +1 at 3 in a row, +2 at 6, +3 from 9.
+     * @param streak results in a row at Great or better, counting this one
+     * @return bonus points
+     */
+    public static int streakBonus(int streak) {
+        return Math.min(3, streak / 3);
+    }
+
+    /**
+     * Most points a round can give: 3 for each pose of each slot, plus the streak bonus of an unbroken run.
+     * @param plan the plan
+     * @return points
+     */
+    public static int maxPoints(Plan plan) {
+        int total = 0;
+        for (int s = 0; s < plan.slots; s++) total += 3 * plan.parts[s] + streakBonus(s + 1);
         return total;
     }
 
@@ -394,11 +606,11 @@ public final class Poses {
         return f >= 0.80f ? 3 : f >= 0.55f ? 2 : 1;
     }
 
-    // ---- for drawing the pose cards ----
+    // ---- poses as arm positions (for drawing and for tests) ----
 
     /**
-     * The arm directions to draw for a pose (the same convention as the matcher). Arms the pose leaves free get a
-     * natural direction; the arm with a hand-on-hip or hand-on-nose rule is drawn with {@link #nearSide}.
+     * The arm directions that describe a pose (the same convention as the matcher). Arms the pose leaves free get a
+     * natural direction; the arm with a hand-on-hip or hand-on-nose rule is placed by {@link #arms}.
      * @param pose pose number
      * @param out four angles LU, LF, RU, RF
      */
@@ -432,5 +644,131 @@ public final class Poses {
      */
     public static float tilt(int pose) {
         return Float.isNaN(DEFS[pose].tilt) ? 0f : DEFS[pose].tilt;
+    }
+
+    /**
+     * Puts the elbows and wrists of both arms in place from four directions.
+     * @param lsx x of the left shoulder
+     * @param rsx x of the right shoulder
+     * @param sy y of the shoulders
+     * @param k arm length as a part of the normal child's arm (1 = upper arm 0.9 and forearm 0.8 shoulder widths)
+     * @param ang four angles LU, LF, RU, RF in degrees
+     * @param o receives left elbow x, y, left wrist x, y, right elbow x, y, right wrist x, y
+     */
+    public static void armsFromAngles(float lsx, float rsx, float sy, float k, float[] ang, float[] o) {
+        float sw = rsx - lsx, upper = 0.9f * k * sw, fore = 0.8f * k * sw;
+        for (int side = 0; side < 2; side++) {
+            float dir = side == 0 ? -1f : 1f, sx = side == 0 ? lsx : rsx;
+            double a = Math.toRadians(ang[side * 2]), b = Math.toRadians(ang[side * 2 + 1]);
+            float ex = sx + dir * upper * (float) Math.sin(a), ey = sy + upper * (float) Math.cos(a);
+            o[side * 4] = ex;
+            o[side * 4 + 1] = ey;
+            o[side * 4 + 2] = ex + dir * fore * (float) Math.sin(b);
+            o[side * 4 + 3] = ey + fore * (float) Math.cos(b);
+        }
+    }
+
+    /**
+     * Puts the elbows and wrists of both arms in place for a pose; the arm with a hand-on-nose or hand-on-hip rule
+     * reaches its point with the elbow out to the side.
+     * @param pose pose number
+     * @param lsx x of the left shoulder
+     * @param rsx x of the right shoulder
+     * @param sy y of the shoulders
+     * @param noseX x of the nose
+     * @param noseY y of the nose
+     * @param hipLx x of the left hip
+     * @param hipRx x of the right hip
+     * @param hipY y of the hips
+     * @param k arm length factor (see {@link #armsFromAngles})
+     * @param o receives left elbow x, y, left wrist x, y, right elbow x, y, right wrist x, y
+     */
+    public static void arms(int pose, float lsx, float rsx, float sy, float noseX, float noseY, float hipLx, float hipRx,
+                            float hipY, float k, float[] o) {
+        float[] ang = TMP_ANG;
+        drawAngles(pose, ang);
+        armsFromAngles(lsx, rsx, sy, k, ang, o);
+        int near = DEFS[pose].nearSide;
+        if (near < 0) return;
+        float sw = rsx - lsx, dir = near == 0 ? -1f : 1f, sx = near == 0 ? lsx : rsx;
+        float tx, ty;
+        if (DEFS[pose].nearPoint == NOSE_POINT) {
+            tx = noseX + dir * 0.15f * sw;
+            ty = noseY + 0.15f * sw;
+        } else {
+            tx = (near == 0 ? hipLx : hipRx) + dir * 0.07f * sw;
+            ty = hipY;
+        }
+        float l1 = 0.9f * k * sw, l2 = 0.8f * k * sw;
+        float dx = tx - sx, dy = ty - sy, d = (float) Math.sqrt(dx * dx + dy * dy);
+        d = Math.max(1f, Math.min(d, l1 + l2 - 1f));
+        float a = (l1 * l1 - l2 * l2 + d * d) / (2f * d);
+        float h = (float) Math.sqrt(Math.max(0f, l1 * l1 - a * a));
+        float ux = dx / Math.max(1f, (float) Math.sqrt(dx * dx + dy * dy)), uy = dy / Math.max(1f, (float) Math.sqrt(dx * dx + dy * dy));
+        float px = sx + ux * a, py = sy + uy * a, ox = -uy, oy = ux;
+        if (ox * dir < 0f) {
+            ox = -ox;
+            oy = -oy;
+        }
+        int b = near * 4;
+        o[b] = px + ox * h;
+        o[b + 1] = py + oy * h;
+        o[b + 2] = sx + ux * d;
+        o[b + 3] = sy + uy * d;
+    }
+
+    private static final float[] TMP_ANG = new float[4];
+
+    /**
+     * Builds the 17 keypoints of a child standing in a pose (for tests and for drawing): head, shoulders, elbows, wrists,
+     * hips, knees and ankles; the upper body leans for poses with a tilt.
+     * @param pose pose number
+     * @param cx centre x
+     * @param sy y of the shoulders
+     * @param sw shoulder width
+     * @param x receives 17 x values
+     * @param y receives 17 y values
+     */
+    public static void skeleton(int pose, float cx, float sy, float sw, float[] x, float[] y) {
+        float hipY = sy + 1.5f * sw, hipHalf = 0.35f * sw;
+        x[Kp.NOSE] = cx;
+        y[Kp.NOSE] = sy - 0.8f * sw;
+        x[Kp.L_EYE] = cx - 0.17f * sw;
+        x[Kp.R_EYE] = cx + 0.17f * sw;
+        y[Kp.L_EYE] = y[Kp.R_EYE] = y[Kp.NOSE] - 0.15f * sw;
+        x[Kp.L_EAR] = cx - 0.33f * sw;
+        x[Kp.R_EAR] = cx + 0.33f * sw;
+        y[Kp.L_EAR] = y[Kp.R_EAR] = y[Kp.NOSE] - 0.08f * sw;
+        x[Kp.L_SHOULDER] = cx - 0.5f * sw;
+        x[Kp.R_SHOULDER] = cx + 0.5f * sw;
+        y[Kp.L_SHOULDER] = y[Kp.R_SHOULDER] = sy;
+        x[Kp.L_HIP] = cx - hipHalf;
+        x[Kp.R_HIP] = cx + hipHalf;
+        y[Kp.L_HIP] = y[Kp.R_HIP] = hipY;
+        x[Kp.L_KNEE] = x[Kp.L_ANKLE] = cx - hipHalf;
+        x[Kp.R_KNEE] = x[Kp.R_ANKLE] = cx + hipHalf;
+        y[Kp.L_KNEE] = y[Kp.R_KNEE] = hipY + sw;
+        y[Kp.L_ANKLE] = y[Kp.R_ANKLE] = hipY + 2f * sw;
+        float[] o = new float[8];
+        arms(pose, x[Kp.L_SHOULDER], x[Kp.R_SHOULDER], sy, x[Kp.NOSE], y[Kp.NOSE], x[Kp.L_HIP], x[Kp.R_HIP], hipY, 1f, o);
+        x[Kp.L_ELBOW] = o[0];
+        y[Kp.L_ELBOW] = o[1];
+        x[Kp.L_WRIST] = o[2];
+        y[Kp.L_WRIST] = o[3];
+        x[Kp.R_ELBOW] = o[4];
+        y[Kp.R_ELBOW] = o[5];
+        x[Kp.R_WRIST] = o[6];
+        y[Kp.R_WRIST] = o[7];
+        float lean = tilt(pose);
+        if (Math.abs(lean) > 0.001f) {
+            double a = Math.toRadians(lean), cos = Math.cos(a), sin = Math.sin(a);
+            int[] upper = {Kp.NOSE, Kp.L_EYE, Kp.R_EYE, Kp.L_EAR, Kp.R_EAR, Kp.L_SHOULDER, Kp.R_SHOULDER, Kp.L_ELBOW,
+                    Kp.R_ELBOW, Kp.L_WRIST, Kp.R_WRIST};
+            for (int kp : upper) {
+                float dx = x[kp] - cx, dy = y[kp] - hipY;
+                x[kp] = (float) (cx + dx * cos - dy * sin);
+                y[kp] = (float) (hipY + dx * sin + dy * cos);
+            }
+        }
     }
 }

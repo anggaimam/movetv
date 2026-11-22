@@ -47,8 +47,8 @@ final class DanceRules implements Hud.RulesPainter {
             panel(c, px, i);
             switch (i) {
                 case 0:
-                    DanceArt.host(c, (int) (t / 3.2f) % DanceArt.HOSTS, cx - 110f, TOP + PH - 90f, 0.34f, t * 1.8f, 0.5f);
-                    DanceArt.card(c, pose, cx + 20f, TOP + 40f, 190f, 250f, DanceArt.PINK, 0f);
+                    DanceArt.hostDance(c, (int) (t / 3.2f) % DanceArt.HOSTS, cx - 110f, TOP + PH - 90f, 0.34f, t * 1.8f, 0.5f);
+                    DanceArt.card(c, pose, (int) (t / 3.2f) % DanceArt.HOSTS, cx + 20f, TOP + 20f, 200f, 272f, DanceArt.PINK, 0f);
                     Theme.drawCentered(c, "Look", cx, TOP + PH - 26f, 60f, DanceArt.WHITE);
                     break;
                 case 1:

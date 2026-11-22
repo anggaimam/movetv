@@ -2,6 +2,7 @@ package com.wiggleplay.app.scenes;
 
 import android.graphics.Canvas;
 import android.graphics.Paint;
+import android.graphics.RectF;
 import android.view.KeyEvent;
 
 import com.wiggleplay.app.core.ProfileLogic;
@@ -29,7 +30,7 @@ public final class SettingsOverlay {
     private final Paint dim = new Paint();
     private boolean open;
     private float ignoreMs;
-    private TileMenu.Tile tHold, tBoost, tPerf, tPointer;
+    private TileMenu.Tile tHold, tBoost, tPerf, tPointer, tCam;
 
     /**
      * Creates the overlay.
@@ -67,12 +68,15 @@ public final class SettingsOverlay {
                 x0 + 2f * (w + gap), y, w, h);
         tPerf = new TileMenu.Tile("perf", "Speed meter", null, Theme.BLUE, Theme::paintGauge,
                 x0 + 3f * (w + gap), y, w, h);
+        tCam = new TileMenu.Tile("dancecam", "Dance camera", null, Theme.PINK, SettingsOverlay::paintCamera,
+                x0 + 4f * (w + gap), y, w, h);
         TileMenu.Tile done = new TileMenu.Tile("done", "OK", null, Theme.SAGE, Theme::paintDone, 1370f, 40f, 380f, 250f);
         tiles.add(done);
         tiles.add(tHold);
         tiles.add(tPointer);
         tiles.add(tBoost);
         tiles.add(tPerf);
+        tiles.add(tCam);
         refresh();
         menu.setTiles(tiles, "done");
         ignoreMs = IGNORE_MS;
@@ -93,6 +97,7 @@ public final class SettingsOverlay {
         tPointer.badge = Theme.pointerBadge(ProfileLogic.POINTER_REACH.equals(env.pointer()));
         tBoost.badge = Theme.onOffBadge(env.lightBoost());
         tPerf.badge = Theme.onOffBadge(env.perf.isVisible());
+        tCam.badge = Theme.onOffBadge(env.profile != null && env.profile.danceCamera());
     }
 
     /**
@@ -128,6 +133,9 @@ public final class SettingsOverlay {
                 break;
             case "perf":
                 env.togglePerf();
+                break;
+            case "dancecam":
+                if (env.profile != null) env.profile.setDanceCamera(!env.profile.danceCamera());
                 break;
             case "done":
                 close();
@@ -194,5 +202,22 @@ public final class SettingsOverlay {
             inner.draw(c);
             SettingsOverlay.this.draw(c);
         }
+    }
+
+    private static final Paint CAM_PAINT = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private static final RectF CAM_RECT = new RectF();
+
+    /** A small camera picture for the "Dance camera" tile. */
+    private static void paintCamera(Canvas c, int w, int h) {
+        CAM_PAINT.setStyle(Paint.Style.FILL);
+        CAM_PAINT.setColor(0xFF2F3A45);
+        CAM_RECT.set(w * 0.12f, h * 0.28f, w * 0.88f, h * 0.78f);
+        c.drawRoundRect(CAM_RECT, w * 0.1f, w * 0.1f, CAM_PAINT);
+        CAM_RECT.set(w * 0.28f, h * 0.18f, w * 0.52f, h * 0.34f);
+        c.drawRoundRect(CAM_RECT, w * 0.04f, w * 0.04f, CAM_PAINT);
+        CAM_PAINT.setColor(0xFFF3EBDD);
+        c.drawCircle(w * 0.5f, h * 0.53f, w * 0.2f, CAM_PAINT);
+        CAM_PAINT.setColor(0xFF7FF4FF);
+        c.drawCircle(w * 0.5f, h * 0.53f, w * 0.13f, CAM_PAINT);
     }
 }
