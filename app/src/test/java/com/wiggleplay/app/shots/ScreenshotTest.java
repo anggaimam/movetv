@@ -355,6 +355,7 @@ public class ScreenshotTest {
 
     @Test
     public void jungleRules() throws Exception {
+        JungleScene.initArt(org.robolectric.RuntimeEnvironment.getApplication());
         JungleScene.setRulesSeen(false);
         check(ShotRig.shoot("jungle_rules", new JungleScene(env()),
                 Scene.SceneArgs.of("level", 1, "players", 1), 1, 40, null));
@@ -362,12 +363,14 @@ public class ScreenshotTest {
 
     @Test
     public void jungleCountdown() throws Exception {
+        JungleScene.initArt(org.robolectric.RuntimeEnvironment.getApplication());
         JungleScene.setRulesSeen(true);
         check(ShotRig.shoot("jungle_countdown", new JungleScene(env()),
                 Scene.SceneArgs.of("level", 1, "players", 1), 1, 60, null));
     }
 
     private void junglePlay(String name, int level, int players, int frames) throws Exception {
+        JungleScene.initArt(org.robolectric.RuntimeEnvironment.getApplication());
         JungleScene.setRulesSeen(true);
         check(ShotRig.shoot(name, new JungleScene(env()),
                 Scene.SceneArgs.of("level", level, "players", players), players, frames,

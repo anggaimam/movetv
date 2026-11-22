@@ -14,6 +14,8 @@ import com.wiggleplay.app.games.common.Hud;
 import com.wiggleplay.app.ui.Theme;
 import com.wiggleplay.app.ui.TileMenu;
 
+import java.util.Random;
+
 /**
  * Jungle Dash: a cheeky monkey runs through the jungle, and the child's own body controls it. Hop (a real jump) to leap
  * over logs, crouch to duck under vines, and grab bananas on the way. Crayon doodle art. One or two players (two get a
@@ -34,6 +36,11 @@ public final class JungleScene implements Scene {
     private static final float GOLD_Y = JungleArt.GROUND_Y - 255f;
     private static final String[] POPUP = {"+0", "+1", "+2", "+3", "+4", "+5"};
     private static final boolean[] RULES_SEEN = new boolean[4];
+
+    // the row of rainforest trees behind the path (drawn art only)
+    private static final int SLOTS = 40;
+    private static final float TREE_PARALLAX = 0.7f, TREE_GROUND = 818f;
+    private static final int MAX_BIRDS = 2;
 
     private static final class Spark {
         float x, y, vx, vy, life, size;
@@ -58,6 +65,14 @@ public final class JungleScene implements Scene {
     private final RectF rect = new RectF();
     private final Rect src = new Rect();
 
+    private final int[] slotTree = new int[SLOTS], slotThing = new int[SLOTS];
+    private final float[] slotX = new float[SLOTS], slotScale = new float[SLOTS];
+    private float stripLen = 1f;
+    private final float[] birdX = new float[MAX_BIRDS], birdY = new float[MAX_BIRDS], birdV = new float[MAX_BIRDS];
+    private final boolean[] birdOn = new boolean[MAX_BIRDS];
+    private float birdWait = 3f;
+    private final Random rnd = new Random();
+
     private int level = 1, players = 1;
     private float time;
     private int sparkCap = 120;
@@ -71,6 +86,14 @@ public final class JungleScene implements Scene {
      */
     public static void setRulesSeen(boolean seen) {
         for (int i = 0; i < RULES_SEEN.length; i++) RULES_SEEN[i] = seen;
+    }
+
+    /**
+     * Gives the drawn jungle art access to the app's assets (call once at start, before the game is played).
+     * @param context any context
+     */
+    public static void initArt(android.content.Context context) {
+        JungleArt.init(context);
     }
 
     /**
@@ -108,7 +131,51 @@ public final class JungleScene implements Scene {
             final int pl = p;
             logic[p] = new JungleLogic(level, seed, (type, index, points) -> happened(pl, type, index, points));
         }
+        buildTreeRow(seed);
+        for (int b = 0; b < MAX_BIRDS; b++) birdOn[b] = false;
+        birdWait = 2f + rnd.nextFloat() * 4f;
         hud.start(players, showRules);
+    }
+
+    /** A random row of the 10 species, packed close, with a critter by some of them (the same in both halves). */
+    private void buildTreeRow(long seed) {
+        Random r = new Random(seed ^ 0x5DEECE66DL);
+        float x = 0f;
+        int last = -1;
+        for (int k = 0; k < SLOTS; k++) {
+            int t;
+            do { t = r.nextInt(JungleArt.TREES); } while (t == last);
+            last = t;
+            slotTree[k] = t;
+            slotScale[k] = 0.95f + r.nextFloat() * 0.25f;
+            slotX[k] = x;
+            slotThing[k] = r.nextFloat() < 0.4f ? r.nextInt(JungleArt.THINGS) : -1;
+            x += 200f + r.nextFloat() * 70f;
+        }
+        stripLen = x;
+    }
+
+    /** Now and then a macaw flaps across the top of the screen. */
+    private void animateBirds(float dt) {
+        if (!JungleArt.fancy()) return;
+        birdWait -= dt;
+        if (birdWait <= 0f) {
+            birdWait = 5f + rnd.nextFloat() * 9f;
+            for (int b = 0; b < MAX_BIRDS; b++) {
+                if (birdOn[b]) continue;
+                birdOn[b] = true;
+                birdX[b] = -170f;
+                birdY[b] = 70f + rnd.nextFloat() * 150f;
+                birdV[b] = 260f + rnd.nextFloat() * 160f;
+                break;
+            }
+        }
+        for (int b = 0; b < MAX_BIRDS; b++) {
+            if (!birdOn[b]) continue;
+            birdX[b] += birdV[b] * dt;
+            birdY[b] += (float) Math.sin(time * 3f + b) * 12f * dt;
+            if (birdX[b] > Stage.W + 170f) birdOn[b] = false;
+        }
     }
 
     @Override
@@ -159,6 +226,7 @@ public final class JungleScene implements Scene {
             for (int p = 0; p < players; p++) detect[p].consumeJump();
         }
         animateEffects(dt);
+        animateBirds(dt);
     }
 
     // ---- what happens to the monkey ----
@@ -265,6 +333,14 @@ public final class JungleScene implements Scene {
             return;
         }
         for (int p = 0; p < players; p++) drawViewport(c, p);
+        if (JungleArt.fancy()) {
+            for (int b = 0; b < MAX_BIRDS; b++) {
+                if (!birdOn[b]) continue;
+                Bitmap bb = JungleArt.bird((int) (time * 10f) + b);
+                rect.set(birdX[b] - 80f, birdY[b] - 55f, birdX[b] + 80f, birdY[b] + 55f);
+                c.drawBitmap(bb, null, rect, sprite);
+            }
+        }
         for (int i = 0; i < sparks.size(); i++) {
             Spark s = sparks.at(i);
             paint.setColor(s.colour);
@@ -322,11 +398,54 @@ public final class JungleScene implements Scene {
         c.drawBitmap(JungleArt.bg(level), src, rect, sprite);
         drawTile(c, JungleArt.far(level), scroll, 0.12f, 770f);
         if (!low) drawTile(c, JungleArt.mid(level), scroll, 0.40f, 840f);
+        if (JungleArt.fancy()) drawTreeRow(c, scroll * TREE_PARALLAX);
         drawTile(c, JungleArt.ground(level), scroll, 1f, Stage.H);
         drawThings(c, l);
         drawMonkey(c, l, p);
-        if (!low) drawTile(c, JungleArt.tufts(), scroll, 1.25f, Stage.H);
+        if (!low && JungleArt.tufts() != null) drawTile(c, JungleArt.tufts(), scroll, 1.25f, Stage.H);
         c.restore();
+    }
+
+    private void drawTreeRow(Canvas c, float scroll) {
+        float off = scroll % stripLen;
+        for (int k = 0; k < SLOTS; k++) {
+            float x = vx + slotX[k] - off;
+            if (x < vx - 400f) x += stripLen;
+            if (x < vx - 400f || x > vx + vw + 400f) continue;
+            float sc = slotScale[k];
+            rect.set(x - JungleArt.TREE_BASE_X * sc, TREE_GROUND - JungleArt.TREE_BASE_Y * sc,
+                    x + (JungleArt.TREE_W - JungleArt.TREE_BASE_X) * sc, TREE_GROUND + (JungleArt.TREE_H - JungleArt.TREE_BASE_Y) * sc);
+            c.drawBitmap(JungleArt.tree(slotTree[k]), null, rect, sprite);
+        }
+        for (int k = 0; k < SLOTS; k++) {
+            int kind = slotThing[k];
+            if (kind < 0) continue;
+            float x = vx + slotX[k] - off;
+            if (x < vx - 400f) x += stripLen;
+            if (x < vx - 400f || x > vx + vw + 400f) continue;
+            float sc = slotScale[k];
+            switch (kind) {
+                case JungleArt.TOUCAN:
+                    rect.set(x - 40f, TREE_GROUND - 420f * sc - 190f, x + 194f, TREE_GROUND - 420f * sc + 8f);
+                    c.drawBitmap(JungleArt.thing(kind), null, rect, sprite);
+                    break;
+                case JungleArt.MORPHO: {
+                    float fx = x + 70f + (float) Math.sin(time * 1.3f + k) * 40f;
+                    float fy = TREE_GROUND - 360f * sc + (float) Math.cos(time * 2.1f + k) * 25f;
+                    rect.set(fx - 60f, fy - 48f, fx + 60f, fy + 48f);
+                    c.drawBitmap(JungleArt.morpho((int) (time * 8f) + k), null, rect, sprite);
+                    break;
+                }
+                case JungleArt.FROG:
+                    rect.set(x + 40f, 600f, x + 300f, 800f);
+                    c.drawBitmap(JungleArt.thing(kind), null, rect, sprite);
+                    break;
+                default:   // fern, mushrooms: at the foot of the tree
+                    rect.set(x - 150f, 600f, x + 150f, 800f);
+                    c.drawBitmap(JungleArt.thing(kind), null, rect, sprite);
+                    break;
+            }
+        }
     }
 
     private void blit(Canvas c, Bitmap b, float x, float y, float hw, float hh) {
@@ -396,12 +515,12 @@ public final class JungleScene implements Scene {
         Bitmap b;
         if (l.stumble() > 0f) {
             float s = l.stumble();
-            b = JungleArt.stumble(s > 0.62f ? 0 : s > 0.22f ? 1 : 2);
+            b = s > 0.80f ? JungleArt.stumble(0) : s > 0.60f ? JungleArt.stumble(1) : JungleArt.dizzy((int) (time * 8f));
         } else if (l.airborne()) {
             float jp = l.jumpProgress();
             b = JungleArt.jump(jp < 0.12f ? 0 : jp > 0.88f ? 2 : 1);
         } else if (l.ducking()) {
-            b = JungleArt.duck((int) (time * 6f));
+            b = JungleArt.duck((int) (time * 8f));
         } else if (hud.phase() == Hud.PLAYING || hud.phase() == Hud.ENDING) {
             b = JungleArt.run((int) runPhase[p]);
         } else {

@@ -1,6 +1,8 @@
 package com.wiggleplay.app.games.jungle;
 
+import android.content.Context;
 import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.Paint;
 import android.graphics.Path;
@@ -10,10 +12,14 @@ import com.wiggleplay.app.core.Brushes;
 import com.wiggleplay.app.core.SpriteCache;
 import com.wiggleplay.app.ui.Theme;
 
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.Random;
 
 /**
- * The pictures of Jungle Dash, Crayon doodle style: wobbly hand-drawn outlines (made once from a seed) and fills made of
+ * The pictures of Jungle Dash, Crayon doodle style. The finished art (the monkey, the forest layers, 10 tree species,
+ * rainforest critters and a macaw) is drawn by {@code tools/jungle/export.py} into {@code assets/jungle} and loaded
+ * once; the code-drawn pictures below stay as the fallback when a file is missing. Original fallback notes: wobbly hand-drawn outlines (made once from a seed) and fills made of
  * diagonal crayon strokes over a light wash. Everything is painted once into {@link SpriteCache} bitmaps when the game
  * is entered; the scene only copies bitmaps (no gradients, no shaders, nothing is drawn per frame). The three levels
  * have their own sky and leaf colours: sunny morning, golden afternoon, dusk. Main thread only.
@@ -66,11 +72,80 @@ final class JungleArt {
 
     private JungleArt() { }
 
+    // ---- the drawn art from assets/jungle ----
+    /** Number of tree species in {@code assets/jungle/tree0..9}. */
+    static final int TREES = 10;
+    /** Tree pictures: size and where the trunk meets the ground. */
+    static final int TREE_W = 440, TREE_H = 680, TREE_BASE_X = 220, TREE_BASE_Y = 672;
+    /** Critters drawn next to the trees. */
+    static final int TOUCAN = 0, FROG = 1, MORPHO = 2, FERN = 3, MUSHROOMS = 4, THINGS = 5;
+    private static final String[] THING_FILES = {"toucan", "frog", "morpho0", "fern", "mushrooms"};
+
+    private static Context ctx;
+    private static boolean fancy, tried;
+    private static final Bitmap[] WALK_A = new Bitmap[4], DUCK_A = new Bitmap[4], JUMP_A = new Bitmap[4],
+            FALL_A = new Bitmap[4], SKY_A = new Bitmap[3], TREE_A = new Bitmap[TREES], THING_A = new Bitmap[THINGS],
+            BIRD_A = new Bitmap[3], MORPHO_A = new Bitmap[2];
+    private static Bitmap farA, midA, groundA;
+
+    /**
+     * Gives the pictures access to the app's assets (call once at start).
+     * @param context any context
+     */
+    static void init(Context context) {
+        ctx = context.getApplicationContext();
+    }
+
+    private static Bitmap file(String name) {
+        if (ctx == null) return null;
+        try (InputStream in = ctx.getAssets().open("jungle/" + name + ".png")) {
+            return BitmapFactory.decodeStream(in);
+        } catch (IOException e) {
+            return null;
+        }
+    }
+
+    /** Loads the drawn art once; it is used only when every file is there. */
+    private static void loadFiles() {
+        if (tried || ctx == null) return;
+        tried = true;
+        boolean ok = true;
+        for (int i = 0; i < 4; i++) {
+            ok &= (WALK_A[i] = file("walk" + i)) != null;
+            ok &= (DUCK_A[i] = file("duck" + i)) != null;
+            ok &= (JUMP_A[i] = file("jump" + i)) != null;
+            ok &= (FALL_A[i] = file("fall" + i)) != null;
+        }
+        for (int i = 0; i < 3; i++) {
+            ok &= (SKY_A[i] = file("sky" + (i + 1))) != null;
+            ok &= (BIRD_A[i] = file("bird" + i)) != null;
+        }
+        for (int i = 0; i < TREES; i++) ok &= (TREE_A[i] = file("tree" + i)) != null;
+        for (int i = 0; i < THINGS; i++) ok &= (THING_A[i] = file(THING_FILES[i])) != null;
+        MORPHO_A[0] = THING_A[MORPHO];
+        ok &= (MORPHO_A[1] = file("morpho1")) != null;
+        ok &= (farA = file("far")) != null;
+        ok &= (midA = file("mid")) != null;
+        ok &= (groundA = file("ground")) != null;
+        fancy = ok;
+    }
+
+    /** @return true when the drawn art from assets is in use (trees, critters and birds are shown) */
+    static boolean fancy() { return fancy; }
+    static Bitmap tree(int i) { return TREE_A[Math.floorMod(i, TREES)]; }
+    static Bitmap thing(int kind) { return THING_A[kind]; }
+    static Bitmap morpho(int f) { return MORPHO_A[f & 1]; }
+    /** @param f 0..3, flapping: up, middle, down, middle */
+    static Bitmap bird(int f) { int k = Math.floorMod(f, 4); return BIRD_A[k == 3 ? 1 : k]; }
+    /** @param i dizzy frame, alternates */
+    static Bitmap dizzy(int i) { return fancy ? FALL_A[2 + (i & 1)] : stumble(2); }
+
     /**
      * Paints (once) everything the game needs for a level. Call from the scene's {@code enter}.
      * @param level 1..3
      */
     static void prepare(int level) {
+        loadFiles();
         SpriteCache sc = SpriteCache.shared();
         int li = level - 1;
         if (log == null) {
@@ -115,11 +190,12 @@ final class JungleArt {
         }
     }
 
-    static Bitmap bg(int level) { return BG[level - 1]; }
-    static Bitmap far(int level) { return FAR[level - 1]; }
-    static Bitmap mid(int level) { return MID[level - 1]; }
-    static Bitmap ground(int level) { return GROUND[level - 1]; }
-    static Bitmap tufts() { return tufts; }
+    static Bitmap bg(int level) { return fancy ? SKY_A[level - 1] : BG[level - 1]; }
+    static Bitmap far(int level) { return fancy ? farA : FAR[level - 1]; }
+    static Bitmap mid(int level) { return fancy ? midA : MID[level - 1]; }
+    static Bitmap ground(int level) { return fancy ? groundA : GROUND[level - 1]; }
+    /** @return the front grass tufts, or null when the drawn art is in use (it has its own ground edge) */
+    static Bitmap tufts() { return fancy ? null : tufts; }
     static Bitmap log() { return log; }
     static Bitmap doubleLog() { return doubleLog; }
     static Bitmap vine() { return vine; }
@@ -128,10 +204,20 @@ final class JungleArt {
     static Bitmap markUp() { return markUp; }
     static Bitmap markDown() { return markDown; }
     static Bitmap shadow() { return shadow; }
-    static Bitmap run(int i) { return RUN_F[Math.floorMod(i, RUN)]; }
-    static Bitmap jump(int i) { return JUMP_F[Math.max(0, Math.min(JUMP - 1, i))]; }
-    static Bitmap duck(int i) { return DUCK_F[Math.floorMod(i, DUCK)]; }
-    static Bitmap stumble(int i) { return STUMBLE_F[Math.max(0, Math.min(STUMBLE - 1, i))]; }
+    /** Running: the upright walk cycle (4 frames) when the drawn art is in use. */
+    static Bitmap run(int i) { return fancy ? WALK_A[Math.floorMod(i, 4)] : RUN_F[Math.floorMod(i, RUN)]; }
+    /** Jump: take-off, tuck, landing (the drawn art's first frame, the squat, is not used in the air). */
+    static Bitmap jump(int i) {
+        int k = Math.max(0, Math.min(JUMP - 1, i));
+        return fancy ? JUMP_A[k + 1] : JUMP_F[k];
+    }
+    /** Ducking: the four-legged walk (4 frames) when the drawn art is in use. */
+    static Bitmap duck(int i) { return fancy ? DUCK_A[Math.floorMod(i, 4)] : DUCK_F[Math.floorMod(i, DUCK)]; }
+    /** Bump: 0 trip, 1 sit down, 2 dizzy (see {@link #dizzy} for the wobble). */
+    static Bitmap stumble(int i) {
+        int k = Math.max(0, Math.min(STUMBLE - 1, i));
+        return fancy ? FALL_A[k] : STUMBLE_F[k];
+    }
 
     // ---- crayon helpers (used only while painting) ----
 

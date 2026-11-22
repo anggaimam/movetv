@@ -131,6 +131,7 @@ public class MainActivity extends Activity {
                 | WindowManager.LayoutParams.FLAG_FULLSCREEN);
         com.wiggleplay.app.ui.Theme.init(this);
         com.wiggleplay.app.games.fruit.FruitScene.initArt(this);
+        com.wiggleplay.app.games.jungle.JungleScene.initArt(this);
         hub = new PoseHub();
         boolean debuggable = (getApplicationInfo().flags & ApplicationInfo.FLAG_DEBUGGABLE) != 0;
         perf = new PerfOverlay(debuggable);
