@@ -31,7 +31,7 @@ public final class GameRegistry {
         GameInfo sky = new GameInfo("sky", "Sky Glider", Theme.BLUE, com.wiggleplay.app.games.sky.SkyCover::paint, "skyplane", 1, 2, false);
         sky.live = com.wiggleplay.app.games.sky.SkyCover.LIVE;
         g.add(sky);
-        g.add(new GameInfo("dance", "Animal Dance Party", Theme.PINK, GameRegistry::paintDance, PLACEHOLDER_SCENE, 1, 2, false));
+        g.add(new GameInfo("dance", "Animal Dance Party", 0xFF140B2E, GameRegistry::paintDance, "dance", 1, 2, false));
         g.add(new GameInfo("jungle", "Jungle Dash", Theme.SAGE, GameRegistry::paintJungle, PLACEHOLDER_SCENE, 1, 2, false));
         GAMES = Collections.unmodifiableList(g);
     }
@@ -114,13 +114,8 @@ public final class GameRegistry {
         c.drawCircle(w * 0.75f, h * 0.25f, w * 0.04f, F);
     }
 
-    /** Animal Dance Party, Neon arcade: a dark panel, a glowing penguin face and a glowing star. */
+    /** Animal Dance Party, Neon arcade: a glowing penguin face and a glowing star (the tile itself is the dark panel). */
     private static void paintDance(Canvas c, int w, int h) {
-        Path panel = new Path();
-        R.set(w * 0.04f, h * 0.04f, w * 0.96f, h * 0.96f);
-        panel.addRoundRect(R, w * 0.1f, w * 0.1f, Path.Direction.CW);
-        F.setColor(0xFF140B2E);
-        c.drawPath(panel, F);
         Path head = new Path();
         R.set(w * 0.22f, h * 0.24f, w * 0.78f, h * 0.84f);
         head.addOval(R, Path.Direction.CW);
@@ -148,9 +143,6 @@ public final class GameRegistry {
 
     /** Jungle Dash, Crayon doodle: a hatched, wobbly monkey face and a banana. */
     private static void paintJungle(Canvas c, int w, int h) {
-        F.setColor(0xFFFFFDF7);
-        R.set(w * 0.04f, h * 0.04f, w * 0.96f, h * 0.96f);
-        c.drawRoundRect(R, w * 0.1f, w * 0.1f, F);
         Path head = new Path();
         R.set(w * 0.22f, h * 0.22f, w * 0.78f, h * 0.84f);
         head.addOval(R, Path.Direction.CW);

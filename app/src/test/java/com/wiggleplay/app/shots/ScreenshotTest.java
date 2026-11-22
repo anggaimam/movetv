@@ -10,6 +10,7 @@ import com.wiggleplay.app.core.Input;
 import com.wiggleplay.app.core.PerfOverlay;
 import com.wiggleplay.app.core.Scene;
 import com.wiggleplay.app.games.fruit.FruitScene;
+import com.wiggleplay.app.games.dance.DanceScene;
 import com.wiggleplay.app.games.sky.SkyPlaneScene;
 import com.wiggleplay.app.games.sky.SkyScene;
 import com.wiggleplay.app.pose.TestPoseSource;
@@ -267,5 +268,53 @@ public class ScreenshotTest {
     @Test
     public void skyPlayTwoPlanes() throws Exception {
         skyPlay("sky_play_2p_planes", 1, 2, 300, 1);
+    }
+
+    // ---- T-09: Animal Dance Party ----
+
+    @Test
+    public void danceRules() throws Exception {
+        DanceScene.setRulesSeen(false);
+        check(ShotRig.shoot("dance_rules", new DanceScene(env()), Scene.SceneArgs.of("level", 1, "players", 1), 1, 75, null));
+    }
+
+    @Test
+    public void danceCountdown() throws Exception {
+        DanceScene.setRulesSeen(true);
+        check(ShotRig.shoot("dance_countdown", new DanceScene(env()), Scene.SceneArgs.of("level", 1, "players", 1), 1, 100, null));
+    }
+
+    private void dancePlay(String name, int level, int players, int frames, int preset) throws Exception {
+        DanceScene.setRulesSeen(true);
+        check(ShotRig.shoot(name, new DanceScene(env()), Scene.SceneArgs.of("level", level, "players", players), players,
+                frames, (frame, now, body, input) -> {
+                    int k = preset > 0 ? preset : 1 + (frame / 90) % 9;
+                    for (int i = 1; i <= 9; i++) body.setPreset(i, i == k);
+                }));
+    }
+
+    @Test
+    public void dancePlayEasy() throws Exception {
+        dancePlay("dance_play_easy", 1, 1, 460, 1);
+    }
+
+    @Test
+    public void dancePlayResult() throws Exception {
+        dancePlay("dance_result_easy", 1, 1, 590, 0);
+    }
+
+    @Test
+    public void dancePlayHard() throws Exception {
+        dancePlay("dance_play_hard", 3, 1, 1500, 4);
+    }
+
+    @Test
+    public void dancePlayTwoPlayers() throws Exception {
+        dancePlay("dance_play_2p", 2, 2, 500, 2);
+    }
+
+    @Test
+    public void danceEnd() throws Exception {
+        dancePlay("dance_end", 1, 1, 4000, 0);
     }
 }

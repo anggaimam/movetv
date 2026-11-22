@@ -373,8 +373,8 @@ public final class TestPoseSource {
             bend(x, y, right);
         } else if (upper == ON_NOSE) {
             int wr = right ? Kp.R_WRIST : Kp.L_WRIST;
-            x[wr] = x[Kp.NOSE] + (right ? 0.25f : -0.25f) * SHOULDER_W;
-            y[wr] = y[Kp.NOSE] + 0.2f * SHOULDER_W;
+            x[wr] = x[Kp.NOSE] + (right ? 0.15f : -0.15f) * SHOULDER_W;
+            y[wr] = y[Kp.NOSE] + 0.15f * SHOULDER_W;
             bend(x, y, right);
         } else {
             arm(x, y, right, upper, fore);
