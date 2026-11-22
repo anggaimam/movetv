@@ -6,6 +6,7 @@ import android.graphics.Paint;
 import android.graphics.RectF;
 import android.view.KeyEvent;
 
+import com.wiggleplay.app.core.GameView;
 import com.wiggleplay.app.core.Input;
 import com.wiggleplay.app.core.Scene;
 import com.wiggleplay.app.core.Stage;
@@ -58,7 +59,15 @@ public final class BowlingScene implements Scene {
     private int rollPlayer, lastKnocks, resultKind, resultPins;
     private float rollSoundT;
     private boolean pinsHeard;
-    private float flash;
+    private float flash, resultLength = 2f, cheerAt = -1f, knockWait, shake, wave = -1f;
+    private boolean gutterRoll;
+
+    // confetti and sparks (one fixed pool, nothing allocated while playing)
+    private static final int BITS = 140;
+    private final float[] bx = new float[BITS], by = new float[BITS], bvx = new float[BITS], bvy = new float[BITS],
+            blife = new float[BITS], bsize = new float[BITS];
+    private final int[] bcol = new int[BITS];
+    private static final int[] PARTY = {0xFF29D3FF, 0xFFFF6EC7, 0xFFFFD84D, 0xFF7CFFB2, 0xFFFFFFFF, 0xFFB388FF};
 
     // scoreboard texts, rebuilt after every roll
     private final String[][] cellText = new String[4][BowlingScore.FRAMES];
@@ -112,6 +121,7 @@ public final class BowlingScene implements Scene {
         score = new BowlingScore(n);
         physics = new BowlingPhysics(level);
         for (int p = 0; p < 4; p++) buildScoreText(p);
+        java.util.Arrays.fill(blife, 0f);
         beginTurn();
     }
 
@@ -136,6 +146,9 @@ public final class BowlingScene implements Scene {
         phaseT += dt;
         camera = f.camera;
         if (flash > 0f) flash = Math.max(0f, flash - dt * 1.6f);
+        if (shake > 0f) shake = Math.max(0f, shake - dt * 2.5f);
+        if (wave >= 0f) wave = wave + dt > 1.2f ? -1f : wave + dt;
+        animateBits(dt);
         Input in = f.input;
         if (in.pressed(KeyEvent.KEYCODE_BACK)) {
             env.sfx("back");
@@ -160,7 +173,11 @@ public final class BowlingScene implements Scene {
                 updateRoll(dt);
                 break;
             case RESULT:
-                if (phaseT >= RESULT_SECONDS) nextAfterResult();
+                if (cheerAt >= 0f && phaseT >= cheerAt) {
+                    cheerAt = -1f;
+                    env.sfx("cheer");
+                }
+                if (phaseT >= resultLength) nextAfterResult();
                 break;
             default:
                 updateEnd(dt, f);
@@ -269,9 +286,21 @@ public final class BowlingScene implements Scene {
                 env.sfx("roll");
             }
         }
-        if (!pinsHeard && physics.knocks() > 0) {
+        // the ball meets the pins: a big crash and sparks, then a wooden tock for each further pin that is knocked
+        int k = physics.knocks();
+        knockWait -= dt;
+        if (!pinsHeard && k > 0) {
             pinsHeard = true;
+            lastKnocks = k;
             env.sfx("pins");
+            knockWait = 0.12f;
+            sparks(BowlingArt.sx(physics.ballX(), physics.ballY()), BowlingArt.sy(physics.ballY()) - 30f, 14,
+                    0xFFFFFFFF);
+            shake = 0.35f;
+        } else if (k > lastKnocks && knockWait <= 0f) {
+            lastKnocks = k;
+            env.sfx("knock", 0.85f + (float) Math.random() * 0.4f);
+            knockWait = 0.07f;
         }
         boolean over = (physics.time() > 0.5f && physics.settled()) || physics.time() > 9f;
         if (over) finishRoll();
@@ -279,25 +308,49 @@ public final class BowlingScene implements Scene {
 
     private void finishRoll() {
         resultPins = physics.pinsDown();
+        gutterRoll = physics.inGutter();
         resultKind = score.record(resultPins);
         for (int p = 0; p < players; p++) buildScoreText(p);
         phase = RESULT;
         phaseT = 0f;
+        resultLength = RESULT_SECONDS;
+        cheerAt = -1f;
+        float deckX = BowlingArt.sx(0f, BowlingPhysics.HEAD_Y), deckY = BowlingArt.sy(BowlingPhysics.HEAD_Y) - 40f;
         switch (resultKind) {
             case BowlingScore.STRIKE:
                 env.sfx("strike");
                 env.say("Strike!");
+                cheerAt = 0.45f;
+                resultLength = 2.8f;
                 flash = 1f;
+                shake = 1f;
+                wave = 0f;
+                confetti(deckX, deckY, 110);
+                confetti(240f, 1080f, 30);
+                confetti(1680f, 1080f, 30);
                 break;
             case BowlingScore.SPARE:
                 env.sfx("star");
                 env.say("Spare!");
+                cheerAt = 0.35f;
+                resultLength = 2.5f;
+                flash = 0.5f;
+                wave = 0f;
+                confetti(deckX, deckY, 60);
                 break;
             case BowlingScore.GUTTER:
-                env.sfx("boing");
+                env.sfx("wahwah");
+                env.say(gutterRoll ? "Gutter ball! Try again!" : "So close!");
                 break;
             default:
-                if (resultPins >= 7) env.sfx("coin");
+                if (resultPins >= 7) {
+                    env.sfx("coin", 1.2f);
+                    cheerAt = 0.25f;
+                    confetti(deckX, deckY, 30);
+                } else {
+                    env.sfx("coin");
+                    sparks(deckX, deckY, 12, 0xFFFFD84D);
+                }
                 break;
         }
     }
@@ -375,11 +428,26 @@ public final class BowlingScene implements Scene {
             drawEnd(c);
             return;
         }
+        c.save();
+        if (shake > 0f) c.translate((float) Math.sin(time * 70f) * 14f * shake, (float) Math.cos(time * 55f) * 8f * shake);
         c.drawBitmap(BowlingArt.lane(), 0f, 0f, null);
+        if (wave >= 0f) {
+            // a ring of light spreading from the pins (strike and spare)
+            float r = 60f + wave * 700f;
+            paint.setStyle(Paint.Style.STROKE);
+            paint.setStrokeWidth(14f * (1.2f - wave));
+            paint.setColor(resultKind == BowlingScore.STRIKE ? 0xFFFFD84D : 0xFF7CFFB2);
+            paint.setAlpha((int) (220 * Math.max(0f, 1f - wave / 1.2f)));
+            c.drawCircle(BowlingArt.sx(0f, BowlingPhysics.HEAD_Y), BowlingArt.sy(BowlingPhysics.HEAD_Y) - 40f, r, paint);
+            paint.setStyle(Paint.Style.FILL);
+            paint.setAlpha(255);
+        }
         drawPinsAndBall(c);
+        c.restore();
         drawAimUi(c);
         drawScoreboard(c);
         drawBanners(c);
+        drawBits(c);
         if (flash > 0f) {
             paint.setColor(0xFFFFFFFF);
             paint.setAlpha((int) (110 * flash));
@@ -473,6 +541,76 @@ public final class BowlingScene implements Scene {
 
     private final android.graphics.Path tri = new android.graphics.Path();
 
+    // ---- confetti and sparks ----
+
+    private int freeBit() {
+        for (int i = 0; i < BITS; i++) if (blife[i] <= 0f) return i;
+        return -1;
+    }
+
+    /** Confetti thrown up from a point; on LOW quality half as much. */
+    private void confetti(float x, float y, int n) {
+        if (GameView.quality == GameView.LOW) n = (n + 1) / 2;
+        for (int k = 0; k < n; k++) {
+            int i = freeBit();
+            if (i < 0) return;
+            double a = -Math.PI / 2 + (Math.random() - 0.5) * 1.8;
+            float sp = 500f + (float) Math.random() * 700f;
+            bx[i] = x + ((float) Math.random() - 0.5f) * 120f;
+            by[i] = y;
+            bvx[i] = (float) Math.cos(a) * sp;
+            bvy[i] = (float) Math.sin(a) * sp;
+            blife[i] = 1.6f + (float) Math.random() * 1.0f;
+            bsize[i] = 10f + (float) Math.random() * 12f;
+            bcol[i] = PARTY[k % PARTY.length];
+        }
+    }
+
+    /** A small quick burst of round sparks (a hit). */
+    private void sparks(float x, float y, int n, int colour) {
+        for (int k = 0; k < n; k++) {
+            int i = freeBit();
+            if (i < 0) return;
+            double a = Math.random() * Math.PI * 2;
+            float sp = 200f + (float) Math.random() * 380f;
+            bx[i] = x;
+            by[i] = y;
+            bvx[i] = (float) Math.cos(a) * sp;
+            bvy[i] = (float) Math.sin(a) * sp - 150f;
+            blife[i] = 0.4f + (float) Math.random() * 0.3f;
+            bsize[i] = -(4f + (float) Math.random() * 5f); // negative size = a round spark
+            bcol[i] = colour;
+        }
+    }
+
+    private void animateBits(float dt) {
+        for (int i = 0; i < BITS; i++) {
+            if (blife[i] <= 0f) continue;
+            blife[i] -= dt;
+            bvy[i] += 900f * dt;
+            bvx[i] *= 1f - dt * 0.8f;
+            bx[i] += bvx[i] * dt;
+            by[i] += bvy[i] * dt;
+        }
+    }
+
+    private void drawBits(Canvas c) {
+        for (int i = 0; i < BITS; i++) {
+            if (blife[i] <= 0f) continue;
+            paint.setColor(bcol[i]);
+            paint.setAlpha((int) (255 * Math.min(1f, blife[i] * 2.5f)));
+            float sz = bsize[i];
+            if (sz < 0f) {
+                c.drawCircle(bx[i], by[i], -sz, paint);
+            } else {
+                float w = sz * Math.abs((float) Math.cos(blife[i] * 9f + i));
+                rect.set(bx[i] - w / 2f, by[i] - sz / 2f, bx[i] + w / 2f, by[i] + sz / 2f);
+                c.drawRect(rect, paint);
+            }
+        }
+        paint.setAlpha(255);
+    }
+
     private void drawBanners(Canvas c) {
         if (phase == INTRO) {
             Theme.drawBanner(c, TURN_TEXT[score.player()], BowlingArt.CX, 200f, 84f, 0xE0140B2E,
@@ -480,10 +618,24 @@ public final class BowlingScene implements Scene {
         } else if (phase == RESULT) {
             float pop = 1f + 0.3f * Math.max(0f, 1f - phaseT * 4f);
             String s = resultKind == BowlingScore.STRIKE ? "Strike!" : resultKind == BowlingScore.SPARE ? "Spare!"
+                    : resultPins == 0 ? (gutterRoll ? "Gutter ball!" : "So close!")
                     : PIN_TEXT[Math.max(0, Math.min(10, resultPins))];
-            int col = resultKind == BowlingScore.STRIKE ? 0xFFFFD84D : resultKind == BowlingScore.SPARE ? 0xFF7CFFB2
+            int col = resultKind == BowlingScore.STRIKE ? PARTY[((int) (phaseT * 8f)) % 4]
+                    : resultKind == BowlingScore.SPARE ? 0xFF7CFFB2
                     : resultKind == BowlingScore.GUTTER ? 0xFFFFB38A : 0xFFFFFFFF;
-            Theme.drawCentered(c, s, BowlingArt.CX, 300f, 130f * pop, col);
+            float size = resultKind == BowlingScore.STRIKE ? 170f : 130f;
+            float y = 300f;
+            c.save();
+            if (resultKind == BowlingScore.STRIKE || resultKind == BowlingScore.SPARE) {
+                y -= Math.abs((float) Math.sin(phaseT * 7f)) * 30f * Math.max(0f, 1f - phaseT / 2f); // bounces
+            } else if (resultKind == BowlingScore.GUTTER) {
+                c.rotate((float) Math.sin(phaseT * 10f) * 8f * Math.max(0f, 1f - phaseT / 1.5f), BowlingArt.CX, y);
+            }
+            Theme.drawCentered(c, s, BowlingArt.CX, y, size * pop, col);
+            c.restore();
+            if (resultKind == BowlingScore.GUTTER) {
+                Theme.drawCentered(c, "Try again!", BowlingArt.CX, y + 80f, 56f, 0xFFFFFFFF);
+            }
         }
     }
 

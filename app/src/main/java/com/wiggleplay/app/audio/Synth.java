@@ -236,7 +236,7 @@ public final class Synth {
     /** Names of all sound effects. */
     public static final String[] EFFECTS = {
             "hover", "tick", "select", "back", "pop", "splat", "coin", "whoosh",
-            "boing", "star", "cheer", "count", "go", "jump", "duck", "bonk", "roll", "pins", "strike"};
+            "boing", "star", "cheer", "count", "go", "jump", "duck", "bonk", "roll", "pins", "strike", "knock", "wahwah"};
 
     private static float[] sine(float f0, float f1, float len, Env e) {
         return osc(Wave.SINE, f0, f1, len, e, 0f);
@@ -363,6 +363,19 @@ public final class Synth {
                 for (int i = 0; i < notes.length; i++) {
                     add(m, 0.3f + i * 0.09f, tri(notes[i], notes[i], 0.5f, Env.of(0.005f, 0.2f, 0.3f, 0.2f)), 0.22f);
                 }
+                break;
+            }
+            case "knock": // one pin knocked by the ball or by another pin: a short hollow wooden tock
+                m = new float[samples(0.2f)];
+                add(m, 0, sine(760, 420, 0.12f, Env.of(0.002f, 0.06f, 0f, 0.05f)), 0.45f);
+                add(m, 0, tri(1520, 900, 0.06f, Env.of(0.002f, 0.03f, 0f, 0.02f)), 0.12f);
+                add(m, 0, noise(0.025f, Env.of(0.002f, 0.012f, 0f, 0.01f), 2500, 2500, false, 31), 0.25f);
+                break;
+            case "wahwah": { // a funny "wah wah" for a miss (playful, not sad)
+                m = new float[samples(1.0f)];
+                add(m, 0f, tri(392, 370, 0.3f, Env.of(0.02f, 0.1f, 0.7f, 0.08f)), 0.3f);
+                add(m, 0.32f, tri(370, 349, 0.3f, Env.of(0.02f, 0.1f, 0.7f, 0.08f)), 0.3f);
+                add(m, 0.64f, tri(349, 300, 0.34f, Env.of(0.02f, 0.12f, 0.6f, 0.12f)), 0.3f);
                 break;
             }
             default:
