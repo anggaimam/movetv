@@ -378,6 +378,16 @@ public class ScreenshotTest {
                 }));
     }
 
+    /** Nobody rolls for 7 seconds: the swing demo grows and the hint shows. */
+    @Test
+    public void bowlingSwingHint() throws Exception {
+        check(ShotRig.shoot("bowling_swing_hint", new BowlingScene(env()), Scene.SceneArgs.of("level", 1), 1, 560,
+                (frame, now, body, input) -> {
+                    if (frame == 10) input.keyDown(KeyEvent.KEYCODE_DPAD_CENTER);
+                    if (frame == 11) input.keyUp(KeyEvent.KEYCODE_DPAD_CENTER);
+                }));
+    }
+
     @Test
     public void bowlingAim() throws Exception {
         bowlingAt("bowling_aim", 1, 120);

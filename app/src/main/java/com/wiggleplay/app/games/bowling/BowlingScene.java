@@ -62,6 +62,12 @@ public final class BowlingScene implements Scene {
     private float flash, resultLength = 2f, cheerAt = -1f, knockWait, shake, wave = -1f;
     private boolean gutterRoll;
 
+    // arm swing (part 2)
+    private final SwingDetect swing = new SwingDetect();
+    private long lastPoseMs = -1;
+    private int lastSwingState = -1;
+    private Bitmap cameraPic;
+
     // confetti and sparks (one fixed pool, nothing allocated while playing)
     private static final int BITS = 140;
     private final float[] bx = new float[BITS], by = new float[BITS], bvx = new float[BITS], bvy = new float[BITS],
@@ -135,6 +141,8 @@ public final class BowlingScene implements Scene {
         sweepT = 0f;
         flash = 0f;
         if (env.hub != null) env.hub.releaseLock();
+        swing.reset();
+        lastSwingState = -1;
         env.say(TURN_TEXT[score.player()]);
     }
 
@@ -145,6 +153,7 @@ public final class BowlingScene implements Scene {
         time += dt;
         phaseT += dt;
         camera = f.camera;
+        cameraPic = f.camera;
         if (flash > 0f) flash = Math.max(0f, flash - dt * 1.6f);
         if (shake > 0f) shake = Math.max(0f, shake - dt * 2.5f);
         if (wave >= 0f) wave = wave + dt > 1.2f ? -1f : wave + dt;
@@ -229,6 +238,19 @@ public final class BowlingScene implements Scene {
             sweepT += dt;
             aimX = 0.4f * (float) Math.sin(sweepT * 1.3f);
         }
+        // the arm swing: fed only when the camera has new points
+        PlayerPose me = f.pose.players[0];
+        if (!charging && f.pose.timeMs != lastPoseMs) {
+            lastPoseMs = f.pose.timeMs;
+            boolean go = swing.update(me, f.pose.timeMs);
+            swingDebug(go);
+            if (go) {
+                env.sfx("whoosh", 1.1f);
+                throwBall(Math.max(0.1f, swing.power()), swing.spin());
+                return;
+            }
+            if (swing.ready()) idle = Math.min(idle, HINT_AFTER - 0.01f); // swinging back counts as trying
+        }
         if (okPressed(in) && !charging) {
             charging = true;
             chargeT = 0f;
@@ -240,11 +262,11 @@ public final class BowlingScene implements Scene {
             boolean stillHeld = okHeld(in);
             if (!stillHeld || in.released(KeyEvent.KEYCODE_DPAD_CENTER) || in.released(KeyEvent.KEYCODE_ENTER)
                     || in.touchReleased()) {
-                throwBall(Math.max(MIN_POWER, Math.min(1f, chargeT / CHARGE_SECONDS)));
+                throwBall(Math.max(MIN_POWER, Math.min(1f, chargeT / CHARGE_SECONDS)), 0f);
                 return;
             }
         } else if (idle >= AUTO_ROLL_AFTER) {
-            throwBall(0.35f); // nobody rolled: a gentle ball goes by itself
+            throwBall(0.35f, 0f); // nobody rolled: a gentle ball goes by itself
         }
     }
 
@@ -259,10 +281,26 @@ public final class BowlingScene implements Scene {
         return Math.max(-0.4f, Math.min(0.4f, (x - Stage.W / 2f) / 800f));
     }
 
-    private void throwBall(float power) {
+    /** Writes the swing state to the speed meter's tuning line (only when it changes, so nothing is built per frame). */
+    private void swingDebug(boolean released) {
+        if (env.perf == null || !env.perf.isVisible()) return;
+        if (released) {
+            env.perf.setNote("swing " + (swing.side() == 0 ? "L" : "R") + " RELEASE peak "
+                    + Math.round(swing.peakSpeed() * 10f) / 10f + " sw/s  power " + Math.round(swing.power() * 100f)
+                    + "%  spin " + Math.round(swing.spin() * 100f) + "%");
+            return;
+        }
+        int st = Math.max(swing.state(0), swing.state(1));
+        if (st == lastSwingState) return;
+        lastSwingState = st;
+        env.perf.setNote("swing " + (st == SwingDetect.ARMED ? "READY" : st == SwingDetect.RISING ? "RISING"
+                : st == SwingDetect.DOWN ? "down" : "idle"));
+    }
+
+    private void throwBall(float power, float spin) {
         charging = false;
         rollPlayer = score.player();
-        physics.roll(aimX, 0f, power, 0f);
+        physics.roll(aimX, 0f, power, spin);
         acc = 0f;
         lastKnocks = 0;
         pinsHeard = false;
@@ -535,11 +573,66 @@ public final class BowlingScene implements Scene {
             rect.set(x0, y0, x0 + w * pw, y0 + 32f);
             c.drawRoundRect(rect, 16f, 16f, paint);
         } else if (idle >= HINT_AFTER) {
-            Theme.drawBanner(c, "Hold OK, then let go!", BowlingArt.CX, 1000f, 56f, 0xE0140B2E, 0xFFFFD84D);
+            Theme.drawBanner(c, "Swing your arm, or hold OK!", BowlingArt.CX, 1000f, 56f, 0xE0140B2E, 0xFFFFD84D);
         }
+        drawSwingDemo(c, idle >= HINT_AFTER ? 1.35f : 1f);
+        drawBooth(c);
     }
 
     private final android.graphics.Path tri = new android.graphics.Path();
+
+    /**
+     * A neon stick figure on the left doing an underhand bowl over and over, so nobody needs to read. It glows gold
+     * while the player's own arm is swung back and ready.
+     */
+    private void drawSwingDemo(Canvas c, float size) {
+        float cx = 250f, floor = 900f, k = 1.9f * size;
+        boolean ready = swing.ready();
+        int col = ready ? 0xFFFFD84D : 0xFF29D3FF;
+        // the arm goes back (behind, low) then forward and up, 1.6 s a loop
+        float ph = (time % 1.6f) / 1.6f;
+        float ang = ph < 0.55f ? -40f - 30f * (float) Math.sin(ph / 0.55f * Math.PI)       // back and forth behind
+                : -40f + 150f * (float) Math.sin((ph - 0.55f) / 0.45f * Math.PI / 2f);      // forward and up
+        float hipY = floor - 90f * k, shY = hipY - 70f * k, headY = shY - 30f * k;
+        Theme.drawCentered(c, ready ? "Now swing!" : "Swing!", cx, headY - 22f * k - 34f, 64f * size, col);
+        paint.setStyle(Paint.Style.STROKE);
+        paint.setStrokeCap(Paint.Cap.ROUND);
+        paint.setStrokeWidth(9f * size);
+        paint.setColor(col);
+        c.drawCircle(cx, headY, 22f * k, paint);
+        c.drawLine(cx, shY - 8f * k, cx, hipY, paint);                       // body
+        c.drawLine(cx, hipY, cx - 30f * k, floor, paint);                     // legs, one step forward
+        c.drawLine(cx, hipY, cx + 34f * k, floor, paint);
+        c.drawLine(cx, shY, cx - 20f * k, shY + 60f * k, paint);              // the other arm
+        double r = Math.toRadians(ang);                                       // 0 = straight down, + = forward (right)
+        float hx = cx + (float) Math.sin(r) * 80f * k, hy = shY + (float) Math.cos(r) * 80f * k;
+        c.drawLine(cx, shY, hx, hy, paint);
+        paint.setStyle(Paint.Style.FILL);
+        paint.setStrokeCap(Paint.Cap.BUTT);
+        if (ph < 0.92f) {                                                     // the ball in the hand
+            paint.setColor(BowlingArt.COLOURS[score.player()]);
+            c.drawCircle(hx, hy + 10f * k, 16f * k, paint);
+        }
+    }
+
+    /** The player's own camera picture in a small neon "TV booth" in the top-right corner, mirrored like a mirror. */
+    private void drawBooth(Canvas c) {
+        Bitmap cam = cameraPic;
+        if (cam == null) return;
+        float w = 384f, h = 216f, x = Stage.W - w - 30f, y = 30f;
+        c.save();
+        c.translate(x + w, y);
+        c.scale(-1f, 1f);
+        rect.set(0f, 0f, w, h);
+        c.drawBitmap(cam, null, rect, sprite);
+        c.restore();
+        paint.setStyle(Paint.Style.STROKE);
+        paint.setStrokeWidth(6f);
+        paint.setColor(swing.ready() ? 0xFFFFD84D : BowlingArt.COLOURS[score.player()]);
+        rect.set(x, y, x + w, y + h);
+        c.drawRoundRect(rect, 18f, 18f, paint);
+        paint.setStyle(Paint.Style.FILL);
+    }
 
     // ---- confetti and sparks ----
 

@@ -31,6 +31,17 @@ public final class PerfOverlay {
     private int lockState = 0, lockRejected = 0;
     private String lockText = "";
 
+    // a short line a game can set for tuning (e.g. the bowling swing); set only when it changes
+    private String note = "";
+
+    /**
+     * Shows a short line under the others (pass "" to remove it). Build the text only when something changes.
+     * @param text the line
+     */
+    public void setNote(String text) {
+        note = text == null ? "" : text;
+    }
+
     // CPU time per frame in the scene (T-11): average and worst over the last text period
     private String sceneName = "";
     private float updSum, drawSum, updMax, drawMax;
@@ -214,12 +225,14 @@ public final class PerfOverlay {
             }
         }
         boolean line2 = pointerText.length() > 0;
-        float bottom = line2 ? 184f : 140f;
+        boolean line3 = note.length() > 0;
+        float bottom = (line2 ? 184f : 140f) + (line3 ? 44f : 0f);
         c.drawRect(0f, 0f, 1420f, bottom, panelPaint);
         c.drawText(text, 16f, 38f, textPaint);
         c.drawText(timingText, 16f, 82f, textPaint);
         c.drawText(lockText, 16f, 126f, textPaint);
         if (line2) c.drawText(pointerText, 16f, 170f, textPaint);
+        if (line3) c.drawText(note, 16f, line2 ? 214f : 170f, textPaint);
     }
 
     /** One decimal place without allocating a formatter (appends into the shared builder via a tiny string). */

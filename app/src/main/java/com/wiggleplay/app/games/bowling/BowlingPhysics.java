@@ -131,7 +131,7 @@ public final class BowlingPhysics {
         by = 0f;
         bvx = (float) Math.sin(a) * sp;
         bvy = (float) Math.cos(a) * sp;
-        spinAccel = Math.max(-1f, Math.min(1f, spin)) * 0.5f * spinScale;
+        spinAccel = Math.max(-1f, Math.min(1f, spin)) * 0.25f * spinScale;
         ballOn = true;
         ballInGutter = false;
         ballGone = false;
