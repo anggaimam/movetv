@@ -282,6 +282,7 @@ public final class DanceScene implements Scene {
             if (windowActive) endWindow();
             return;
         }
+        if (plan.type[curSlot] == Poses.T_MIRROR) flipSounds(local);
         if (!windowActive && !windowDone && local >= plan.ready[curSlot]) startWindow();
         if (windowActive) {
             if (local >= plan.ready[curSlot] + plan.hold[curSlot]) endWindow();
@@ -290,9 +291,26 @@ public final class DanceScene implements Scene {
     }
 
     private void startSlot() {
+        flipWhoosh = flipPop = false;
         windowDone = false;
         windowActive = false;
         env.say(plan.say[curSlot]);
+    }
+
+    /** Opposite rounds: the card turns over during the get-ready beats, from this beat for this many beats. */
+    private static final float FLIP_AT = 0.5f, FLIP_BEATS = 1f;
+    private boolean flipWhoosh, flipPop;
+
+    /** Plays the flip sounds once each as the card turns. */
+    private void flipSounds(float local) {
+        if (!flipWhoosh && local >= FLIP_AT) {
+            flipWhoosh = true;
+            env.sfx("whoosh", 1.5f);
+        }
+        if (!flipPop && local >= FLIP_AT + FLIP_BEATS) {
+            flipPop = true;
+            env.sfx("pop", 1.2f);
+        }
     }
 
     private void startWindow() {
@@ -545,8 +563,20 @@ public final class DanceScene implements Scene {
         int hostIdx = hostForSlot(curSlot);
         for (int k = 0; k < parts; k++) {
             boolean act = k == activePart && local >= plan.ready[curSlot] || (parts == 1);
-            DanceArt.card(c, plan.pose[curSlot][k], hostIdx, x0 + k * (cw + gap), cy, cw, ch,
-                    act ? DanceArt.GOLD : DanceArt.CYAN, act ? pulse : 0f);
+            boolean flipRound = plan.type[curSlot] == Poses.T_MIRROR;
+            int frameCol = flipRound ? DanceArt.PINK : act ? DanceArt.GOLD : DanceArt.CYAN;
+            if (flipRound) {
+                float f = Math.max(0f, Math.min(1f, (local - FLIP_AT) / FLIP_BEATS));
+                float ease = f * f * (3f - 2f * f);
+                float sx = (float) Math.cos(Math.PI * ease); // 1 -> 0 -> -1: the card turns over
+                c.save();
+                c.scale(sx, 1f, x0 + cw / 2f, cy + ch / 2f);
+                DanceArt.card(c, plan.pose[curSlot][k], hostIdx, x0, cy, cw, ch, frameCol, act ? pulse : 0f);
+                c.restore();
+                drawFlipArrows(c, x0 + cw / 2f, cy - 26f, cw, f, local);
+            } else {
+                DanceArt.card(c, plan.pose[curSlot][k], hostIdx, x0 + k * (cw + gap), cy, cw, ch, frameCol, act ? pulse : 0f);
+            }
         }
         float tx = x0 + total / 2f;
         paint.setColor(0xB0140B2E);
@@ -560,6 +590,42 @@ public final class DanceScene implements Scene {
             Theme.drawCentered(c, plan.tag[curSlot], tx, cy + ch + (two ? 100f : 120f), two ? 32f : 36f, col);
         }
     }
+
+    /**
+     * A two-headed curved arrow over the card, so the turn can be seen without reading.
+     * They glow while the card turns and fade away once it has.
+     */
+    private void drawFlipArrows(Canvas c, float cx, float y, float cw, float f, float local) {
+        float fade = local < FLIP_AT + FLIP_BEATS + 0.8f ? 1f : Math.max(0f, 1f - (local - FLIP_AT - FLIP_BEATS - 0.8f) * 2f);
+        if (fade <= 0f) return;
+        float half = cw * 0.38f;
+        float wob = (float) Math.sin(time * 9f) * 5f * (f > 0f && f < 1f ? 1f : 0f);
+        int col = (DanceArt.PINK & 0x00FFFFFF) | ((int) (255 * fade) << 24);
+        paint.setStyle(Paint.Style.STROKE);
+        paint.setStrokeCap(Paint.Cap.ROUND);
+        paint.setStrokeWidth(10f);
+        paint.setColor(col);
+        arrow.reset();
+        arrow.moveTo(cx - half, y + 6f);
+        arrow.quadTo(cx, y - 34f + wob, cx + half, y + 6f);
+        c.drawPath(arrow, paint);
+        // head on the right end, pointing down-right
+        arrow.reset();
+        arrow.moveTo(cx + half - 26f, y - 10f);
+        arrow.lineTo(cx + half, y + 6f);
+        arrow.lineTo(cx + half - 30f, y + 18f);
+        c.drawPath(arrow, paint);
+        // head on the left end, pointing down-left
+        arrow.reset();
+        arrow.moveTo(cx - half + 26f, y - 10f);
+        arrow.lineTo(cx - half, y + 6f);
+        arrow.lineTo(cx - half + 30f, y + 18f);
+        c.drawPath(arrow, paint);
+        paint.setStyle(Paint.Style.FILL);
+        paint.setStrokeCap(Paint.Cap.BUTT);
+    }
+
+    private final android.graphics.Path arrow = new android.graphics.Path();
 
     /** A row of dots: one for each beat of this pose (get ready, hold, rest). */
     private void drawBeats(Canvas c, boolean freeze) {

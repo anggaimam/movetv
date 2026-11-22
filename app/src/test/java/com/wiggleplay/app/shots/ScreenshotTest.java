@@ -343,7 +343,17 @@ public class ScreenshotTest {
 
     @Test
     public void danceMirrorRound() throws Exception {
-        danceAt("dance_mirror", 2, 1, 880, false);
+        danceAt("dance_mirror", 3, 1, 495, false);
+    }
+
+    @Test
+    public void danceMirrorFlip() throws Exception {
+        danceAt("dance_mirror_flip", 3, 1, 530, false);
+    }
+
+    @Test
+    public void danceMirrorFlipped() throws Exception {
+        danceAt("dance_mirror_flipped", 3, 1, 580, false);
     }
 
     @Test

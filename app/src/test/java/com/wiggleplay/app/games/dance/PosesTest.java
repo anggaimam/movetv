@@ -180,7 +180,8 @@ public class PosesTest {
             PlayerPose other = skeleton(pose);
             mirrorBody(other);
             assertTrue(Poses.NAMES[pose] + " opposite on the mirror image", Poses.match(pose, other, null, true) >= 0.9f);
-            assertTrue(Poses.NAMES[pose] + " opposite on the same side", Poses.match(pose, same, null, true) < 0.6f);
+            float copied = Poses.match(pose, same, null, true);
+            assertTrue(Poses.NAMES[pose] + " copied as shown still earns about half", copied >= 0.3f && copied <= 0.65f);
         }
     }
 
@@ -281,7 +282,7 @@ public class PosesTest {
                 assertEquals(beat, pl.totalBeats);
             }
             assertTrue(sawFreeze && sawSpeed && sawMove);
-            assertEquals(level > 1, sawMirror);
+            assertEquals(level == 3, sawMirror);
         }
     }
 

@@ -143,8 +143,18 @@ public final class Poses {
      */
     public static float match(int pose, PlayerPose p, Result out, boolean opposite) {
         Def d = DEFS[pose];
-        if (opposite) return score(d, true, p, out != null ? out : TMP_A);
         Result a = out != null ? out : TMP_A;
+        if (opposite) {
+            // "Do the opposite": the mirror image earns full marks; copying the card as shown still earns about half
+            float qm = score(d, true, p, a);
+            float qc = score(d, false, p, TMP_B) * COPY_FACTOR;
+            if (qc > qm) {
+                copy(TMP_B, a);
+                a.quality = qc;
+                return qc;
+            }
+            return qm;
+        }
         float q = score(d, false, p, a);
         if (d.mirrorOk) {
             float q2 = score(d, true, p, TMP_B);
@@ -155,6 +165,9 @@ public final class Poses {
         }
         return q;
     }
+
+    /** In an opposite round, doing the pose the shown way instead of mirrored scores this share of its quality. */
+    public static final float COPY_FACTOR = 0.6f;
 
     private static final Result TMP_A = new Result(), TMP_B = new Result();
 
@@ -436,7 +449,7 @@ public final class Poses {
     private static final int N = T_NORMAL, MI = T_MIRROR, F = T_FREEZE, S = T_SPEED, M = T_MOVE;
     private static final int[][] LEVEL_TYPES = {
             {N, N, F, N, S, N, M, N},
-            {N, N, MI, F, N, M, S, MI, N, F, M, N},
+            {N, N, N, F, N, M, S, N, N, F, M, N},
             {N, MI, M, F, S, M, MI, N, F, M, S, MI, M, F, S, M}};
 
     /** The poses of a round: for each slot its type, poses and timing in beats. */
@@ -487,8 +500,7 @@ public final class Poses {
     }
 
     /**
-     * Picks the poses of a round: no pose twice in a row, only symmetric arm poses on Easy, opposite-side and move rounds
-     * from Medium on.
+     * Picks the poses of a round: no pose twice in a row, only symmetric arm poses on Easy, move rounds from Medium on, and opposite-side rounds on Hard only.
      * @param level 1..3
      * @param seed random seed
      * @return the plan
@@ -549,8 +561,8 @@ public final class Poses {
                 pl.title[s] = NAMES[a];
                 switch (t) {
                     case T_MIRROR:
-                        pl.tag[s] = "Do the other side!";
-                        pl.say[s] = "Do the other side! " + SAY[a];
+                        pl.tag[s] = "Mirror!";
+                        pl.say[s] = "Flip it! " + SAY[a];
                         break;
                     case T_FREEZE:
                         pl.tag[s] = "Music stops!";
