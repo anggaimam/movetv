@@ -109,13 +109,17 @@ public final class GameView extends View {
         frame.camera = hub.cameraPicture();
         if (perf.isVisible()) perf.setLock(hub.lockState().ordinal(), hub.lockRejections());
         input.beginFrame();
+        long t0 = System.nanoTime();
         scenes.update(dt, frame);
+        long t1 = System.nanoTime();
 
         c.save();
         c.translate(offX, offY);
         c.scale(scale, scale);
         c.clipRect(0f, 0f, Stage.W, Stage.H);
         scenes.draw(c);
+        long t2 = System.nanoTime();
+        if (perf.isVisible()) perf.setTiming(scenes.currentName(), (t1 - t0) / 1_000_000f, (t2 - t1) / 1_000_000f);
         perf.draw(c, frame.nowMs, frame.pose.aiFps, quality);
         c.restore();
 

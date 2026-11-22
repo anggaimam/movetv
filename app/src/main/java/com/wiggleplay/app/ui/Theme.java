@@ -810,6 +810,7 @@ public final class Theme {
 
     private static Bitmap kidBoy, kidGirl, kidBoyHalf, kidBoyClosed;
     private static boolean kidsTried;
+    private static final RectF KID_RECT = new RectF();
     private static final Paint KID_PAINT = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG);
 
     /** Loads the two kid pictures (the boy and the girl) once. Without them the old round mascot is drawn. */
@@ -841,8 +842,8 @@ public final class Theme {
     private static void drawKid(Canvas c, Bitmap kid, float cx, float bottom, float maxH, float maxW) {
         float s = Math.min(maxH / kid.getHeight(), maxW / kid.getWidth());
         float w = kid.getWidth() * s, h = kid.getHeight() * s;
-        RectF r = new RectF(cx - w / 2f, bottom - h, cx + w / 2f, bottom);
-        c.drawBitmap(kid, null, r, KID_PAINT);
+        KID_RECT.set(cx - w / 2f, bottom - h, cx + w / 2f, bottom);
+        c.drawBitmap(kid, null, KID_RECT, KID_PAINT);
     }
 
     /**

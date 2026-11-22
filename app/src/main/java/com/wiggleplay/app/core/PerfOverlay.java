@@ -3,6 +3,7 @@ package com.wiggleplay.app.core;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
+import android.os.Debug;
 
 /**
  * The little performance readout in the top-left corner: draw fps (1 second average), worst frame time
@@ -29,6 +30,12 @@ public final class PerfOverlay {
     // person lock line: state (0 none, 1 searching, 2 locked) and rejected switches
     private int lockState = 0, lockRejected = 0;
     private String lockText = "";
+
+    // CPU time per frame in the scene (T-11): average and worst over the last text period
+    private String sceneName = "";
+    private float updSum, drawSum, updMax, drawMax;
+    private int timingFrames = 0;
+    private String timingText = "";
 
     // frame timing
     private long lastNanos = 0;
@@ -89,6 +96,22 @@ public final class PerfOverlay {
     public void setLock(int state, int rejected) {
         lockState = state;
         lockRejected = rejected;
+    }
+
+    /**
+     * Reports how long this frame's scene update and scene draw took on the CPU (call every frame).
+     * The GPU time is not included: a draw that is quick here but a low fps overall means the GPU is the limit.
+     * @param scene the current scene name (may be null)
+     * @param updateMs milliseconds spent in the scene update
+     * @param drawMs milliseconds spent issuing the scene draw calls
+     */
+    public void setTiming(String scene, float updateMs, float drawMs) {
+        sceneName = scene == null ? "" : scene;
+        updSum += updateMs;
+        drawSum += drawMs;
+        if (updateMs > updMax) updMax = updateMs;
+        if (drawMs > drawMax) drawMax = drawMs;
+        timingFrames++;
     }
 
     /** Removes the pointer debug line (no hand is showing). */
@@ -163,6 +186,16 @@ public final class PerfOverlay {
                     .append(quality == GameView.LOW ? "LOW" : "HIGH");
             text = sb.toString();
             sb.setLength(0);
+            int n = Math.max(1, timingFrames);
+            Runtime rt = Runtime.getRuntime();
+            sb.append(sceneName).append("  upd ").append(one(updSum / n)).append('/').append(one(updMax))
+                    .append("  draw ").append(one(drawSum / n)).append('/').append(one(drawMax))
+                    .append(" ms  heap ").append((rt.totalMemory() - rt.freeMemory()) >> 20)
+                    .append(" MB  native ").append(Debug.getNativeHeapAllocatedSize() >> 20).append(" MB");
+            timingText = sb.toString();
+            updSum = drawSum = updMax = drawMax = 0f;
+            timingFrames = 0;
+            sb.setLength(0);
             if (lockState == 1) sb.append("lock SEARCHING");
             else if (lockState == 2) sb.append("lock LOCKED");
             else sb.append("lock off");
@@ -180,10 +213,17 @@ public final class PerfOverlay {
             }
         }
         boolean line2 = pointerText.length() > 0;
-        float bottom = line2 ? 140f : 96f;
-        c.drawRect(0f, 0f, line2 ? 900f : 760f, bottom, panelPaint);
+        float bottom = line2 ? 184f : 140f;
+        c.drawRect(0f, 0f, 1180f, bottom, panelPaint);
         c.drawText(text, 16f, 38f, textPaint);
-        c.drawText(lockText, 16f, 82f, textPaint);
-        if (line2) c.drawText(pointerText, 16f, 126f, textPaint);
+        c.drawText(timingText, 16f, 82f, textPaint);
+        c.drawText(lockText, 16f, 126f, textPaint);
+        if (line2) c.drawText(pointerText, 16f, 170f, textPaint);
+    }
+
+    /** One decimal place without allocating a formatter (appends into the shared builder via a tiny string). */
+    private static String one(float v) {
+        int t = (int) (v * 10f + 0.5f);
+        return (t / 10) + "." + (t % 10);
     }
 }
