@@ -24,7 +24,32 @@ public final class ProfileLogic {
     /** Gain of "easy reach". */
     public static final float GAIN_REACH = 1.6f;
 
+    /** Turbo Trucks steering: airplane arms (T-23). */
+    public static final String STEER_PLANE = "plane";
+    /** Turbo Trucks steering: lean the shoulders, arms down. */
+    public static final String STEER_LEAN = "lean";
+    /** Turbo Trucks steering: an invisible go-kart wheel. */
+    public static final String STEER_WHEEL = "wheel";
+    /** The Turbo Trucks steering used when nothing valid is saved. */
+    public static final String DEFAULT_RACE_STEER = STEER_PLANE;
+    /**
+     * Whether Turbo Trucks asks "How do you want to steer?" before every race (true while Angga tries the three modes;
+     * when he decides, this turns off and the race uses the saved mode).
+     */
+    public static final boolean RACE_STEER_ASK = true;
+
     private ProfileLogic() { }
+
+    /**
+     * Checks a Turbo Trucks steering setting.
+     * @param o the saved value (anything, even null)
+     * @return "plane", "lean" or "wheel"; anything else becomes "plane"
+     */
+    public static String cleanRaceSteer(Object o) {
+        if (STEER_LEAN.equals(o)) return STEER_LEAN;
+        if (STEER_WHEEL.equals(o)) return STEER_WHEEL;
+        return DEFAULT_RACE_STEER;
+    }
 
     /**
      * Checks a pointer setting.

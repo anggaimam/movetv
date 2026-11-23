@@ -10,12 +10,11 @@ import android.graphics.RectF;
 import com.wiggleplay.app.core.Pool;
 import com.wiggleplay.app.core.SpriteCache;
 import com.wiggleplay.app.core.Stage;
-import com.wiggleplay.app.input.AirplaneArms;
 import com.wiggleplay.app.ui.Theme;
 
 /**
- * The race-only parts of the screen, drawn over the 3D world on the Canvas: the lap pill, the plane icon that tilts
- * with the arms, the boost rocket gauge, the brake icon, the minimap (the track outline is baked once), the
+ * The race-only parts of the screen, drawn over the 3D world on the Canvas: the lap pill, the steering icon (plane,
+ * leaning kid or wheel, T-23) that tilts with the gesture, the boost rocket gauge, the brake icon, the minimap (the track outline is baked once), the
  * "Final lap!" banner, the camera inset, speed lines while boosting and small "+1" popups. The scene fills in the
  * public fields each frame and calls {@link #draw}. Nothing is allocated while playing (pools, preset paints and
  * text tables).
@@ -42,8 +41,12 @@ final class RaceHud {
     int lap = 1;
     float meter, boostLeft;
     boolean boosting, braking;
-    float wingDeg;
-    AirplaneArms.State arms = AirplaneArms.State.NONE;
+    /** Steering icon tilt in degrees (positive = the icon's left side lower). */
+    float iconDeg;
+    /** True while the steering gesture is made (the icon is in the player colour, otherwise grey). */
+    boolean steerActive;
+    /** RaceArt.MODE_PLANE, MODE_LEAN or MODE_WHEEL. */
+    int mode = RaceArt.MODE_PLANE;
     float noneSeconds;
     float finalLapSeconds = 99f;
     float playerS;
@@ -52,6 +55,7 @@ final class RaceHud {
     Bitmap camera;
     int playerColour = 0xFF29B6F6;
 
+    private Bitmap iconOn, iconOff;
     private TrackLayout layout;
     private int level;
     private float mapScale;
@@ -117,6 +121,21 @@ final class RaceHud {
         });
     }
 
+    /**
+     * Picks the steering mode and bakes its two icons (once; nothing is looked up per frame).
+     * @param m RaceArt.MODE_PLANE, MODE_LEAN or MODE_WHEEL
+     */
+    void setMode(int m) {
+        mode = Math.max(0, Math.min(2, m));
+        iconOn = RaceArt.steerIcon(mode, true, playerColour);
+        iconOff = RaceArt.steerIcon(mode, false, playerColour);
+    }
+
+    /** @return the baked icon of the current mode (for the intro) */
+    Bitmap icon(boolean active) {
+        return active ? iconOn : iconOff;
+    }
+
     /** Clears popups, speed lines and timers for a new round. */
     void reset() {
         for (int i = lines.size() - 1; i >= 0; i--) lines.freeAt(i);
@@ -177,7 +196,7 @@ final class RaceHud {
         drawMinimap(c);
         drawLap(c);
         drawPopups(c);
-        drawPlane(c);
+        drawSteerIcon(c);
         drawRocket(c);
         if (braking) drawBrake(c);
         if (lap >= 3 && finalLapSeconds < 2.6f) {
@@ -241,32 +260,28 @@ final class RaceHud {
         }
     }
 
-    private void drawPlane(Canvas c) {
+    /** The hint shown when the gesture has not been made for 2 s, per mode. */
+    static final String[] HINT = {"Arms out like a plane!", "Lean to steer!", "Hold the wheel!"};
+
+    private void drawSteerIcon(Canvas c) {
         float cx = Stage.W / 2f, cy = 960f;
-        boolean out = arms != AirplaneArms.State.NONE;
-        boolean hint = !out && noneSeconds > 2f;
+        boolean hint = !steerActive && noneSeconds > 2f;
         float pulse = hint ? 1f + 0.08f * (float) Math.sin(time * 7f) : 1f;
-        int colour = out ? playerColour : 0xFF9AA5AD;
         c.save();
         c.translate(cx, cy);
         c.scale(pulse, pulse);
         fill.setColor(0xCCF3EBDD);
         c.drawCircle(0f, 0f, 74f, fill);
-        c.rotate(-wingDeg);
-        stroke.setStrokeWidth(26f);
-        stroke.setColor(0xFFFFFFFF);
-        c.drawLine(-62f, 0f, 62f, 0f, stroke);
-        stroke.setStrokeWidth(18f);
-        stroke.setColor(colour);
-        c.drawLine(-62f, 0f, 62f, 0f, stroke);
-        fill.setColor(0xFFFFFFFF);
-        c.drawCircle(0f, 0f, 21f, fill);
-        fill.setColor(colour);
-        c.drawCircle(0f, 0f, 15f, fill);
-        stroke.setStrokeWidth(10f);
-        c.drawLine(0f, -2f, 0f, -34f, stroke);
+        c.rotate(-iconDeg);
+        Bitmap icon = steerActive ? iconOn : iconOff;
+        if (icon == null) {
+            c.restore();
+            return;
+        }
+        rect.set(-66f, -66f, 66f, 66f);
+        c.drawBitmap(icon, null, rect, bmp);
         c.restore();
-        if (hint) Theme.drawBanner(c, "Arms out like a plane!", cx, cy - 120f, 52f, 0xE6F3EBDD, INK);
+        if (hint) Theme.drawBanner(c, HINT[mode], cx, cy - 120f, 52f, 0xE6F3EBDD, INK);
     }
 
     private void drawRocket(Canvas c) {

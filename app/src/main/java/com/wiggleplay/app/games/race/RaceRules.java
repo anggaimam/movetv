@@ -11,7 +11,8 @@ import com.wiggleplay.app.ui.Theme;
 
 /**
  * The "how to play" pictures of Turbo Trucks, readable without words, four animated panels:
- * arms out like a plane and tilted = the truck turns; a jump = rocket flames (boost); a crouch = the truck slows;
+ * the chosen steering gesture (arms out like a plane and tilted, a body lean, or turning a wheel, T-23) = the truck
+ * turns; a jump = rocket flames (boost); a crouch = the truck slows;
  * and a coin (+1) and a golden star (+5). No allocation per frame.
  */
 final class RaceRules implements Hud.RulesPainter {
@@ -24,6 +25,19 @@ final class RaceRules implements Hud.RulesPainter {
     private final RectF r = new RectF();
     private final Path arrow = new Path();
     private float t;
+    private int mode = RaceArt.MODE_PLANE;
+    private static final String[] SPEECH = {
+        "Hold your arms out like a plane and tilt to steer. Jump for a rocket boost, and crouch to slow down!",
+        "Lean your body left and right to steer. Jump for a rocket boost, and crouch to slow down!",
+        "Hold an invisible steering wheel in front of you and turn it. Jump for a rocket boost, and crouch to slow down!"};
+
+    /**
+     * Picks the steering picture of panel 1.
+     * @param m RaceArt.MODE_PLANE, MODE_LEAN or MODE_WHEEL
+     */
+    void setMode(int m) {
+        mode = Math.max(0, Math.min(2, m));
+    }
 
     RaceRules() {
         line.setStyle(Paint.Style.STROKE);
@@ -41,7 +55,7 @@ final class RaceRules implements Hud.RulesPainter {
 
     @Override
     public String speech() {
-        return "Hold your arms out like a plane and tilt to steer. Jump for a rocket boost, and crouch to slow down!";
+        return SPEECH[mode];
     }
 
     @Override
@@ -69,11 +83,13 @@ final class RaceRules implements Hud.RulesPainter {
         }
     }
 
-    /** Kid with arms out, tilting left then right; the truck below swings the same way. */
+    /** Kid steering (arms out, leaning or turning a wheel), left then right; the truck below swings the same way. */
     private void steer(Canvas c, float cx) {
         float lt = t % LOOP;
         float tilt = 24f * (float) Math.sin(lt / LOOP * 2f * Math.PI);
-        RaceArt.kid(c, cx, TOP + 190f, 190f, 1f, tilt, 0f, KID);
+        if (mode == RaceArt.MODE_LEAN) RaceArt.kidLean(c, cx, TOP + 190f, 170f, tilt * 0.6f, KID);
+        else if (mode == RaceArt.MODE_WHEEL) RaceArt.kidWheel(c, cx, TOP + 190f, 180f, tilt * 1.6f, KID);
+        else RaceArt.kid(c, cx, TOP + 190f, 190f, 1f, tilt, 0f, KID);
         float dx = -tilt * 2.2f; // left hand lower (tilt > 0) -> the truck goes left
         RaceArt.truckSide(c, cx + dx, TOP + 255f, 1.0f, lt * 6f);
         line.setColor(RaceArt.ORANGE);

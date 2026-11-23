@@ -14,7 +14,7 @@ import java.util.Map;
 public final class Profile {
 
     private static final String FILE = "movetv_profile";
-    private static final String K_HOLD = "hold_ms", K_PLAYERS = "players", K_BOOST = "light_boost", K_POINTER = "pointer", K_DANCE_CAM = "dance_camera";
+    private static final String K_HOLD = "hold_ms", K_PLAYERS = "players", K_BOOST = "light_boost", K_POINTER = "pointer", K_DANCE_CAM = "dance_camera", K_RACE_STEER = "race_steer";
 
     private final SharedPreferences prefs;
 
@@ -158,5 +158,21 @@ public final class Profile {
      */
     public void setDanceCamera(boolean on) {
         prefs.edit().putBoolean(K_DANCE_CAM, on).apply();
+    }
+
+    /**
+     * How Turbo Trucks is steered.
+     * @return "plane" (default), "lean" or "wheel"
+     */
+    public String raceSteer() {
+        return ProfileLogic.cleanRaceSteer(prefs.getAll().get(K_RACE_STEER));
+    }
+
+    /**
+     * Saves how Turbo Trucks is steered.
+     * @param mode "plane", "lean" or "wheel" (anything else is saved as "plane")
+     */
+    public void setRaceSteer(String mode) {
+        prefs.edit().putString(K_RACE_STEER, ProfileLogic.cleanRaceSteer(mode)).apply();
     }
 }

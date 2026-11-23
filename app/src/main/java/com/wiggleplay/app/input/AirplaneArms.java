@@ -27,7 +27,7 @@ import com.wiggleplay.app.pose.PoseFrame;
  * Raw steer is {@code -sign(a) * clamp((|a| - 6) / (28 - 6), 0, 1)}: a dead zone of 6 degrees and a full turn at 28,
  * smoothed with a time constant of 0.12 s.
  */
-public final class AirplaneArms {
+public final class AirplaneArms implements SteerInput {
 
     /** What the arms are doing. */
     public enum State { NONE, ONE_WING, BOTH }
@@ -46,6 +46,7 @@ public final class AirplaneArms {
     private boolean isBoth;
     private float onTimer, offTimer;
     private float steer, pitch, wingDeg;
+    private float rawDeg = Float.NaN;
 
     /** Starts with straight steering and no arms. */
     public AirplaneArms() { }
@@ -59,6 +60,7 @@ public final class AirplaneArms {
     }
 
     /** Forgets everything: straight steering, no arms. */
+    @Override
     public void reset() {
         state = State.NONE;
         isBoth = false;
@@ -67,6 +69,7 @@ public final class AirplaneArms {
         steer = 0f;
         pitch = 0f;
         wingDeg = 0f;
+        rawDeg = Float.NaN;
     }
 
     /**
@@ -75,6 +78,7 @@ public final class AirplaneArms {
      * @param timeMs when the pose was measured (not needed for the timers, kept for the shared update signature)
      * @param dt seconds since the last call
      */
+    @Override
     public void update(PlayerPose p, long timeMs, float dt) {
         if (dt <= 0f) return;
         float sw = p != null && p.present ? PoseFrame.shoulderWidth(p) : -1f;
@@ -113,6 +117,7 @@ public final class AirplaneArms {
             }
         }
 
+        rawDeg = candBoth || candOne ? targetAngle : Float.NaN;
         // BOTH needs 150 ms of "yes" and leaves after 300 ms of "no"
         if (candBoth) {
             onTimer += dt;
@@ -156,7 +161,22 @@ public final class AirplaneArms {
     public State state() { return state; }
 
     /** @return steering -1 (left on the screen) to +1 (right), smoothed */
+    @Override
     public float steer() { return steer; }
+
+    @Override
+    public SteerInput.State steerState() {
+        return state == State.NONE ? SteerInput.State.NONE : SteerInput.State.ACTIVE;
+    }
+
+    @Override
+    public float iconAngleDeg() { return wingDeg; }
+
+    @Override
+    public float rawAngleDeg() { return rawDeg; }
+
+    @Override
+    public String modeName() { return "plane"; }
 
     /** @return -1 (both arms down) to +1 (both arms up); only meaningful while the state is BOTH */
     public float pitch() { return pitch; }

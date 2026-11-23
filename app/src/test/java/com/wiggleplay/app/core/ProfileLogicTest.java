@@ -74,4 +74,15 @@ public class ProfileLogicTest {
         assertEquals(1.6f, ProfileLogic.pointerGain("reach"), 0f);
         assertEquals(1.0f, ProfileLogic.pointerGain(null), 0f);
     }
+
+    @Test
+    public void raceSteerKeepsTheThreeModesAndDefaultsToPlane() {
+        assertEquals("plane", ProfileLogic.cleanRaceSteer("plane"));
+        assertEquals("lean", ProfileLogic.cleanRaceSteer("lean"));
+        assertEquals("wheel", ProfileLogic.cleanRaceSteer("wheel"));
+        assertEquals("plane", ProfileLogic.cleanRaceSteer(null));
+        assertEquals("plane", ProfileLogic.cleanRaceSteer("WHEEL"));
+        assertEquals("plane", ProfileLogic.cleanRaceSteer(3));
+        assertEquals("plane", ProfileLogic.cleanRaceSteer(""));
+    }
 }

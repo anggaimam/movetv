@@ -15,6 +15,7 @@ import com.wiggleplay.app.games.fruit.FruitScene;
 import com.wiggleplay.app.games.dance.DanceScene;
 import com.wiggleplay.app.games.jungle.JungleScene;
 import com.wiggleplay.app.games.race.RaceScene;
+import com.wiggleplay.app.games.race.RaceSteerScene;
 import com.wiggleplay.app.games.sky.SkyPlaneScene;
 import com.wiggleplay.app.games.sky.SkyScene;
 import com.wiggleplay.app.pose.TestPoseSource;
@@ -610,9 +611,53 @@ public class ScreenshotTest {
     // ---- T-22: Turbo Trucks (no OpenGL in the screenshot rig: the 3D world is replaced by a flat picture) ----
 
     private void race(String name, int level, int frames, boolean rules, ShotRig.Script script) throws Exception {
+        race(name, level, "plane", frames, rules, script);
+    }
+
+    private void race(String name, int level, String steer, int frames, boolean rules, ShotRig.Script script)
+            throws Exception {
         RaceScene.setRulesSeen(!rules);
-        check(ShotRig.shoot(name, new RaceScene(env(), null), Scene.SceneArgs.of("level", level, "players", 1), 1,
-                frames, script));
+        check(ShotRig.shoot(name, new RaceScene(env(), null),
+                Scene.SceneArgs.of("level", level, "players", 1, "steer", steer), 1, frames, script));
+    }
+
+    // ---- T-23 Part B: the three steering modes ----
+
+    /** "How do you want to steer?": three tiles, the last choice ticked. */
+    @Test
+    public void raceSteerMenu() throws Exception {
+        check(ShotRig.shoot("race_steer_menu", new RaceSteerScene(env()),
+                Scene.SceneArgs.of("gameId", "race", "level", 1, "players", 1), 1, 60, null));
+    }
+
+    @Test
+    public void raceRulesLean() throws Exception { race("race_rules_lean", 2, "lean", 75, true, null); }
+
+    @Test
+    public void raceRulesWheel() throws Exception { race("race_rules_wheel", 3, "wheel", 95, true, null); }
+
+    /** Lean mode: the test body leans left (arms down), the leaning-kid icon tilts. */
+    @Test
+    public void raceIntroLean() throws Exception {
+        race("race_intro_lean", 1, "lean", 60, false,
+                (frame, now, body, input) -> body.setHeld(TestPoseSource.CTRL_LEAN_LEFT, frame > 20));
+    }
+
+    /** Wheel mode: the test body can't hold a wheel, so the wheel icon is grey and the hint shows. */
+    @Test
+    public void raceIntroWheel() throws Exception {
+        race("race_intro_wheel", 1, "wheel", 60, false, null);
+    }
+
+    @Test
+    public void racePlayLean() throws Exception {
+        race("race_play_lean", 2, "lean", 420, false,
+                (frame, now, body, input) -> body.setHeld(TestPoseSource.CTRL_LEAN_RIGHT, frame > 330));
+    }
+
+    @Test
+    public void racePlayWheel() throws Exception {
+        race("race_play_wheel", 2, "wheel", 520, false, null);
     }
 
     @Test

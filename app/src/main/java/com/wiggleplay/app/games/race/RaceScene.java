@@ -14,7 +14,11 @@ import com.wiggleplay.app.gl.RaceGlView;
 import com.wiggleplay.app.gl.RenderList;
 import com.wiggleplay.app.gl.StaticBatcher;
 import com.wiggleplay.app.games.common.Hud;
+import com.wiggleplay.app.core.ProfileLogic;
 import com.wiggleplay.app.input.AirplaneArms;
+import com.wiggleplay.app.input.BodyLean;
+import com.wiggleplay.app.input.SteerInput;
+import com.wiggleplay.app.input.SteeringWheel;
 import com.wiggleplay.app.input.JumpDetect;
 import com.wiggleplay.app.pose.Kp;
 import com.wiggleplay.app.pose.Keypoint;
@@ -27,7 +31,8 @@ import java.util.List;
 
 /**
  * Turbo Trucks, one player: a 3D arcade race on one of three tracks. The truck always drives forward; the child
- * holds both arms out like an airplane and tilts to steer, jumps to start a 1.6 s rocket boost, and crouches to
+ * steers with the gesture picked on the "How do you want to steer?" screen (T-23: airplane arms, body lean or an
+ * invisible wheel, scene arg {@code steer}), jumps to start a 1.6 s rocket boost, and crouches to
  * slow down. Three laps, coins and a golden star, then the shared end screen. There is never a game over.
  * The world is drawn by OpenGL under this transparent screen; this class only builds the list of things to draw,
  * and draws the HUD on the Canvas. Remote keys: Left/Right steer, Up or OK boost, Down brake; in test mode the
@@ -63,6 +68,14 @@ public final class RaceScene implements Scene {
     private final ChaseCamera camera = new ChaseCamera();
     private final JumpDetect jump = new JumpDetect();
     private final AirplaneArms arms = new AirplaneArms();
+    private final BodyLean lean = new BodyLean();
+    private final SteeringWheel wheel = new SteeringWheel();
+    private final SteerInput[] steerModes = {arms, lean, wheel};
+    private SteerInput steerIn = arms;
+    private int mode = RaceArt.MODE_PLANE;
+    private float noteT;
+    private final StringBuilder noteSb = new StringBuilder(64);
+    private static final String[] INTRO_TEXT = RaceHud.HINT;
     private final RenderList list = new RenderList(192);
 
     // scratch
@@ -148,9 +161,15 @@ public final class RaceScene implements Scene {
             env.sfx.loadAsset("impact", "audio/race/impact.ogg");
         }
         raceHud.setTrack(layout, level);
+        String steerName = args.getString("steer", env.profile != null ? env.profile.raceSteer()
+                : ProfileLogic.DEFAULT_RACE_STEER);
+        mode = RaceArt.modeOf(ProfileLogic.cleanRaceSteer(steerName));
+        steerIn = steerModes[mode];
+        raceHud.setMode(mode);
+        rules.setMode(mode);
         hud.setRules(rules);
         jump.reset();
-        arms.reset();
+        for (SteerInput si : steerModes) si.reset();
         newLogic();
         raceHud.reset();
         boolean showRules = !RULES_SEEN[level];
@@ -168,6 +187,7 @@ public final class RaceScene implements Scene {
     @Override
     public void exit() {
         stopLoops();
+        if (env.perf != null) env.perf.setNote("");
         if (gl != null) gl.release();
         if (env.sfx != null) {
             env.sfx.unloadAsset("engine");
@@ -203,7 +223,7 @@ public final class RaceScene implements Scene {
     private void beginRound() {
         newLogic();
         raceHud.reset();
-        arms.reset();
+        steerIn.reset();
         hud.start(1, false);
     }
 
@@ -250,7 +270,8 @@ public final class RaceScene implements Scene {
             return;
         }
         // gestures run every frame so their baselines settle, but only count while racing
-        arms.update(pose, f.nowMs, dt);
+        steerIn.update(pose, f.nowMs, dt);
+        speedMeterNote(dt);
         jump.update(pose, f.nowMs);
         boolean jumpEvent = jump.consumeJump();
         if (hud.phase() != Hud.END) {
@@ -299,8 +320,8 @@ public final class RaceScene implements Scene {
         boolean test = "test".equals(f.pose.source);
         float steer;
         if (keySteer != 0f) steer = keySteer;
-        else if (test && arms.state() == AirplaneArms.State.NONE) steer = leanSteer(pose);
-        else steer = arms.steer();
+        else if (test && steerIn.steerState() == SteerInput.State.NONE) steer = leanSteer(pose);
+        else steer = steerIn.steer();
         input.steer = steer;
         input.jump = f.input.pressed(KeyEvent.KEYCODE_DPAD_UP) || f.input.pressed(KeyEvent.KEYCODE_DPAD_CENTER)
                 || f.input.pressed(KeyEvent.KEYCODE_ENTER) || f.input.pressed(KeyEvent.KEYCODE_W)
@@ -351,9 +372,10 @@ public final class RaceScene implements Scene {
         raceHud.boosting = logic.boosting(0);
         raceHud.boostLeft = logic.boostLeft(0);
         raceHud.braking = racing && in.brake && !logic.boosting(0);
-        raceHud.wingDeg = arms.wingAngleDeg();
-        raceHud.arms = arms.state();
-        if (racing) noneT = arms.state() == AirplaneArms.State.NONE ? noneT + dt : 0f;
+        boolean active = steerIn.steerState() == SteerInput.State.ACTIVE;
+        raceHud.iconDeg = steerIn.iconAngleDeg();
+        raceHud.steerActive = active;
+        if (racing) noneT = active ? 0f : noneT + dt;
         raceHud.noneSeconds = noneT;
         if (finalT < 90f && racing) finalT += dt;
         raceHud.finalLapSeconds = finalT;
@@ -367,15 +389,16 @@ public final class RaceScene implements Scene {
     private void updateIntro(float dt, Frame f, PlayerPose pose) {
         introT += dt;
         introPose = pose;
-        arms.update(pose, f.nowMs, dt);
+        steerIn.update(pose, f.nowMs, dt);
+        speedMeterNote(dt);
         jump.update(pose, f.nowMs);
         jump.consumeJump();
         boolean skip = f.input.pressed(KeyEvent.KEYCODE_DPAD_CENTER) || f.input.pressed(KeyEvent.KEYCODE_ENTER)
                 || f.input.pressed(KeyEvent.KEYCODE_SPACE);
         moveScenery(dt);
         followCamera(dt);
-        raceHud.wingDeg = arms.wingAngleDeg();
-        raceHud.arms = arms.state();
+        raceHud.iconDeg = steerIn.iconAngleDeg();
+        raceHud.steerActive = steerIn.steerState() == SteerInput.State.ACTIVE;
         submitWorld();
         if (introT >= INTRO_SECONDS || skip) {
             intro = false;
@@ -558,6 +581,30 @@ public final class RaceScene implements Scene {
     }
 
     private static final android.graphics.Path FLAT_ROAD = new android.graphics.Path();
+    private final android.graphics.RectF introRect = new android.graphics.RectF();
+    private final Paint introPaint = new Paint(Paint.FILTER_BITMAP_FLAG);
+
+    /**
+     * The speed meter line {@code steer MODE raw ANGLE° -> STEER STATE}, rebuilt twice a second while the overlay
+     * shows, so Angga can photograph what the camera sees.
+     */
+    private void speedMeterNote(float dt) {
+        if (env.perf == null || !env.perf.isVisible()) return;
+        noteT -= dt;
+        if (noteT > 0f) return;
+        noteT = 0.5f;
+        noteSb.setLength(0);
+        noteSb.append("steer ").append(steerIn.modeName()).append("  raw ");
+        float raw = steerIn.rawAngleDeg();
+        if (Float.isNaN(raw)) noteSb.append("--"); else noteSb.append(Math.round(raw));
+        noteSb.append("\u00B0 \u2192 ");
+        int st = Math.round(steerIn.steer() * 100f);
+        if (st < 0) noteSb.append('-');
+        st = Math.abs(st);
+        noteSb.append(st / 100).append('.').append(st % 100 < 10 ? "0" : "").append(st % 100);
+        noteSb.append("  ").append(steerIn.steerState() == SteerInput.State.ACTIVE ? "ACTIVE" : "NONE");
+        env.perf.setNote(noteSb.toString());
+    }
 
     /** The player's shoulders and arms as thick rounded lines in the player colour, where they are on the screen. */
     private void drawArmsOnScreen(Canvas c) {
@@ -590,27 +637,19 @@ public final class RaceScene implements Scene {
     private void drawIntro(Canvas c) {
         paint.setColor(0xB0F3EBDD);
         c.drawRect(0f, 0f, Stage.W, Stage.H, paint);
-        Theme.drawBanner(c, "Arms out like a plane!", Stage.W / 2f, 190f, 96f, 0xE6F3EBDD, Theme.INK);
+        Theme.drawBanner(c, INTRO_TEXT[mode], Stage.W / 2f, 190f, 96f, 0xE6F3EBDD, Theme.INK);
         drawArmsOnScreen(c);
-        // the plane icon, tilting with the arms
-        float cx = Stage.W / 2f, cy = 420f;
-        c.save();
-        c.translate(cx, cy);
-        c.rotate(-arms.wingAngleDeg());
-        paint.setStyle(Paint.Style.STROKE);
-        paint.setStrokeCap(Paint.Cap.ROUND);
-        paint.setStrokeWidth(46f);
-        paint.setColor(0xFFFFFFFF);
-        c.drawLine(-190f, 0f, 190f, 0f, paint);
-        paint.setStrokeWidth(32f);
-        paint.setColor(arms.state() == AirplaneArms.State.NONE ? 0xFF9AA5AD : Theme.P1);
-        c.drawLine(-190f, 0f, 190f, 0f, paint);
-        paint.setStyle(Paint.Style.FILL);
-        paint.setColor(0xFFFFFFFF);
-        c.drawCircle(0f, 0f, 62f, paint);
-        paint.setColor(arms.state() == AirplaneArms.State.NONE ? 0xFF9AA5AD : Theme.P1);
-        c.drawCircle(0f, 0f, 48f, paint);
-        c.restore();
+        // the steering icon (plane, leaning kid or wheel), tilting with the gesture
+        boolean active = steerIn.steerState() == SteerInput.State.ACTIVE;
+        android.graphics.Bitmap icon = raceHud.icon(active);
+        if (icon != null) {
+            c.save();
+            c.translate(Stage.W / 2f, 420f);
+            c.rotate(-steerIn.iconAngleDeg());
+            introRect.set(-190f, -190f, 190f, 190f);
+            c.drawBitmap(icon, null, introRect, introPaint);
+            c.restore();
+        }
         // progress dots: the calibration fills them
         float prog = Math.min(1f, introT / INTRO_SECONDS);
         paint.setColor(0x33000000);

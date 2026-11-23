@@ -41,9 +41,10 @@ public final class GameRegistry {
         GameInfo bubbles = new GameInfo("bubbles", "Bubble Burst", 0xFF2A93B8, com.wiggleplay.app.games.bubbles.BubbleArt::cover, "bubbles", 1, 2, false);
         bubbles.live = com.wiggleplay.app.games.bubbles.BubbleArt.LIVE;
         g.add(bubbles);
-        // T-22: the 3D race (one player for now; two players come with T-24)
+        // T-22: the 3D race (one player for now; two players come with T-24). T-23: the level opens the steering
+        // picker "racesteer" first, which starts "race".
         GameInfo race = new GameInfo("race", "Turbo Trucks", Theme.MUSTARD, com.wiggleplay.app.games.race.RaceArt::cover,
-                "race", 1, 1, false);
+                "racesteer", 1, 1, false);
         race.live = com.wiggleplay.app.games.race.RaceArt.LIVE;
         g.add(race);
         GAMES = Collections.unmodifiableList(g);
@@ -91,6 +92,8 @@ public final class GameRegistry {
         if (PLACEHOLDER_SCENE.equals(sceneName)) return true;
         if ("sky".equals(sceneName)) return true;   // the plane menu "skyplane" is a menu, the flying itself is "sky"
         if ("skyplane".equals(sceneName)) return false;
+        if ("race".equals(sceneName)) return true;      // the steering menu "racesteer" is a menu, the race is "race"
+        if ("racesteer".equals(sceneName)) return false;
         for (GameInfo g : GAMES) if (g.sceneName.equals(sceneName)) return true;
         return false;
     }

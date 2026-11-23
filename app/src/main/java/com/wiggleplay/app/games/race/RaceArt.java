@@ -210,6 +210,11 @@ public final class RaceArt {
      * @param colour clothes colour
      */
     public static void kid(Canvas c, float cx, float footY, float h, float armsOut, float tiltDeg, float crouch, int colour) {
+        kid(c, cx, footY, h, armsOut, tiltDeg, crouch, colour, true);
+    }
+
+    private static void kid(Canvas c, float cx, float footY, float h, float armsOut, float tiltDeg, float crouch,
+                            int colour, boolean drawArms) {
         float lw = h * 0.085f;
         float hip = footY - h * (0.40f - 0.10f * crouch);
         float shoulder = hip - h * (0.34f - 0.08f * crouch);
@@ -237,8 +242,10 @@ public final class RaceArt {
         float ly = shoulder + (armLen * (float) Math.sin(a)) * out + h * 0.30f * (1f - out);
         float rx = cx + (armLen * (float) Math.cos(a)) * out + h * 0.10f * (1f - out);
         float ry = shoulder - (armLen * (float) Math.sin(a)) * out + h * 0.30f * (1f - out);
-        c.drawLine(cx - h * 0.07f, shoulder, lx, ly, LINE);
-        c.drawLine(cx + h * 0.07f, shoulder, rx, ry, LINE);
+        if (drawArms) {
+            c.drawLine(cx - h * 0.07f, shoulder, lx, ly, LINE);
+            c.drawLine(cx + h * 0.07f, shoulder, rx, ry, LINE);
+        }
         // head
         FILL.setColor(0xFFF0C8A0);
         c.drawCircle(cx, headY, headR, FILL);
@@ -263,5 +270,147 @@ public final class RaceArt {
         LINE.setStrokeWidth(r * 0.14f);
         LINE.setAlpha(255);
         c.drawCircle(cx, cy, r * 0.52f, LINE);
+    }
+
+    // ---- T-23: the three steering modes ----
+
+    /** Steering modes, in picker order: airplane arms, body lean, steering wheel. */
+    public static final int MODE_PLANE = 0, MODE_LEAN = 1, MODE_WHEEL = 2;
+
+    /**
+     * The mode number of a saved steering name.
+     * @param name "plane", "lean" or "wheel" (anything else is "plane")
+     * @return MODE_PLANE, MODE_LEAN or MODE_WHEEL
+     */
+    public static int modeOf(String name) {
+        if ("lean".equals(name)) return MODE_LEAN;
+        if ("wheel".equals(name)) return MODE_WHEEL;
+        return MODE_PLANE;
+    }
+
+    /**
+     * A kid with the arms down, the whole body leaning around the feet.
+     * @param leanDeg degrees, positive = leans to the screen-left (the screen-left shoulder lower)
+     */
+    public static void kidLean(Canvas c, float cx, float footY, float h, float leanDeg, int colour) {
+        c.save();
+        c.rotate(-leanDeg, cx, footY);
+        kid(c, cx, footY, h, 0f, 0f, 0f, colour, true);
+        c.restore();
+    }
+
+    /**
+     * A kid holding a steering wheel in front of the chest with both hands.
+     * @param wheelDeg how far the wheel is turned, positive = the screen-left hand lower (turning left)
+     */
+    public static void kidWheel(Canvas c, float cx, float footY, float h, float wheelDeg, int colour) {
+        kid(c, cx, footY, h, 0f, 0f, 0f, colour, false);
+        float hip = footY - h * 0.40f, shoulder = hip - h * 0.34f;
+        float wy = shoulder + h * 0.15f, wr = h * 0.17f;
+        float a = (float) Math.toRadians(wheelDeg);
+        float hx = wr * (float) Math.cos(a), hy = wr * (float) Math.sin(a);
+        wheelShape(c, cx, wy, wr, wheelDeg, h * 0.05f);
+        LINE.setColor(colour);
+        LINE.setStrokeWidth(h * 0.085f);
+        c.drawLine(cx - h * 0.07f, shoulder, cx - hx, wy + hy, LINE);
+        c.drawLine(cx + h * 0.07f, shoulder, cx + hx, wy - hy, LINE);
+        FILL.setColor(0xFFF0C8A0);
+        c.drawCircle(cx - hx, wy + hy, h * 0.05f, FILL);
+        c.drawCircle(cx + hx, wy - hy, h * 0.05f, FILL);
+    }
+
+    /** A steering wheel: rim, three spokes and a hub, turned by deg (positive = counter-clockwise on screen). */
+    private static void wheelShape(Canvas c, float cx, float cy, float r, float deg, float lw) {
+        c.save();
+        c.rotate(-deg, cx, cy);
+        LINE.setColor(INK);
+        LINE.setStrokeWidth(lw);
+        c.drawCircle(cx, cy, r, LINE);
+        LINE.setStrokeWidth(lw * 0.8f);
+        c.drawLine(cx - r, cy, cx + r, cy, LINE);
+        c.drawLine(cx, cy, cx, cy + r, LINE);
+        FILL.setColor(INK);
+        c.drawCircle(cx, cy, lw * 1.1f, FILL);
+        c.restore();
+    }
+
+    /** Picture for a steering choice tile: the kid making that gesture. */
+    public static void paintSteerTile(Canvas c, int w, int h, int mode) {
+        float cx = w / 2f, foot = h * 0.95f, kh = h * 0.92f;
+        int kidColour = 0xFF29B6F6;
+        if (mode == MODE_LEAN) kidLean(c, cx, foot, kh, 14f, kidColour);
+        else if (mode == MODE_WHEEL) kidWheel(c, cx, foot, kh, 24f, kidColour);
+        else kid(c, cx, foot, kh, 1f, 14f, 0f, kidColour);
+    }
+
+    /** Size of the baked steering icons. */
+    static final int ICON = 240;
+
+    /**
+     * The HUD / intro icon of a steering mode, baked once (240 x 240, centred, drawn upright; rotate it to tilt).
+     * @param mode MODE_PLANE, MODE_LEAN or MODE_WHEEL
+     * @param active true for the player colour, false for grey (the gesture is not being made)
+     * @param colour the player colour
+     * @return the bitmap
+     */
+    static android.graphics.Bitmap steerIcon(int mode, boolean active, int colour) {
+        final int col = active ? colour : 0xFF9AA5AD;
+        final int m = mode;
+        return SpriteCache.shared().get("race_steer_" + mode + (active ? "_on" : "_off"), ICON, ICON,
+                (c, w, h) -> paintIcon(c, w, h, m, col));
+    }
+
+    private static void paintIcon(Canvas c, int w, int h, int mode, int col) {
+        float cx = w / 2f, cy = h / 2f, u = w / 240f;
+        if (mode == MODE_LEAN) {
+            // a leaning stick kid seen from the front, arms down
+            float lw = 22f * u;
+            LINE.setStrokeWidth(lw + 12f * u);
+            LINE.setColor(0xFFFFFFFF);
+            leanFigure(c, cx, cy, u);
+            LINE.setStrokeWidth(lw);
+            LINE.setColor(col);
+            leanFigure(c, cx, cy, u);
+            FILL.setColor(0xFFFFFFFF);
+            c.drawCircle(cx, cy - 62f * u, 34f * u, FILL);
+            FILL.setColor(col);
+            c.drawCircle(cx, cy - 62f * u, 26f * u, FILL);
+        } else if (mode == MODE_WHEEL) {
+            for (int pass = 0; pass < 2; pass++) {
+                LINE.setColor(pass == 0 ? 0xFFFFFFFF : col);
+                LINE.setStrokeWidth((pass == 0 ? 34f : 22f) * u);
+                c.drawCircle(cx, cy, 82f * u, LINE);
+                LINE.setStrokeWidth((pass == 0 ? 28f : 16f) * u);
+                c.drawLine(cx - 82f * u, cy, cx + 82f * u, cy, LINE);
+                c.drawLine(cx, cy, cx, cy + 82f * u, LINE);
+                FILL.setColor(pass == 0 ? 0xFFFFFFFF : col);
+                c.drawCircle(cx, cy, (pass == 0 ? 30f : 22f) * u, FILL);
+            }
+            // a mark at the top so the turn is easy to see
+            FILL.setColor(ORANGE);
+            c.drawCircle(cx, cy - 82f * u, 14f * u, FILL);
+        } else {
+            // the plane: wings, body and tail (as in T-22)
+            LINE.setStrokeWidth(40f * u);
+            LINE.setColor(0xFFFFFFFF);
+            c.drawLine(cx - 96f * u, cy, cx + 96f * u, cy, LINE);
+            LINE.setStrokeWidth(28f * u);
+            LINE.setColor(col);
+            c.drawLine(cx - 96f * u, cy, cx + 96f * u, cy, LINE);
+            FILL.setColor(0xFFFFFFFF);
+            c.drawCircle(cx, cy, 33f * u, FILL);
+            FILL.setColor(col);
+            c.drawCircle(cx, cy, 24f * u, FILL);
+            LINE.setStrokeWidth(16f * u);
+            c.drawLine(cx, cy - 3f * u, cx, cy - 54f * u, LINE);
+        }
+    }
+
+    private static void leanFigure(Canvas c, float cx, float cy, float u) {
+        c.drawLine(cx, cy - 30f * u, cx, cy + 40f * u, LINE);            // body
+        c.drawLine(cx, cy + 40f * u, cx - 26f * u, cy + 96f * u, LINE);  // legs
+        c.drawLine(cx, cy + 40f * u, cx + 26f * u, cy + 96f * u, LINE);
+        c.drawLine(cx - 4f * u, cy - 22f * u, cx - 34f * u, cy + 40f * u, LINE); // arms down
+        c.drawLine(cx + 4f * u, cy - 22f * u, cx + 34f * u, cy + 40f * u, LINE);
     }
 }
