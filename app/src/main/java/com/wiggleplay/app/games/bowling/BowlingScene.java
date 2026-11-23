@@ -30,13 +30,14 @@ import java.util.List;
 public final class BowlingScene implements Scene {
 
     private static final String GAME_ID = "bowling";
-    private static final String[] NAMES = {"Bunny", "Fox", "Bear", "Cat"};
+    private static final String[] NAMES = BowlingArt.PLAYER;
     private static final String[] PIN_TEXT = {"Gutter ball!", "1 pin!", "2 pins!", "3 pins!", "4 pins!", "5 pins!",
             "6 pins!", "7 pins!", "8 pins!", "9 pins!", "10 pins!"};
-    private static final String[] TURN_TEXT = {"Bunny's turn!", "Fox's turn!", "Bear's turn!", "Cat's turn!"};
+    private static final String[] TURN_TEXT = {"Player 1's turn!", "Player 2's turn!", "Player 3's turn!",
+            "Player 4's turn!"};
     private static final String[] FRAME_TEXT = {"Frame 1", "Frame 2", "Frame 3", "Frame 4", "Frame 5"};
 
-    private static final int PICK = 0, INTRO = 1, AIM = 2, ROLL = 3, RESULT = 4, END = 5;
+    private static final int INTRO = 1, AIM = 2, ROLL = 3, RESULT = 4, END = 5;
     private static final float INTRO_SECONDS = 1.4f, RESULT_SECONDS = 2.0f;
     private static final float CHARGE_SECONDS = 1.2f, MIN_POWER = 0.3f, HINT_AFTER = 6f, AUTO_ROLL_AFTER = 12f;
 
@@ -48,7 +49,7 @@ public final class BowlingScene implements Scene {
 
     private BowlingPhysics physics;
     private BowlingScore score;
-    private int level = 1, players = 1, phase = PICK;
+    private int level = 1, players = 1, phase = INTRO;
     private Bitmap camera;
     private float time, phaseT, acc;
 
@@ -95,31 +96,14 @@ public final class BowlingScene implements Scene {
         // bowling tracks one person at a time, whatever the home screen chose
         if (env.hub != null) env.hub.setMode(1);
         env.menuMusic();   // the calm menu music keeps playing between turns
-        showPicker();
+        // how many bowl was picked on the "How many players?" screen (1 to 4), everyone takes turns
+        startGame(Math.max(1, Math.min(4, args.getInt("players", 1))));
     }
 
     @Override
     public void exit() {
         BowlingArt.unload();
         if (env.hub != null) env.hub.setMode(env.players);
-    }
-
-    // ---- who is playing ----
-
-    private void showPicker() {
-        phase = PICK;
-        phaseT = 0f;
-        List<TileMenu.Tile> tiles = new ArrayList<>();
-        tiles.add(RoundButton.back());
-        tiles.add(RoundButton.settings());
-        float w = 360f, h = 420f, gap = 40f, x0 = (Stage.W - 4f * w - 3f * gap) / 2f;
-        int[] colours = {Theme.MUSTARD, Theme.ORANGE, Theme.PINK, Theme.BLUE};
-        for (int i = 0; i < 4; i++) {
-            TileMenu.Tile t = new TileMenu.Tile("p" + (i + 1), String.valueOf(i + 1), i == 0 ? "player" : "players",
-                    colours[i], null, x0 + i * (w + gap), 380f, w, h);
-            tiles.add(t);
-        }
-        menu.setTiles(tiles, "p1");
     }
 
     private void startGame(int n) {
@@ -165,9 +149,6 @@ public final class BowlingScene implements Scene {
             return;
         }
         switch (phase) {
-            case PICK:
-                updatePicker(dt, f);
-                break;
             case INTRO:
                 if (phaseT >= INTRO_SECONDS) {
                     phase = AIM;
@@ -196,21 +177,6 @@ public final class BowlingScene implements Scene {
 
     private void leave() {
         env.go("levelselect", SceneArgs.of("gameId", GAME_ID));
-    }
-
-    private void updatePicker(float dt, Frame f) {
-        String sel = menu.update(dt, f);
-        if (sel == null) return;
-        if ("back".equals(sel)) {
-            env.sfx("back");
-            leave();
-        } else if ("settings".equals(sel)) {
-            env.sfx("select");
-            if (env.settings != null) env.settings.open();
-        } else if (sel.length() == 2 && sel.charAt(0) == 'p') {
-            env.sfx("select");
-            startGame(sel.charAt(1) - '0');
-        }
     }
 
     private static boolean okPressed(Input in) {
@@ -415,11 +381,13 @@ public final class BowlingScene implements Scene {
         for (int p = 0; p < players; p++) best = Math.max(best, score.totalPins(p));
         bestStars = BowlingScore.stars(best, level);
         if (env.profile != null) env.profile.recordStars(GAME_ID, level, bestStars);
+        // picture buttons, high on the screen (the lower half is hard to reach with a hand)
         List<TileMenu.Tile> tiles = new ArrayList<>();
         tiles.add(RoundButton.home());
-        float w = 420f, h = 190f, gap = 50f, x0 = (Stage.W - 2f * w - gap) / 2f;
-        tiles.add(new TileMenu.Tile("again", "Play again", null, Theme.MUSTARD, null, x0, 800f, w, h));
-        tiles.add(new TileMenu.Tile("who", "Who's playing?", null, Theme.BLUE, null, x0 + w + gap, 800f, w, h));
+        tiles.add(new TileMenu.Tile("again", "Play again", null, Theme.MUSTARD, BowlingScene::paintReplay,
+                1130f, 210f, 320f, 360f));
+        tiles.add(new TileMenu.Tile("who", "Players", null, 0xFF26215C, (c, w, h) -> BowlingArt.paintGroup(c, w, h, 4),
+                1490f, 210f, 320f, 360f));
         menu.setTiles(tiles, "again");
         endTitle = players == 1 ? "Great bowling!" : NAMES[score.leader()] + " wins!";
         env.sfx("cheer");
@@ -431,7 +399,7 @@ public final class BowlingScene implements Scene {
         if (sel == null) return;
         env.sfx("select");
         if ("again".equals(sel)) startGame(players);
-        else if ("who".equals(sel)) showPicker();
+        else if ("who".equals(sel)) env.go("players", SceneArgs.of("gameId", GAME_ID));
         else env.go("gameselect", SceneArgs.EMPTY);
     }
 
@@ -455,20 +423,15 @@ public final class BowlingScene implements Scene {
 
     @Override
     public void draw(Canvas c) {
-        if (phase == PICK) {
-            Theme.drawBackdrop(c, camera, time);
-            Theme.drawBanner(c, "Who's playing?", Stage.W / 2f, 160f, 80f, 0xE6F3EBDD, Theme.INK);
-            menu.draw(c);
-            return;
-        }
         if (phase == END) {
-            Theme.drawBackdrop(c, camera, time);
+            c.drawBitmap(BowlingArt.space(), 0f, 0f, null);
             drawEnd(c);
             return;
         }
         c.save();
         if (shake > 0f) c.translate((float) Math.sin(time * 70f) * 14f * shake, (float) Math.cos(time * 55f) * 8f * shake);
         c.drawBitmap(BowlingArt.lane(), 0f, 0f, null);
+        drawDrifters(c);
         if (wave >= 0f) {
             // a ring of light spreading from the pins (strike and spare)
             float r = 60f + wave * 700f;
@@ -708,6 +671,10 @@ public final class BowlingScene implements Scene {
         if (phase == INTRO) {
             Theme.drawBanner(c, TURN_TEXT[score.player()], BowlingArt.CX, 200f, 84f, 0xE0140B2E,
                     BowlingArt.COLOURS[score.player()]);
+            float pop = Math.min(1f, phaseT * 4f);
+            float sz = 230f * (0.6f + 0.4f * pop);
+            rect.set(BowlingArt.CX - sz / 2f, 300f, BowlingArt.CX + sz / 2f, 300f + sz);
+            c.drawBitmap(BowlingArt.avatar(score.player()), null, rect, sprite);
         } else if (phase == RESULT) {
             float pop = 1f + 0.3f * Math.max(0f, 1f - phaseT * 4f);
             String s = resultKind == BowlingScore.STRIKE ? "Strike!" : resultKind == BowlingScore.SPARE ? "Spare!"
@@ -747,9 +714,9 @@ public final class BowlingScene implements Scene {
                 rect.set(x + 8f, ry, x + w - 8f, ry + rowH - 6f);
                 c.drawRoundRect(rect, 22f, 22f, paint);
             }
-            paint.setColor(BowlingArt.COLOURS[p]);
-            c.drawCircle(x + 46f, ry + 42f, 22f, paint);
-            Theme.drawCentered(c, NAMES[p], x + 160f, ry + 56f, 34f, 0xFFFFFFFF);
+            rect.set(x + 14f, ry + 6f, x + 80f, ry + 72f);
+            c.drawBitmap(BowlingArt.avatar(p), null, rect, sprite);
+            Theme.drawCentered(c, NAMES[p], x + 165f, ry + 54f, 32f, BowlingArt.COLOURS[p]);
             for (int k = 0; k < BowlingScore.FRAMES; k++) {
                 float bx = x + 260f + k * 66f;
                 paint.setColor(0x40FFFFFF);
@@ -766,19 +733,20 @@ public final class BowlingScene implements Scene {
     }
 
     private void drawEnd(Canvas c) {
-        Theme.drawBanner(c, endTitle, Stage.W / 2f, 130f, 84f, 0xE6F3EBDD, Theme.INK);
-        // the scoreboard in the middle
-        float w = 720f, rowH = 92f, x = (Stage.W - w) / 2f, y = 225f;
-        paint.setColor(0xD0140B2E);
+        Theme.drawCentered(c, endTitle, 640f, 140f, 84f, 0xFFFFD84D);
+        // the scoreboard on the left, buttons on the right (both in the top half)
+        float w = 760f, rowH = 92f, x = 260f, y = 200f;
+        paint.setColor(0xD026215C);
         rect.set(x, y, x + w, y + 20f + players * rowH);
         c.drawRoundRect(rect, 30f, 30f, paint);
+        int leader = score.leader();
         for (int p = 0; p < players; p++) {
             float ry = y + 10f + p * rowH;
-            paint.setColor(BowlingArt.COLOURS[p]);
-            c.drawCircle(x + 46f, ry + 42f, 22f, paint);
-            Theme.drawCentered(c, NAMES[p], x + 160f, ry + 56f, 34f, 0xFFFFFFFF);
+            rect.set(x + 14f, ry + 6f, x + 80f, ry + 72f);
+            c.drawBitmap(BowlingArt.avatar(p), null, rect, sprite);
+            Theme.drawCentered(c, NAMES[p], x + 170f, ry + 54f, 32f, BowlingArt.COLOURS[p]);
             for (int k = 0; k < BowlingScore.FRAMES; k++) {
-                float bx = x + 260f + k * 66f;
+                float bx = x + 270f + k * 66f;
                 paint.setColor(0x40FFFFFF);
                 rect.set(bx, ry + 14f, bx + 58f, ry + 68f);
                 c.drawRoundRect(rect, 10f, 10f, paint);
@@ -786,15 +754,71 @@ public final class BowlingScene implements Scene {
                     Theme.drawCentered(c, cellText[p][k], bx + 29f, ry + 54f, 32f, 0xFFFFFFFF);
                 }
             }
-            Theme.drawCentered(c, totalText[p], x + w - 56f, ry + 58f, 44f, BowlingArt.COLOURS[p]);
+            Theme.drawCentered(c, totalText[p], x + w - 60f, ry + 58f, 44f, BowlingArt.COLOURS[p]);
+            if (players > 1 && p == leader) {                    // a little crown on the winner's avatar
+                paint.setColor(0xFFFFD84D);
+                tri.reset();
+                float cx = x + 47f, cy = ry + 4f;
+                tri.moveTo(cx - 20f, cy + 4f);
+                tri.lineTo(cx - 20f, cy - 14f);
+                tri.lineTo(cx - 8f, cy - 4f);
+                tri.lineTo(cx, cy - 18f);
+                tri.lineTo(cx + 8f, cy - 4f);
+                tri.lineTo(cx + 20f, cy - 14f);
+                tri.lineTo(cx + 20f, cy + 4f);
+                tri.close();
+                c.drawPath(tri, paint);
+            }
         }
         Bitmap badge = Theme.starsBadge(bestStars);
+        float by = y + 40f + players * rowH;
         if (badge != null) {
-            float by = y + 30f + players * rowH;
-            rect.set(Stage.W / 2f - 162f, by, Stage.W / 2f + 162f, by + 108f);
+            rect.set(x + w / 2f - 162f, by, x + w / 2f + 162f, by + 108f);
             c.drawBitmap(badge, null, rect, sprite);
         }
-        if (players > 1) Theme.drawCentered(c, "Everybody gets a medal!", Stage.W / 2f, 782f, 44f, Theme.INK);
+        if (players > 1) Theme.drawCentered(c, "Everybody gets a medal!", x + w / 2f, by + 160f, 44f, 0xFFE8F8FF);
         menu.draw(c);
     }
+
+    /** "Play again": a round arrow, drawn on the tile's picture. */
+    private static void paintReplay(Canvas c, int w, int h) {
+        Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
+        p.setStyle(Paint.Style.STROKE);
+        p.setStrokeCap(Paint.Cap.ROUND);
+        p.setStrokeWidth(w * 0.11f);
+        p.setColor(0xFF2C2340);
+        float r = w * 0.3f, cx = w / 2f, cy = h / 2f;
+        RectF o = new RectF(cx - r, cy - r, cx + r, cy + r);
+        c.drawArc(o, -60f, 290f, false, p);
+        // arrow head at the start of the arc
+        double a = Math.toRadians(-60f);
+        float ax = cx + (float) Math.cos(a) * r, ay = cy + (float) Math.sin(a) * r;
+        p.setStyle(Paint.Style.FILL);
+        android.graphics.Path head = new android.graphics.Path();
+        head.moveTo(ax + w * 0.16f, ay - w * 0.02f);
+        head.lineTo(ax - w * 0.08f, ay - w * 0.13f);
+        head.lineTo(ax - w * 0.04f, ay + w * 0.15f);
+        head.close();
+        c.drawPath(head, p);
+    }
+
+    /** A small rocket crossing the dark sky and an astronaut bobbing on the right, both faint. */
+    private void drawDrifters(Canvas c) {
+        float t = time % 40f;
+        float rx = -150f + t / 40f * 2220f, ry = 110f + (float) Math.sin(time * 0.4f) * 30f;
+        sprite.setAlpha(70);
+        rect.set(rx - 45f, ry - 45f, rx + 45f, ry + 45f);
+        c.save();
+        c.rotate(60f, rx, ry);
+        c.drawBitmap(BowlingArt.rocket(), null, rect, sprite);
+        c.restore();
+        float ax = 1780f, ay = 640f + (float) Math.sin(time * 0.7f) * 18f;
+        c.save();
+        c.rotate((float) Math.sin(time * 0.3f) * 14f, ax, ay);
+        rect.set(ax - 70f, ay - 70f, ax + 70f, ay + 70f);
+        c.drawBitmap(BowlingArt.avatar(BowlingArt.ASTRONAUT), null, rect, sprite);
+        c.restore();
+        sprite.setAlpha(255);
+    }
+
 }

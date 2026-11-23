@@ -31,6 +31,7 @@ public final class LevelSelectScene implements Scene {
     private String gameId = "";
     private GameInfo game;
     private String title = "";
+    private int players = 1;
 
     /**
      * Creates the screen.
@@ -46,6 +47,9 @@ public final class LevelSelectScene implements Scene {
         env.menuMusic();
         gameId = args.getString("gameId", "");
         game = GameRegistry.get(gameId);
+        int asked = args.getInt("players", -1);   // coming back from a game: the count last picked for it
+        int max = game != null ? game.maxPlayers : 2;
+        players = asked > 0 ? asked : env.profile != null ? env.profile.playersFor(gameId, max, env.players) : env.players;
         title = game != null ? game.title + ": pick a level" : "Pick a level";
         List<TileMenu.Tile> tiles = new ArrayList<>();
         tiles.add(RoundButton.back());
@@ -72,7 +76,7 @@ public final class LevelSelectScene implements Scene {
         String sel = menu.update(dt, f);
         if (f.input.pressed(KeyEvent.KEYCODE_BACK) || "back".equals(sel)) {
             env.sfx("back");
-            env.go("gameselect", SceneArgs.EMPTY);
+            env.go("players", SceneArgs.of("gameId", gameId));
             return;
         }
         if ("settings".equals(sel)) {
@@ -83,7 +87,7 @@ public final class LevelSelectScene implements Scene {
         if (sel == null) return;
         for (int i = 0; i < 3; i++) {
             if (IDS[i].equals(sel) && game != null) {
-                env.go(game.sceneName, SceneArgs.of("gameId", gameId, "level", i + 1, "players", env.players));
+                env.go(game.sceneName, SceneArgs.of("gameId", gameId, "level", i + 1, "players", players));
                 return;
             }
         }

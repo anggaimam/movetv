@@ -124,6 +124,27 @@ public final class Profile {
     }
 
     /**
+     * The number of players last picked for a game.
+     * @param gameId the game
+     * @param max the most players the game takes (2, or 4 for bowling)
+     * @param def the answer when nothing was saved yet
+     * @return 1..max
+     */
+    public int playersFor(String gameId, int max, int def) {
+        int n = readInt("players_" + gameId, def);
+        return Math.max(1, Math.min(max, n));
+    }
+
+    /**
+     * Remembers the number of players picked for a game.
+     * @param gameId the game
+     * @param n players
+     */
+    public void setPlayersFor(String gameId, int n) {
+        prefs.edit().putInt("players_" + gameId, Math.max(1, Math.min(4, n))).apply();
+    }
+
+    /**
      * Whether Animal Dance Party shows a small camera picture in a neon frame.
      * @return true for a camera box (default false: only the glowing outline)
      */

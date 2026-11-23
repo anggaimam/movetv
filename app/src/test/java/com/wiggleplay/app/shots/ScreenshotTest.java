@@ -97,7 +97,7 @@ public class ScreenshotTest {
 
     @Test
     public void menuPlayersCursorFilling() throws Exception {
-        File f = ShotRig.shoot("menu_players_cursor", new PlayersScene(env()), Scene.SceneArgs.EMPTY, 1, 45,
+        File f = ShotRig.shoot("menu_players_cursor", new PlayersScene(env()), Scene.SceneArgs.of("gameId", "fruit"), 1, 45,
                 (frame, now, body, input) -> {
                     if (frame == 0) input.touch(Input.TOUCH_DOWN, 640f, 520f);
                 });
@@ -133,7 +133,7 @@ public class ScreenshotTest {
         TileMenu.Env e = env();
         SettingsOverlay overlay = new SettingsOverlay(e);
         e.settings = overlay;
-        File f = ShotRig.shoot("menu_settings", overlay.host(new PlayersScene(e)), Scene.SceneArgs.EMPTY, 1, 40,
+        File f = ShotRig.shoot("menu_settings", overlay.host(new PlayersScene(e)), Scene.SceneArgs.of("gameId", "fruit"), 1, 40,
                 (frame, now, body, input) -> {
                     if (frame == 3) input.keyDown(KeyEvent.KEYCODE_MENU);
                     if (frame == 4) input.keyUp(KeyEvent.KEYCODE_MENU);
@@ -360,8 +360,22 @@ public class ScreenshotTest {
     // ---- T-13 part 1: Bowling ----
 
     @Test
-    public void bowlingPicker() throws Exception {
-        check(ShotRig.shoot("bowling_picker", new BowlingScene(env()), Scene.SceneArgs.of("level", 1), 1, 30, null));
+    public void bowlingPlayers() throws Exception {
+        check(ShotRig.shoot("bowling_players", new PlayersScene(env()), Scene.SceneArgs.of("gameId", "bowling"), 1, 30,
+                null));
+    }
+
+    @Test
+    public void bowlingTurnFourPlayers() throws Exception {
+        check(ShotRig.shoot("bowling_turn_4p", new BowlingScene(env()), Scene.SceneArgs.of("level", 1, "players", 4), 1,
+                40, null));
+    }
+
+    /** Four players, every roll by the 12 s auto-roll: ends on the end screen. */
+    @Test
+    public void bowlingEndFourPlayers() throws Exception {
+        check(ShotRig.shoot("bowling_end_4p", new BowlingScene(env()), Scene.SceneArgs.of("level", 2, "players", 4), 1,
+                60 * 60 * 18, null));
     }
 
     /** Picks "1 player" with the remote, waits out the intro, holds OK from frame 150 to 190, then lets go. */

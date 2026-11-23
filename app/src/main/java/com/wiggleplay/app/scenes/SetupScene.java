@@ -139,7 +139,7 @@ public final class SetupScene implements Scene {
             return;
         }
         if ("skip".equals(sel) || (goodMs >= GOOD_MS && !fromBack)) {
-            env.go("players", SceneArgs.EMPTY);
+            env.go("gameselect", SceneArgs.EMPTY);
         }
     }
 

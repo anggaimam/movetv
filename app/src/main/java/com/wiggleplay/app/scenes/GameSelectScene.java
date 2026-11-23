@@ -71,7 +71,7 @@ public final class GameSelectScene implements Scene {
     @Override
     public void enter(SceneArgs args) {
         env.menuMusic();
-        List<GameInfo> games = GameRegistry.forPlayers(env.players);
+        List<GameInfo> games = GameRegistry.all();   // how many play is asked per game, after this screen
         List<TileMenu.Tile> tiles = new ArrayList<>(layout(games));
         tiles.add(0, RoundButton.back());
         tiles.add(RoundButton.settings());
@@ -88,7 +88,7 @@ public final class GameSelectScene implements Scene {
         String sel = menu.update(dt, f);
         if (f.input.pressed(KeyEvent.KEYCODE_BACK) || "back".equals(sel)) {
             env.sfx("back");
-            env.go("players", SceneArgs.EMPTY);
+            env.go("setup", SceneArgs.of("back", 1));
             return;
         }
         if ("settings".equals(sel)) {
@@ -96,7 +96,7 @@ public final class GameSelectScene implements Scene {
             if (env.settings != null) env.settings.open();
             return;
         }
-        if (sel != null) env.go("levelselect", SceneArgs.of("gameId", sel));
+        if (sel != null) env.go("players", SceneArgs.of("gameId", sel));
     }
 
     @Override
