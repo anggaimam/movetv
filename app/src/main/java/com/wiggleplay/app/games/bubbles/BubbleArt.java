@@ -558,7 +558,7 @@ public final class BubbleArt {
             Bitmap cr = crab();
             float scuttle = (float) Math.sin(t * 9f) * 2.5f;
             c.save();
-            c.translate(crabX, Stage.H - 82f + scuttle);
+            c.translate(crabX, Stage.H - 112f + scuttle);
             if (crabV < 0f) c.scale(-1f, 1f);
             c.drawBitmap(cr, -cr.getWidth() / 2f, 0f, null);
             c.restore();
