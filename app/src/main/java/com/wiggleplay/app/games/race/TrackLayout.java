@@ -557,7 +557,7 @@ public final class TrackLayout {
      * Coin and star positions for one lap. Every straight tile (the finish tile has none) gets a line of 5 coins
      * 1.6 apart at a lateral offset of -2.5, 0 or +2.5 that is never the same as the previous straight tile's
      * (also not across the lap wrap); every corner gets 3 coins on the OUTSIDE line (offset 1.5 away from the corner
-     * centre, radius 6.5, T-22). One golden star sits on the centre line at the apex of a random corner.
+     * centre, radius 5.75, T-22 section 6). One golden star sits on the centre line at the apex of a random corner.
      * @param seed the random seed (the same seed gives the same slots)
      * @return the slots, sorted by distance along the lap
      */
@@ -595,9 +595,9 @@ public final class TrackLayout {
                 }
             } else {
                 cornerIdx.add(i);
-                // T-22: on the OUTSIDE of the turn (radius 6.5, away from the corner centre), where a truck
+                // T-22: on the OUTSIDE of the turn (radius 5.75, away from the corner centre), where a truck
                 // that cannot turn tighter than radius ~6.8 naturally drives
-                float outside = tileRight[i] ? -1.5f : 1.5f;
+                float outside = tileRight[i] ? -0.75f : 0.75f;
                 for (int k = 1; k <= 3; k++) {
                     cs[count] = s0 + ARC_LEN * k / 4f;
                     co[count] = outside;

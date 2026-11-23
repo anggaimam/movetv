@@ -190,7 +190,7 @@ public class TrackLayoutTest {
         float prevLane = Float.NaN, firstLane = Float.NaN, lastLane = Float.NaN;
         int lines = 0;
         for (int i = 0; i < a.count; i++) {
-            if (Math.abs(a.offset[i]) == 1.5f) continue; // corner coin
+            if (Math.abs(a.offset[i]) == 0.75f) continue; // corner coin
             if (i % 1 == 0 && (i == 0 || !sameLine(a, i))) {
                 float lane = a.offset[i];
                 assertTrue(lane == -2.5f || lane == 0f || lane == 2.5f);
@@ -215,7 +215,7 @@ public class TrackLayoutTest {
     }
 
     private static boolean sameLine(TrackLayout.Slots a, int i) {
-        return i > 0 && Math.abs(a.offset[i - 1]) != 1.5f && a.offset[i - 1] == a.offset[i]
+        return i > 0 && Math.abs(a.offset[i - 1]) != 0.75f && a.offset[i - 1] == a.offset[i]
                 && a.s[i] - a.s[i - 1] < 1.7f;
     }
 
@@ -227,9 +227,9 @@ public class TrackLayoutTest {
         float[] p = new float[3];
         int cornerCoins = 0;
         for (int i = 0; i < sl.count; i++) {
-            if (Math.abs(sl.offset[i]) != 1.5f) continue;
+            if (Math.abs(sl.offset[i]) != 0.75f) continue;
             cornerCoins++;
-            // outside means away from the arc centre: radius 6.5 around it
+            // outside means away from the arc centre: radius 5.75 around it
             t.sample(sl.s[i], p);
             float rx = -(float) Math.cos(p[2]), rz = (float) Math.sin(p[2]);
             float cx = p[0] + rx * sl.offset[i], cz = p[1] + rz * sl.offset[i];
@@ -237,16 +237,16 @@ public class TrackLayoutTest {
             assertEquals(sl.offset[i], tp.offset, 0.1f);
         }
         assertEquals(12, cornerCoins);
-        // the ring's corners all turn right, so the outside is the left of the line (offset -1.5)
-        for (int i = 0; i < sl.count; i++) if (Math.abs(sl.offset[i]) == 1.5f) assertEquals(-1.5f, sl.offset[i], 0f);
-        // and every corner coin is 6.5 from its corner's arc centre
+        // the ring's corners all turn right, so the outside is the left of the line (offset -0.75)
+        for (int i = 0; i < sl.count; i++) if (Math.abs(sl.offset[i]) == 0.75f) assertEquals(-0.75f, sl.offset[i], 0f);
+        // and every corner coin is 5.75 from its corner's arc centre
         for (int i = 0; i < sl.count; i++) {
-            if (Math.abs(sl.offset[i]) != 1.5f) continue;
+            if (Math.abs(sl.offset[i]) != 0.75f) continue;
             t.sample(sl.s[i], p);
             float rx = -(float) Math.cos(p[2]), rz = (float) Math.sin(p[2]);
             float cx = p[0] + rx * sl.offset[i], cz = p[1] + rz * sl.offset[i];
             t.project(cx, cz, -1, tp);
-            assertEquals(-1.5f, tp.offset, 0.1f);
+            assertEquals(-0.75f, tp.offset, 0.1f);
         }
     }
 

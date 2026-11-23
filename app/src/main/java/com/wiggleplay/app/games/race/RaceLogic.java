@@ -12,7 +12,7 @@ import com.wiggleplay.app.games.common.StarRules;
  *       covered at least 0.9 laps since the last count. A race ends when everybody has finished, or 10 s after the
  *       first finisher in a two-player race, or after 150 s. There is never a game over.</li>
  *   <li><b>Coins</b>: each player has their own coins (from {@link TrackLayout#coinSlots}) and one golden star per lap
- *       at the same place. A coin is picked up within 1.4 units: +1 (the star +5). Coins come back every lap.
+ *       at the same place. A coin is picked up within 2.0 units: +1 (the star +5). Coins come back every lap.
  *       "Offered" is the sum of every coin and star that was collected or that the player drove past.</li>
  *   <li><b>Boost</b>: a meter 0..1 that starts full, fills 0.2 per second and 0.15 per coin. A jump starts a boost only
  *       when the meter is full and no boost runs; the boost lasts exactly 1.6 s whatever happens next, the meter
@@ -32,7 +32,7 @@ public final class RaceLogic {
     /** Seconds the second player has after the first one finishes (two players). */
     public static final float GRACE_SECONDS = 10f;
     /** Coin pickup distance. */
-    public static final float PICKUP_RADIUS = 1.4f;
+    public static final float PICKUP_RADIUS = 2.0f;
     /** Value of a coin and of the golden star. */
     public static final int COIN_VALUE = 1, STAR_VALUE = 5;
 

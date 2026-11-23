@@ -162,21 +162,53 @@ public class RaceLogicTest {
         assertTrue(r.time() <= r.finishTime(0) + RaceLogic.GRACE_SECONDS + 0.1f || r.time() >= RaceLogic.SAFETY_SECONDS);
     }
 
-    /** Corner coins reached (within the pickup radius) in the first lap by a pure-pursuit driver with this lookahead. */
-    private static int[] cornerCoinsReached(int lv, float look) {
+    /** Driver kinds for the section 6 tests. */
+    private static final int CUTTER = 0, CENTRE = 1, SEEKER = 2;
+
+    private static float steerToward(CarModel c, float tx, float tz) {
+        float d = (float) Math.atan2(tx - c.x(), tz - c.z()) - c.yaw();
+        while (d > Math.PI) d -= 2 * Math.PI;
+        while (d < -Math.PI) d += 2 * Math.PI;
+        return Math.max(-1f, Math.min(1f, -d * 2.5f));
+    }
+
+    /** Lane-seeker: aims at the next uncollected coin ahead when it is near, otherwise follows the centre line. */
+    private static float seekerSteer(RaceLogic r, TrackLayout t, float look) {
+        CarModel c = r.car(0);
+        int n = r.slotCount(0);
+        float bestD = 1e9f;
+        int best = -1;
+        for (int k = 0; k < n; k++) {
+            if (r.slotGone(0, k)) continue;
+            float dx = r.slotX(0, k) - c.x(), dz = r.slotZ(0, k) - c.z();
+            float fwd = dx * (float) Math.sin(c.yaw()) + dz * (float) Math.cos(c.yaw());
+            if (fwd < 0.5f) continue;
+            float d = (float) Math.hypot(dx, dz);
+            if (d < bestD) { bestD = d; best = k; }
+        }
+        if (best >= 0 && bestD < 10f) return steerToward(c, r.slotX(0, best), r.slotZ(0, best));
+        return autoSteer(r, t, 0, look);
+    }
+
+    /** Drives a full race; returns {score, offered, cornerReached, cornerTotal} (corner = min distance in lap 1). */
+    private static int[] run(int lv, int kind) {
         TrackLayout t = TrackMaps.forLevel(lv);
         RaceLogic r = new RaceLogic(t, RaceLevel.fromNumber(lv + 1), 1, 42L);
         int n = r.slotCount(0);
         float[] best = new float[n];
         java.util.Arrays.fill(best, 1e9f);
-        for (int i = 0; i < 150 * 60 && r.lapsDone(0) < 1; i++) {
-            r.setControls(0, autoSteer(r, t, 0, look), false);
+        for (int i = 0; i < 150 * 60 && !r.over(); i++) {
+            float st = kind == CUTTER ? autoSteer(r, t, 0, 7f)
+                    : kind == CENTRE ? autoSteer(r, t, 0, 2.5f) : seekerSteer(r, t, 2.5f);
+            r.setControls(0, st, false);
             r.update(DT);
-            CarModel c = r.car(0);
-            for (int k = 0; k < n; k++) {
-                if (!r.slotIsCorner(0, k)) continue;
-                float d = (float) Math.hypot(r.slotX(0, k) - c.x(), r.slotZ(0, k) - c.z());
-                if (d < best[k]) best[k] = d;
+            if (r.lapsDone(0) < 1) {
+                CarModel c = r.car(0);
+                for (int k = 0; k < n; k++) {
+                    if (!r.slotIsCorner(0, k)) continue;
+                    float d = (float) Math.hypot(r.slotX(0, k) - c.x(), r.slotZ(0, k) - c.z());
+                    if (d < best[k]) best[k] = d;
+                }
             }
         }
         int corner = 0, got = 0;
@@ -185,22 +217,33 @@ public class RaceLogicTest {
             corner++;
             if (best[k] <= RaceLogic.PICKUP_RADIUS) got++;
         }
-        return new int[] {got, corner};
+        return new int[] {r.score(0), r.offered(0), got, corner};
     }
 
-    /**
-     * T-22: with the corner coins on the outside, a driver that follows the centre line (lookahead 2.5) reaches at
-     * least 2 of every 3. The T-21 driver (lookahead 7) cuts the corners on the inside and reaches none; its numbers
-     * are printed for the report, not asserted.
-     */
-    @Test public void centreLineDriverPicksUpMostCornerCoins() {
+    private static final String[] DRIVER_NAMES = {"cutter(7)", "centre(2.5)", "seeker"};
+
+    /** Section 6: three auto-drivers; prints the map x driver table for the report. */
+    @Test public void threeDriversCornerCoinsAndStars() {
+        int[][][] res = new int[3][3][];
+        for (int lv = 0; lv < 3; lv++) for (int d = 0; d < 3; d++) res[lv][d] = run(lv, d);
+        for (int lv = 0; lv < 3; lv++) for (int d = 0; d < 3; d++) {
+            int[] x = res[lv][d];
+            System.out.println("map " + lv + " " + DRIVER_NAMES[d] + ": score " + x[0] + " / offered " + x[1] + " = "
+                    + (x[1] == 0 ? 0 : 100 * x[0] / x[1]) + "%, corner coins " + x[2] + "/" + x[3]);
+        }
         for (int lv = 0; lv < 3; lv++) {
-            int[] near = cornerCoinsReached(lv, 2.5f), far = cornerCoinsReached(lv, 7f);
-            float[] res = drive(lv, 1, 42L, 2.5f);
-            System.out.println("level " + lv + ": corner coins reached " + near[0] + "/" + near[1]
-                    + " (lookahead 2.5; the T-21 driver, lookahead 7: " + far[0] + "/" + far[1] + "); full race score "
-                    + (int) res[3] + " of " + (int) res[4] + " offered, stars " + (int) res[5]);
-            assertTrue("level " + lv + " corner coins " + near[0] + "/" + near[1], near[0] * 3 >= near[1] * 2);
+            for (int d : new int[] {CUTTER, CENTRE}) {
+                int[] x = res[lv][d];
+                assertTrue("map " + lv + " " + DRIVER_NAMES[d] + " corner " + x[2] + "/" + x[3], x[2] * 3 >= x[3] * 2);
+            }
+            int[] c = res[lv][CENTRE];
+            float pc = 100f * c[0] / c[1];
+            assertTrue("map " + lv + " centre " + pc + "%", pc >= 40f && pc < 70f);
+        }
+        for (int lv = 0; lv < 2; lv++) {
+            int[] x = res[lv][SEEKER];
+            float pc = 100f * x[0] / x[1];
+            assertTrue("map " + lv + " seeker " + pc + "%", pc >= 70f);
         }
     }
 }
