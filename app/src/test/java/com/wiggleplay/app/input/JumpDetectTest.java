@@ -1,4 +1,4 @@
-package com.wiggleplay.app.games.jungle;
+package com.wiggleplay.app.input;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -215,5 +215,61 @@ public class JumpDetectTest {
         p.kps[Kp.NOSE].s = 0.1f;
         d.update(p, t);
         assertFalse(d.ducking());
+    }
+
+    // ---- T-20: the race options ----
+
+    /** Both arms going up: the shoulders rise a little (riseWidths shoulder widths over about 250 ms), the nose stays still. */
+    private int armsUp(float riseWidths) {
+        int events = 0;
+        float[] k = {0.3f, 0.8f, 1f, 0.7f, 0.2f, 0f};
+        for (float f : k) {
+            t += 83;
+            pose(SH - riseWidths * W * f, NOSE, W);
+            d.update(p, t);
+            if (d.consumeJump()) events++;
+        }
+        hold(0.6f, SH, NOSE);
+        return events;
+    }
+
+    @Test
+    public void liftingTheArmsIsAJumpOnlyWithoutTheHeadRiseOption() {
+        calibrate();
+        assertEquals(1, armsUp(0.4f));          // Jungle Dash behaviour is unchanged (option off by default)
+        d.setRequireHeadRise(true);
+        assertEquals(0, armsUp(0.4f));          // shoulders rise 0.4 widths, nose still: no jump
+    }
+
+    @Test
+    public void aRealHopStillJumpsWithTheHeadRiseOption() {
+        calibrate();
+        d.setRequireHeadRise(true);
+        assertEquals(1, hop(0.55f));
+        assertEquals(1, hop(0.55f));
+    }
+
+    @Test
+    public void crouchingKeepsHoldingForAShortWhileAfterStandingUp() {
+        calibrate();
+        assertFalse(d.crouching());
+        hold(0.6f, SH + 0.5f * W, NOSE + 0.8f * W);
+        assertTrue(d.crouching());
+        t += 83;
+        pose(SH, NOSE, W);
+        d.update(p, t);
+        assertFalse(d.ducking());
+        assertTrue(d.crouching());              // 0 ms after standing up
+        t += 83;
+        d.update(pose2(), t);
+        assertTrue(d.crouching());              // 83 ms
+        t += 83;
+        d.update(pose2(), t);
+        assertFalse(d.crouching());             // 166 ms
+    }
+
+    private PlayerPose pose2() {
+        pose(SH, NOSE, W);
+        return p;
     }
 }

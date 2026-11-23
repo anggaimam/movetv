@@ -1,4 +1,4 @@
-package com.wiggleplay.app.games.jungle;
+package com.wiggleplay.app.input;
 
 import com.wiggleplay.app.pose.Kp;
 import com.wiggleplay.app.pose.Keypoint;
@@ -20,7 +20,11 @@ import com.wiggleplay.app.pose.PoseFrame;
  *   <li><b>Duck</b>: the nose is at least 0.6 shoulder widths below the baseline; it stays a duck until the nose is
  *       back above 0.4 widths.</li>
  * </ul>
- * Poses arrive 7 to 14 times a second; call {@link #update} every display frame with the pose and its time, repeated
+ * <p>Two options for the race (both off or unchanged for Jungle Dash): {@link #setRequireHeadRise} makes a jump also
+ * need the nose to rise, so lifting both arms (which lifts the shoulders a little) is not a jump, and
+ * {@link #crouching()} is the duck with a short hold, so one noisy pose does not end a brake.
+ *
+ * <p>Poses arrive 7 to 14 times a second; call {@link #update} every display frame with the pose and its time, repeated
  * poses (same time) are ignored. Coordinates are stage pixels, y grows downward.
  */
 public final class JumpDetect {
@@ -43,6 +47,8 @@ public final class JumpDetect {
     private static final long LOST_MS = 3000;
     private static final int CAP = 256;
     private static final int HIST = 32;
+    private static final float HEAD_RISE = 0.25f;
+    private static final long CROUCH_HOLD_MS = 150;
 
     // calibration samples
     private final float[] calNose = new float[CAP], calSh = new float[CAP], calW = new float[CAP];
@@ -53,6 +59,9 @@ public final class JumpDetect {
     // short history of shoulder heights for the 400 ms window
     private final long[] histT = new long[HIST];
     private final float[] histY = new float[HIST];
+    private final float[] histNose = new float[HIST];
+    private boolean requireHeadRise;
+    private long duckEndMs = LONG_AGO;
     private int histHead, histN;
 
     private boolean calibrated;
@@ -86,6 +95,16 @@ public final class JumpDetect {
         lastValidMs = Long.MIN_VALUE;
         jumpStartMs = LONG_AGO;
         jumpEndMs = LONG_AGO;
+        duckEndMs = LONG_AGO;
+    }
+
+    /**
+     * Makes a jump also need the nose to rise.
+     * @param on true: a jump needs the nose to rise at least 0.25 shoulder widths inside the same 400 ms
+     *           (default false, which is how Jungle Dash uses it)
+     */
+    public void setRequireHeadRise(boolean on) {
+        requireHeadRise = on;
     }
 
     /** @return true once the baseline is measured; no jump or duck is reported before that */
@@ -188,15 +207,18 @@ public final class JumpDetect {
         rise = (baseSh - shY) / scale;
         drop = (noseY - baseNose) / scale;
         // how much of the rise happened inside the last 400 ms
-        float lowest = shY;
+        float lowest = shY, lowestNose = noseY;
         for (int i = 0; i < histN; i++) {
             int k = (histHead - 1 - i + HIST) % HIST;
             if (t - histT[k] > WINDOW_MS) break;
             if (histY[k] > lowest) lowest = histY[k];
+            if (histNose[k] > lowestNose) lowestNose = histNose[k];
         }
         float quick = (lowest - shY) / scale;
+        float headQuick = (lowestNose - noseY) / scale;
         histT[histHead] = t;
         histY[histHead] = shY;
+        histNose[histHead] = noseY;
         histHead = (histHead + 1) % HIST;
         if (histN < HIST) histN++;
 
@@ -206,7 +228,8 @@ public final class JumpDetect {
                 jumping = false;
                 jumpEndMs = t;
             }
-        } else if (!ducking && rise >= JUMP_RISE && quick >= QUICK_RISE && t - jumpEndMs > 250) {
+        } else if (!ducking && rise >= JUMP_RISE && quick >= QUICK_RISE && t - jumpEndMs > 250
+                && (!requireHeadRise || headQuick >= HEAD_RISE)) {
             jumping = true;
             jumpEvent = true;
             jumpStartMs = t;
@@ -214,7 +237,10 @@ public final class JumpDetect {
         }
 
         if (ducking) {
-            if (drop < DUCK_END_DROP) ducking = false;
+            if (drop < DUCK_END_DROP) {
+                ducking = false;
+                duckEndMs = t;
+            }
         } else if (!jumping && drop >= DUCK_DROP) {
             ducking = true;
         }
@@ -240,6 +266,9 @@ public final class JumpDetect {
 
     /** @return true while the nose is low (a duck) */
     public boolean ducking() { return ducking; }
+
+    /** @return true while the nose is low, and for 150 ms after it came back up (the race's brake) */
+    public boolean crouching() { return ducking || (duckEndMs != LONG_AGO && lastTimeMs - duckEndMs < CROUCH_HOLD_MS); }
 
     /** @return true while the shoulders are up in a jump */
     public boolean jumping() { return jumping; }

@@ -1,5 +1,6 @@
 package com.wiggleplay.app.games.jungle;
 
+import com.wiggleplay.app.input.JumpDetect;
 import java.util.Random;
 
 /**
