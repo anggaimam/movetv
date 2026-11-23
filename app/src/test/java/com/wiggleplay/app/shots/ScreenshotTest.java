@@ -359,6 +359,20 @@ public class ScreenshotTest {
 
     // ---- T-13 part 1: Bowling ----
 
+    private BowlingScene newBowling() {
+        BowlingScene.setRulesSeen(true);
+        return new BowlingScene(env());
+    }
+
+    @Test
+    public void bowlingRules() throws Exception {
+        BowlingScene b = new BowlingScene(env());
+        BowlingScene.setRulesSeen(false);
+        check(ShotRig.shoot("bowling_rules", b, Scene.SceneArgs.of("level", 1, "players", 2), 1, 70,
+                null));
+        BowlingScene.setRulesSeen(true);
+    }
+
     @Test
     public void bowlingPlayers() throws Exception {
         check(ShotRig.shoot("bowling_players", new PlayersScene(env()), Scene.SceneArgs.of("gameId", "bowling"), 1, 30,
@@ -367,20 +381,20 @@ public class ScreenshotTest {
 
     @Test
     public void bowlingTurnFourPlayers() throws Exception {
-        check(ShotRig.shoot("bowling_turn_4p", new BowlingScene(env()), Scene.SceneArgs.of("level", 1, "players", 4), 1,
+        check(ShotRig.shoot("bowling_turn_4p", newBowling(), Scene.SceneArgs.of("level", 1, "players", 4), 1,
                 40, null));
     }
 
     /** Four players, every roll by the 12 s auto-roll: ends on the end screen. */
     @Test
     public void bowlingEndFourPlayers() throws Exception {
-        check(ShotRig.shoot("bowling_end_4p", new BowlingScene(env()), Scene.SceneArgs.of("level", 2, "players", 4), 1,
+        check(ShotRig.shoot("bowling_end_4p", newBowling(), Scene.SceneArgs.of("level", 2, "players", 4), 1,
                 60 * 60 * 18, null));
     }
 
     /** Picks "1 player" with the remote, waits out the intro, holds OK from frame 150 to 190, then lets go. */
     private void bowlingAt(String name, int level, int frames) throws Exception {
-        check(ShotRig.shoot(name, new BowlingScene(env()), Scene.SceneArgs.of("level", level), 1, frames,
+        check(ShotRig.shoot(name, newBowling(), Scene.SceneArgs.of("level", level), 1, frames,
                 (frame, now, body, input) -> {
                     int[] taps = {10, 25};
                     for (int t : taps) {
@@ -395,7 +409,7 @@ public class ScreenshotTest {
     /** Nobody rolls for 7 seconds: the swing demo grows and the hint shows. */
     @Test
     public void bowlingSwingHint() throws Exception {
-        check(ShotRig.shoot("bowling_swing_hint", new BowlingScene(env()), Scene.SceneArgs.of("level", 1), 1, 560,
+        check(ShotRig.shoot("bowling_swing_hint", newBowling(), Scene.SceneArgs.of("level", 1), 1, 560,
                 (frame, now, body, input) -> {
                     if (frame == 10) input.keyDown(KeyEvent.KEYCODE_DPAD_CENTER);
                     if (frame == 11) input.keyUp(KeyEvent.KEYCODE_DPAD_CENTER);

@@ -37,7 +37,18 @@ public final class BowlingScene implements Scene {
             "Player 4's turn!"};
     private static final String[] FRAME_TEXT = {"Frame 1", "Frame 2", "Frame 3", "Frame 4", "Frame 5"};
 
-    private static final int INTRO = 1, AIM = 2, ROLL = 3, RESULT = 4, END = 5;
+    private static final int INTRO = 1, AIM = 2, ROLL = 3, RESULT = 4, END = 5, RULES = 6;
+    private static final float RULES_AUTO_START = 20f;
+    /** The how-to-play screen shows before the first game of each app session (and from the end screen). */
+    private static boolean rulesSeen;
+
+    /**
+     * Tells the game whether the how-to-play screen was shown already this session (tests use this).
+     * @param seen true to skip it on the next game
+     */
+    public static void setRulesSeen(boolean seen) {
+        rulesSeen = seen;
+    }
     private static final float INTRO_SECONDS = 1.4f, RESULT_SECONDS = 2.0f;
     private static final float CHARGE_SECONDS = 1.2f, MIN_POWER = 0.3f, HINT_AFTER = 6f, AUTO_ROLL_AFTER = 12f;
 
@@ -55,7 +66,7 @@ public final class BowlingScene implements Scene {
 
     // aiming and charging
     private float aimX, sweepT, manualUntil, idle, chargeT;
-    private boolean charging;
+    private boolean charging, hintOn;
     // rolling
     private int rollPlayer, lastKnocks, resultKind, resultPins;
     private float rollSoundT;
@@ -112,7 +123,20 @@ public final class BowlingScene implements Scene {
         physics = new BowlingPhysics(level);
         for (int p = 0; p < 4; p++) buildScoreText(p);
         java.util.Arrays.fill(blife, 0f);
-        beginTurn();
+        if (!rulesSeen) showRules();
+        else beginTurn();
+    }
+
+    private void showRules() {
+        rulesSeen = true;
+        phase = RULES;
+        phaseT = 0f;
+        List<TileMenu.Tile> tiles = new ArrayList<>();
+        tiles.add(RoundButton.back());
+        tiles.add(new TileMenu.Tile("go", "Let's go!", null, Theme.MUSTARD, BowlingScene::paintPlay,
+                1530f, 230f, 330f, 400f));
+        menu.setTiles(tiles, "go");
+        env.say("Step to aim. Swing your arm back, then forward to roll!");
     }
 
     private void beginTurn() {
@@ -121,6 +145,7 @@ public final class BowlingScene implements Scene {
         charging = false;
         chargeT = 0f;
         idle = 0f;
+        hintOn = false;
         aimX = 0f;
         sweepT = 0f;
         flash = 0f;
@@ -149,6 +174,17 @@ public final class BowlingScene implements Scene {
             return;
         }
         switch (phase) {
+            case RULES: {
+                String sel = menu.update(dt, f);
+                if ("back".equals(sel)) {
+                    env.sfx("back");
+                    leave();
+                } else if ("go".equals(sel) || phaseT >= RULES_AUTO_START) {
+                    env.sfx("select");
+                    beginTurn();
+                }
+                break;
+            }
             case INTRO:
                 if (phaseT >= INTRO_SECONDS) {
                     phase = AIM;
@@ -216,10 +252,12 @@ public final class BowlingScene implements Scene {
                 return;
             }
             // an arm on its way up counts as trying (just standing with arms down does not)
+            // (it only delays the auto-roll; the hint, once shown, stays until the throw so nothing flickers)
             if (swing.state(0) == SwingDetect.RISING || swing.state(1) == SwingDetect.RISING) {
-                idle = Math.min(idle, HINT_AFTER - 0.01f);
+                idle = Math.min(idle, AUTO_ROLL_AFTER - 3f);
             }
         }
+        if (idle >= HINT_AFTER) hintOn = true;
         if (okPressed(in) && !charging) {
             charging = true;
             chargeT = 0f;
@@ -388,9 +426,11 @@ public final class BowlingScene implements Scene {
         List<TileMenu.Tile> tiles = new ArrayList<>();
         tiles.add(RoundButton.home());
         tiles.add(new TileMenu.Tile("again", "Play again", null, Theme.MUSTARD, BowlingScene::paintReplay,
-                1130f, 210f, 320f, 360f));
+                1130f, 200f, 320f, 320f));
         tiles.add(new TileMenu.Tile("who", "Players", null, 0xFF26215C, (c, w, h) -> BowlingArt.paintGroup(c, w, h, 4),
-                1490f, 210f, 320f, 360f));
+                1490f, 200f, 320f, 320f));
+        tiles.add(new TileMenu.Tile("rules", "How to play", null, 0xFF29D3FF, BowlingScene::paintHowIcon,
+                1130f, 560f, 680f, 170f));
         menu.setTiles(tiles, "again");
         endTitle = players == 1 ? "Great bowling!" : NAMES[score.leader()] + " wins!";
         env.sfx("cheer");
@@ -403,6 +443,10 @@ public final class BowlingScene implements Scene {
         env.sfx("select");
         if ("again".equals(sel)) startGame(players);
         else if ("who".equals(sel)) env.go("players", SceneArgs.of("gameId", GAME_ID));
+        else if ("rules".equals(sel)) {
+            rulesSeen = false;      // start over with the how-to-play screen first
+            startGame(players);
+        }
         else env.go("gameselect", SceneArgs.EMPTY);
     }
 
@@ -426,6 +470,11 @@ public final class BowlingScene implements Scene {
 
     @Override
     public void draw(Canvas c) {
+        if (phase == RULES) {
+            c.drawBitmap(BowlingArt.space(), 0f, 0f, null);
+            drawRules(c);
+            return;
+        }
         if (phase == END) {
             c.drawBitmap(BowlingArt.space(), 0f, 0f, null);
             drawEnd(c);
@@ -538,10 +587,10 @@ public final class BowlingScene implements Scene {
             paint.setColor(pw >= 1f ? 0xFFFF6EC7 : 0xFFFFD84D);
             rect.set(x0, y0, x0 + w * pw, y0 + 32f);
             c.drawRoundRect(rect, 16f, 16f, paint);
-        } else if (idle >= HINT_AFTER) {
+        } else if (hintOn) {
             Theme.drawBanner(c, "Swing your arm, or hold OK!", BowlingArt.CX, 1000f, 56f, 0xE0140B2E, 0xFFFFD84D);
         }
-        drawSwingDemo(c, idle >= HINT_AFTER ? 1.35f : 1f);
+        drawSwingDemo(c, hintOn ? 1.35f : 1f);
         drawBooth(c);
     }
 
@@ -555,30 +604,135 @@ public final class BowlingScene implements Scene {
         float cx = 250f, floor = 1010f, k = 1.7f * size;
         boolean ready = swing.ready();
         int col = ready ? 0xFFFFD84D : 0xFF29D3FF;
-        // the arm goes back (behind, low) then forward and up, 1.6 s a loop
-        float ph = (time % 1.6f) / 1.6f;
-        float ang = ph < 0.55f ? -40f - 30f * (float) Math.sin(ph / 0.55f * Math.PI)       // back and forth behind
-                : -40f + 150f * (float) Math.sin((ph - 0.55f) / 0.45f * Math.PI / 2f);      // forward and up
-        float hipY = floor - 90f * k, shY = hipY - 70f * k, headY = shY - 30f * k;
+        float headY = floor - 160f * k - 30f * k;
         Theme.drawCentered(c, ready ? "Now swing!" : "Swing!", cx, headY - 22f * k - 34f, 64f * size, col);
+        float ph = (time % 1.6f) / 1.6f;
+        stick(c, cx, floor, k, swingAngle(ph), col, BowlingArt.COLOURS[score.player()], ph < 0.92f, size);
+    }
+
+    /** The demo arm angle through one swing loop: back and forth behind, then forward and up. */
+    private static float swingAngle(float ph) {
+        return ph < 0.55f ? -40f - 30f * (float) Math.sin(ph / 0.55f * Math.PI)
+                : -40f + 150f * (float) Math.sin((ph - 0.55f) / 0.45f * Math.PI / 2f);
+    }
+
+    /**
+     * A neon stick figure facing right with one bowling arm.
+     * @param ang arm angle in degrees, 0 hanging straight down, positive forward (to the right)
+     */
+    private void stick(Canvas c, float cx, float floor, float k, float ang, int col, int ballCol, boolean ball,
+                       float lineScale) {
+        float hipY = floor - 90f * k, shY = hipY - 70f * k, headY = shY - 30f * k;
         paint.setStyle(Paint.Style.STROKE);
         paint.setStrokeCap(Paint.Cap.ROUND);
-        paint.setStrokeWidth(9f * size);
+        paint.setStrokeWidth(9f * lineScale);
         paint.setColor(col);
         c.drawCircle(cx, headY, 22f * k, paint);
-        c.drawLine(cx, shY - 8f * k, cx, hipY, paint);                       // body
-        c.drawLine(cx, hipY, cx - 30f * k, floor, paint);                     // legs, one step forward
+        c.drawLine(cx, shY - 8f * k, cx, hipY, paint);
+        c.drawLine(cx, hipY, cx - 30f * k, floor, paint);
         c.drawLine(cx, hipY, cx + 34f * k, floor, paint);
-        c.drawLine(cx, shY, cx - 20f * k, shY + 60f * k, paint);              // the other arm
-        double r = Math.toRadians(ang);                                       // 0 = straight down, + = forward (right)
+        c.drawLine(cx, shY, cx - 20f * k, shY + 60f * k, paint);
+        double r = Math.toRadians(ang);
         float hx = cx + (float) Math.sin(r) * 80f * k, hy = shY + (float) Math.cos(r) * 80f * k;
         c.drawLine(cx, shY, hx, hy, paint);
         paint.setStyle(Paint.Style.FILL);
         paint.setStrokeCap(Paint.Cap.BUTT);
-        if (ph < 0.92f) {                                                     // the ball in the hand
-            paint.setColor(BowlingArt.COLOURS[score.player()]);
+        if (ball) {
+            paint.setColor(ballCol);
             c.drawCircle(hx, hy + 10f * k, 16f * k, paint);
         }
+    }
+
+    // ---- how to play ----
+
+    private static final float RW = 440f, RH = 470f, RGAP = 30f, RX = 70f, RY = 230f;
+
+    /** Three moving pictures: step to aim, arm back, swing forward. Plus the remote way, in one line. */
+    private void drawRules(Canvas c) {
+        Theme.drawCentered(c, "How to play", 820f, 140f, 84f, 0xFFFFFFFF);
+        String[] words = {"Step to aim", "Arm down and back", "Swing up to roll!"};
+        for (int i = 0; i < 3; i++) {
+            float x = RX + i * (RW + RGAP), cx = x + RW / 2f;
+            paint.setColor(0xD026215C);
+            rect.set(x, RY, x + RW, RY + RH);
+            c.drawRoundRect(rect, 30f, 30f, paint);
+            paint.setColor(0xFFFFD84D);
+            c.drawCircle(x + 46f, RY + 46f, 30f, paint);
+            Theme.drawCentered(c, String.valueOf(i + 1), x + 46f, RY + 60f, 40f, 0xFF26215C);
+            float floor = RY + RH - 110f, k = 1.15f;
+            switch (i) {
+                case 0: {
+                    // the player steps left and right; the ball's spot on the lane follows
+                    float off = (float) Math.sin(time * 1.6f) * 90f;
+                    stick(c, cx + off, floor, k, 0f, 0xFF29D3FF, BowlingArt.COLOURS[0], true, 0.8f);
+                    paint.setColor(0x6629D3FF);
+                    rect.set(cx - 160f, floor + 24f, cx + 160f, floor + 44f);
+                    c.drawRoundRect(rect, 10f, 10f, paint);
+                    paint.setColor(0xFFFFD84D);
+                    tri.reset();
+                    tri.moveTo(cx + off, floor + 14f);
+                    tri.lineTo(cx + off - 16f, floor + 40f);
+                    tri.lineTo(cx + off + 16f, floor + 40f);
+                    tri.close();
+                    c.drawPath(tri, paint);
+                    break;
+                }
+                case 1: {
+                    float ang = -40f - 25f * (float) Math.sin(time * 3f);
+                    boolean glow = ((int) (time * 2f)) % 2 == 0;
+                    stick(c, cx - 20f, floor, k, ang, glow ? 0xFFFFD84D : 0xFF29D3FF, BowlingArt.COLOURS[0], true, 0.8f);
+                    break;
+                }
+                default: {
+                    float ph = (time % 1.6f) / 1.6f;
+                    float ang = ph < 0.4f ? -60f + 170f * ph / 0.4f : 110f;
+                    stick(c, cx - 70f, floor, k, ang, 0xFF29D3FF, BowlingArt.COLOURS[0], ph < 0.4f, 0.8f);
+                    if (ph >= 0.4f) {                 // the ball rolls off and shrinks into the distance
+                        float q = (ph - 0.4f) / 0.6f;
+                        paint.setColor(BowlingArt.COLOURS[0]);
+                        c.drawCircle(cx - 10f + q * 170f, floor - 8f - q * 40f, 18f * (1f - q * 0.6f), paint);
+                    }
+                    break;
+                }
+            }
+            Theme.drawCentered(c, words[i], cx, RY + RH - 36f, 44f, 0xFFFFFFFF);
+        }
+        Theme.drawCentered(c, "A faster swing makes a faster ball.", 760f, RY + RH + 90f, 46f, 0xFFCECBF6);
+        Theme.drawCentered(c, "No camera? Hold OK, then let go.", 760f, RY + RH + 150f, 46f, 0xFFCECBF6);
+        menu.draw(c);
+        int left = Math.max(1, (int) Math.ceil(RULES_AUTO_START - phaseT));
+        paint.setColor(0xFF26215C);
+        c.drawCircle(1820f, 270f, 40f, paint);
+        Theme.drawCentered(c, String.valueOf(left), 1820f, 288f, 50f, 0xFFFFFFFF);
+    }
+
+    /** "Let's go!": a play triangle. */
+    private static void paintPlay(Canvas c, int w, int h) {
+        Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
+        p.setColor(0xFF2C2340);
+        android.graphics.Path t = new android.graphics.Path();
+        t.moveTo(w * 0.34f, h * 0.24f);
+        t.lineTo(w * 0.78f, h * 0.5f);
+        t.lineTo(w * 0.34f, h * 0.76f);
+        t.close();
+        c.drawPath(t, p);
+    }
+
+    /** "How to play": a little stick figure with its arm forward. */
+    private static void paintHowIcon(Canvas c, int w, int h) {
+        Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
+        p.setStyle(Paint.Style.STROKE);
+        p.setStrokeCap(Paint.Cap.ROUND);
+        p.setStrokeWidth(w * 0.06f);
+        p.setColor(0xFF0E0725);
+        float cx = w * 0.45f;
+        c.drawCircle(cx, h * 0.2f, w * 0.1f, p);
+        c.drawLine(cx, h * 0.3f, cx, h * 0.62f, p);
+        c.drawLine(cx, h * 0.62f, cx - w * 0.14f, h * 0.9f, p);
+        c.drawLine(cx, h * 0.62f, cx + w * 0.16f, h * 0.9f, p);
+        c.drawLine(cx, h * 0.38f, cx + w * 0.3f, h * 0.3f, p);
+        p.setStyle(Paint.Style.FILL);
+        c.drawCircle(cx + w * 0.34f, h * 0.27f, w * 0.08f, p);
     }
 
     /** The player's own camera picture in a small neon "TV booth" in the top-right corner, mirrored like a mirror. */
