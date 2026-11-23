@@ -5,6 +5,8 @@ import android.graphics.Color;
 import android.graphics.Paint;
 import android.os.Debug;
 
+import com.wiggleplay.app.gl.GlStats;
+
 /**
  * The little performance readout in the top-left corner: draw fps (1 second average), worst frame time
  * (5 second window), AI fps and the quality level. the owner photographs it on the TV.
@@ -33,6 +35,27 @@ public final class PerfOverlay {
 
     // a short line a game can set for tuning (e.g. the bowling swing); set only when it changes
     private String note = "";
+
+    // the 3D view's speed line, shown only while the GL view is visible
+    private GlStats glStats;
+    private boolean glVisible = false;
+    private String glText = "";
+
+    /**
+     * Gives the overlay the GL view's speed numbers (shown as a line while the GL view is visible).
+     * @param stats the GL stats, or null
+     */
+    public void setGlStats(GlStats stats) {
+        glStats = stats;
+    }
+
+    /**
+     * Tells the overlay whether the GL view is showing (the {@link GameView} calls this).
+     * @param visible true while a 3D scene is current
+     */
+    public void setGlVisible(boolean visible) {
+        glVisible = visible;
+    }
 
     /**
      * Shows a short line under the others (pass "" to remove it). Build the text only when something changes.
@@ -214,6 +237,15 @@ public final class PerfOverlay {
             else sb.append("lock off");
             sb.append("  rejected ").append(lockRejected);
             lockText = sb.toString();
+            if (glVisible && glStats != null) {
+                sb.setLength(0);
+                sb.append("gl ").append((int) (glStats.fps() + 0.5f)).append(" fps, ")
+                        .append((int) (glStats.ms() + 0.5f)).append(" ms, tris ")
+                        .append((glStats.triangles() + 500) / 1000).append("k, draws ").append(glStats.draws());
+                String cfg = glStats.config();
+                if (cfg.startsWith("FALLBACK")) sb.append("  ").append(cfg);
+                glText = sb.toString();
+            }
             boolean fresh = dbgNs != 0 && System.nanoTime() - dbgNs < 300_000_000L;
             if (fresh) {
                 sb.setLength(0);
@@ -227,13 +259,22 @@ public final class PerfOverlay {
         }
         boolean line2 = pointerText.length() > 0;
         boolean line3 = note.length() > 0;
-        float bottom = (line2 ? 184f : 140f) + (line3 ? 44f : 0f);
+        boolean line4 = glVisible && glStats != null && glText.length() > 0;
+        float bottom = 140f + (line2 ? 44f : 0f) + (line3 ? 44f : 0f) + (line4 ? 44f : 0f);
         c.drawRect(0f, 0f, 1900f, bottom, panelPaint);
         c.drawText(text, 16f, 38f, textPaint);
         c.drawText(timingText, 16f, 82f, textPaint);
         c.drawText(lockText, 16f, 126f, textPaint);
-        if (line2) c.drawText(pointerText, 16f, 170f, textPaint);
-        if (line3) c.drawText(note, 16f, line2 ? 214f : 170f, textPaint);
+        float y = 170f;
+        if (line2) {
+            c.drawText(pointerText, 16f, y, textPaint);
+            y += 44f;
+        }
+        if (line3) {
+            c.drawText(note, 16f, y, textPaint);
+            y += 44f;
+        }
+        if (line4) c.drawText(glText, 16f, y, textPaint);
     }
 
     /** One decimal place without allocating a formatter (appends into the shared builder via a tiny string). */

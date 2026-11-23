@@ -38,6 +38,15 @@ public interface Scene {
      */
     void draw(Canvas c);
 
+    /**
+     * Whether this scene draws a 3D world with OpenGL under the Canvas. When true, the {@link GameView} shows the
+     * GL view and leaves the stage transparent, so the scene must not paint an opaque full-screen background.
+     * @return true for a 3D scene; false (the default) for every ordinary screen
+     */
+    default boolean world3d() {
+        return false;
+    }
+
     /** Everything a scene needs to know about the current frame. */
     final class Frame {
         /** The newest pose, copied once per frame (stage pixels, mirrored). */

@@ -202,6 +202,11 @@ public final class SettingsOverlay {
             inner.draw(c);
             SettingsOverlay.this.draw(c);
         }
+
+        @Override
+        public boolean world3d() {
+            return inner.world3d();
+        }
     }
 
     private static final Paint CAM_PAINT = new Paint(Paint.ANTI_ALIAS_FLAG);

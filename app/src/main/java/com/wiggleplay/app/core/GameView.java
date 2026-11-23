@@ -2,11 +2,11 @@ package com.wiggleplay.app.core;
 
 import android.content.Context;
 import android.graphics.Canvas;
-import android.graphics.Color;
 import android.os.SystemClock;
 import android.view.MotionEvent;
 import android.view.View;
 
+import com.wiggleplay.app.gl.RaceGlView;
 import com.wiggleplay.app.pose.PoseHub;
 
 /**
@@ -41,6 +41,17 @@ public final class GameView extends View {
     private long lastNanos = 0;
     private int slowSeconds = 0;
 
+    private RaceGlView gl;
+    private boolean glWanted = false;
+    private final Runnable applyGl = new Runnable() {
+        @Override
+        public void run() {
+            if (gl == null) return;
+            if (glWanted) gl.show();
+            else gl.hide();
+        }
+    };
+
     /**
      * Creates the view.
      * @param context any context
@@ -53,8 +64,20 @@ public final class GameView extends View {
         this.hub = hub;
         this.scenes = scenes;
         this.perf = perf;
-        setBackgroundColor(Color.BLACK);
+        // No background of its own: the black letterbox comes from the activity's root layout, so the GL view
+        // underneath shows through while a 3D scene is current.
         setFocusable(true);
+    }
+
+    /**
+     * Connects the GL view that sits under this view. It is shown while the current scene returns
+     * {@link Scene#world3d()} true and hidden otherwise.
+     * @param view the GL view (may be null to disconnect)
+     */
+    public void setGlView(RaceGlView view) {
+        gl = view;
+        glWanted = false;
+        perf.setGlVisible(false);
     }
 
     /**
@@ -103,6 +126,13 @@ public final class GameView extends View {
         float dt = lastNanos == 0 ? 0f : Math.min(0.05f, (nowN - lastNanos) / 1_000_000_000f);
         lastNanos = nowN;
         if (perf.onFrame(nowN)) checkQuality(perf.fps());
+
+        boolean want = gl != null && scenes.world3d();
+        if (want != glWanted) { // switch the GL view on the next message-loop turn, not in the middle of a draw
+            glWanted = want;
+            perf.setGlVisible(want);
+            post(applyGl);
+        }
 
         frame.nowMs = SystemClock.uptimeMillis();
         hub.latest(frame.pose);

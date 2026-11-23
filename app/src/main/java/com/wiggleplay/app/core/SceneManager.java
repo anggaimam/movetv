@@ -68,6 +68,14 @@ public final class SceneManager {
     }
 
     /**
+     * Whether the current scene draws a 3D world (see {@link Scene#world3d()}).
+     * @return true if the GL view should be showing
+     */
+    public boolean world3d() {
+        return current != null && current.world3d();
+    }
+
+    /**
      * Name of the scene that is current (the new one once the swap has happened).
      * @return the name, or null before the first {@link #go}
      */

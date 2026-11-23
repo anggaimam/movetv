@@ -10,7 +10,10 @@ import android.os.SystemClock;
 import android.view.Choreographer;
 import android.view.KeyEvent;
 import android.view.MotionEvent;
+import android.view.Gravity;
+import android.view.ViewGroup;
 import android.view.WindowManager;
+import android.widget.FrameLayout;
 
 import com.wiggleplay.app.audio.Music;
 import com.wiggleplay.app.audio.Sfx;
@@ -25,6 +28,7 @@ import com.wiggleplay.app.core.SpriteCache;
 import com.wiggleplay.app.debug.DebugPoseView;
 import com.wiggleplay.app.games.GameRegistry;
 import com.wiggleplay.app.games.fruit.FruitScene;
+import com.wiggleplay.app.gl.RaceGlView;
 import com.wiggleplay.app.pose.PoseFrame;
 import com.wiggleplay.app.pose.PoseHub;
 import com.wiggleplay.app.scenes.AttractScene;
@@ -61,6 +65,8 @@ public class MainActivity extends Activity {
     private static final long LONG_PRESS_MS = 2000;
 
     private GameView gameView;
+    private RaceGlView raceGl;
+    private FrameLayout root;
     private DebugPoseView debugView;
     private boolean debugMode = false;
     private PoseHub hub;
@@ -163,15 +169,27 @@ public class MainActivity extends Activity {
         // the sound and speed test keeps its own quick keys, so it is not wrapped
         scenes.register("demo", new DemoScene(perf, sfx, music));
         gameView = new GameView(this, hub, scenes, perf);
+        // The 3D view sits under the game screen (hidden until a 3D scene is current); the root is black, which
+        // makes the letterbox bars.
+        raceGl = new RaceGlView(this);
+        perf.setGlStats(raceGl.stats());
+        gameView.setGlView(raceGl);
+        root = new FrameLayout(this);
+        root.setBackgroundColor(android.graphics.Color.BLACK);
+        root.addView(raceGl, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT, Gravity.CENTER));
+        root.addView(gameView, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT));
         debugView = new DebugPoseView(this);
         hub.setStatusListener(debugView::setStatus);
-        setContentView(gameView);
+        setContentView(root);
         scenes.go("attract", Scene.SceneArgs.EMPTY);
     }
 
     @Override
     protected void onResume() {
         super.onResume();
+        raceGl.onResume();
         // Always start the hub: without the camera permission it runs in test mode until the permission is granted.
         hub.start(this);
         if (!savedApplied) { // the light boost lives in the camera engine, which exists once the hub has started
@@ -191,6 +209,7 @@ public class MainActivity extends Activity {
         ticking = false;
         music.stop(0);
         hub.stop(); // releases the webcam so Zoom etc. can use it
+        raceGl.onPause();
         super.onPause();
     }
 
@@ -239,7 +258,7 @@ public class MainActivity extends Activity {
             startTicker();
         } else {
             ticking = false;
-            setContentView(gameView);
+            setContentView(root);
         }
     }
 
