@@ -40,6 +40,17 @@ public final class ShotRig {
      */
     public static File shoot(String name, Scene scene, Scene.SceneArgs args, int players, int frames, Script script)
             throws IOException {
+        return shoot(name, scene, args, players, frames, script, false);
+    }
+
+    /**
+     * Like {@link #shoot(String, Scene, Scene.SceneArgs, int, int, Script)}; with {@code drawEveryFrame} the scene is
+     * also drawn after every update, so pictures that animate from the draw calls (live tile pictures) move.
+     * @param drawEveryFrame true to draw each frame
+     * @return the saved file
+     */
+    public static File shoot(String name, Scene scene, Scene.SceneArgs args, int players, int frames, Script script,
+                             boolean drawEveryFrame) throws IOException {
         TestPoseSource body = new TestPoseSource();
         body.setPlayers(players);
         Input input = new Input();
@@ -55,6 +66,11 @@ public final class ShotRig {
             if (script != null) script.step(i, now, body, input);
             body.sample(now, f.pose);
             scene.update(DT, f);
+            if (drawEveryFrame) {
+                Canvas dc = new Canvas(Bitmap.createBitmap(OUT_W / 4, OUT_H / 4, Bitmap.Config.ARGB_8888));
+                dc.scale(OUT_W / 4f / 1920f, OUT_H / 4f / 1080f);
+                scene.draw(dc);
+            }
         }
         Bitmap bmp = Bitmap.createBitmap(OUT_W, OUT_H, Bitmap.Config.ARGB_8888);
         Canvas c = new Canvas(bmp);

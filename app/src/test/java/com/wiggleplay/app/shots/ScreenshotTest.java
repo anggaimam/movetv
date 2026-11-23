@@ -143,7 +143,7 @@ public class ScreenshotTest {
                     if (frame == 62) input.touch(Input.TOUCH_UP, 1800f, 600f);
                     if (frame == 70) input.touch(Input.TOUCH_DOWN, 960f, 560f);
                     if (frame == 71) input.touch(Input.TOUCH_MOVE, 960f, 560f);
-                }));
+                }, true));
     }
 
     @Test
