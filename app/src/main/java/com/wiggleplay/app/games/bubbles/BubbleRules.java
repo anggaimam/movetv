@@ -108,23 +108,23 @@ final class BubbleRules implements Hud.RulesPainter {
 
     private void colours(Canvas c, float cx) {
         float lt = t % LOOP;
-        swim(c, cx - 70f, TOP + 120f, cx - 190f, BubbleLogic.BLUE, BubbleArt.FIN_BLUE, 0.2f, lt, true);
-        swim(c, cx + 70f, TOP + 240f, cx + 190f, BubbleLogic.RED, BubbleArt.FIN_RED, 1.3f, lt, false);
+        swim(c, cx - 20f, TOP + 110f, cx - 150f, BubbleLogic.BLUE, BubbleArt.FIN_BLUE, 0.2f, lt, true);
+        swim(c, cx + 20f, TOP + 240f, cx + 150f, BubbleLogic.RED, BubbleArt.FIN_RED, 1.3f, lt, false);
     }
 
     private void special(Canvas c, float cx) {
         float lt = t % LOOP;
-        BubbleArt.drawBubble(c, BubbleLogic.GOLD, cx - 90f, TOP + 110f, 56f, 1f, t);
-        Theme.drawCentered(c, "+5", cx + 40f, TOP + 128f, 52f, 0xFFE0A100);
-        BubbleArt.drawBubble(c, BubbleLogic.BOTH, cx - 90f, TOP + 220f, 56f, 1f, t);
+        BubbleArt.drawBubble(c, BubbleLogic.GOLD, cx - 100f, TOP + 85f, 50f, 1f, t);
+        Theme.drawCentered(c, "+5", cx + 60f, TOP + 103f, 52f, 0xFFE0A100);
+        BubbleArt.drawBubble(c, BubbleLogic.BOTH, cx - 100f, TOP + 185f, 50f, 1f, t);
         float k = (float) (0.5 + 0.5 * Math.sin(lt * 3.2f));
-        BubbleArt.drawFish(c, cx + 10f + 20f * k, TOP + 205f, false, Theme.P1, BubbleArt.FIN_BLUE, t, 0.55f);
-        BubbleArt.drawFish(c, cx + 100f - 20f * k, TOP + 205f, true, Theme.P1, BubbleArt.FIN_RED, t, 0.55f);
-        BubbleArt.drawBubble(c, BubbleLogic.DECOY, cx - 90f, TOP + 300f, 36f, 1f, t);
+        BubbleArt.drawFish(c, cx - 10f + 20f * k, TOP + 185f, false, Theme.P1, BubbleArt.FIN_BLUE, t, 0.55f);
+        BubbleArt.drawFish(c, cx + 110f - 20f * k, TOP + 185f, true, Theme.P1, BubbleArt.FIN_RED, t, 0.55f);
+        BubbleArt.drawBubble(c, BubbleLogic.DECOY, cx - 100f, TOP + 285f, 30f, 1f, t);
         // "not this": a red ring with a bar over a small fish
         line.setColor(0xFFD64545);
         line.setStrokeWidth(9f);
-        c.drawCircle(cx - 90f, TOP + 300f, 50f, line);
-        c.drawLine(cx - 125f, TOP + 335f, cx - 55f, TOP + 265f, line);
+        c.drawCircle(cx - 100f, TOP + 285f, 42f, line);
+        c.drawLine(cx - 130f, TOP + 315f, cx - 70f, TOP + 255f, line);
     }
 }
