@@ -43,7 +43,7 @@ android {
     }
 
     androidResources {
-        noCompress 'tflite'
+        noCompress 'tflite', 'ogg', 'mesh'
     }
 
     packaging {

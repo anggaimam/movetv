@@ -1,0 +1,222 @@
+[
+ {
+  "bounds": {
+   "max": [
+    0.75,
+    1.55,
+    1.4
+   ],
+   "min": [
+    -0.75,
+    -0.0,
+    -1.4
+   ]
+  },
+  "doubleSided": true,
+  "name": "vehicle-truck-yellow",
+  "parts": [
+   "underside",
+   "wheel-back-left",
+   "wheel-back-right",
+   "wheel-front-left",
+   "wheel-front-right",
+   "body"
+  ],
+  "triangles": 989
+ },
+ {
+  "bounds": {
+   "max": [
+    0.75,
+    1.3,
+    1.4
+   ],
+   "min": [
+    -0.75,
+    -0.0,
+    -1.4
+   ]
+  },
+  "doubleSided": true,
+  "name": "vehicle-truck-red",
+  "parts": [
+   "underside",
+   "wheel-back-left",
+   "wheel-back-right",
+   "wheel-front-left",
+   "wheel-front-right",
+   "body"
+  ],
+  "triangles": 946
+ },
+ {
+  "bounds": {
+   "max": [
+    0.75,
+    1.4,
+    1.5
+   ],
+   "min": [
+    -0.75,
+    -0.0,
+    -1.4029
+   ]
+  },
+  "doubleSided": true,
+  "name": "vehicle-truck-green",
+  "parts": [
+   "underside",
+   "wheel-back-left",
+   "body",
+   "wheel-back-right",
+   "wheel-front-left",
+   "wheel-front-right"
+  ],
+  "triangles": 1104
+ },
+ {
+  "bounds": {
+   "max": [
+    0.75,
+    1.3,
+    1.4
+   ],
+   "min": [
+    -0.75,
+    -0.0,
+    -1.4
+   ]
+  },
+  "doubleSided": true,
+  "name": "vehicle-truck-purple",
+  "parts": [
+   "underside",
+   "wheel-back-left",
+   "wheel-back-right",
+   "wheel-front-left",
+   "wheel-front-right",
+   "body"
+  ],
+  "triangles": 814
+ },
+ {
+  "bounds": {
+   "max": [
+    5.0,
+    0.75,
+    5.0
+   ],
+   "min": [
+    -5.0,
+    0.0,
+    -5.0
+   ]
+  },
+  "doubleSided": true,
+  "name": "track-straight",
+  "parts": [
+   "track-straight"
+  ],
+  "triangles": 106
+ },
+ {
+  "bounds": {
+   "max": [
+    5.0562,
+    4.9384,
+    5.0
+   ],
+   "min": [
+    -5.0,
+    -0.0,
+    -5.0
+   ]
+  },
+  "doubleSided": true,
+  "name": "track-corner",
+  "parts": [
+   "track-corner"
+  ],
+  "triangles": 1136
+ },
+ {
+  "bounds": {
+   "max": [
+    7.0173,
+    7.0173,
+    5.0
+   ],
+   "min": [
+    -7.0173,
+    0.0,
+    -5.0
+   ]
+  },
+  "doubleSided": true,
+  "name": "track-finish",
+  "parts": [
+   "track-finish"
+  ],
+  "triangles": 274
+ },
+ {
+  "bounds": {
+   "max": [
+    5.0,
+    5.3294,
+    5.0
+   ],
+   "min": [
+    -5.0,
+    -0.0,
+    -5.0
+   ]
+  },
+  "doubleSided": true,
+  "name": "decoration-forest",
+  "parts": [
+   "decoration-forest"
+  ],
+  "triangles": 2006
+ },
+ {
+  "bounds": {
+   "max": [
+    5.0,
+    4.2001,
+    5.0
+   ],
+   "min": [
+    -5.0,
+    -0.0,
+    -5.0
+   ]
+  },
+  "doubleSided": true,
+  "name": "decoration-tents",
+  "parts": [
+   "decoration-tents"
+  ],
+  "triangles": 1900
+ },
+ {
+  "bounds": {
+   "max": [
+    5.0,
+    4.9384,
+    5.0
+   ],
+   "min": [
+    -5.1636,
+    0.0,
+    -5.0
+   ]
+  },
+  "doubleSided": true,
+  "name": "decoration-empty",
+  "parts": [
+   "decoration-empty"
+  ],
+  "triangles": 596
+ }
+]
