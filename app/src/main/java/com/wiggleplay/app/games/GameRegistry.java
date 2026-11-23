@@ -41,6 +41,9 @@ public final class GameRegistry {
         GameInfo bubbles = new GameInfo("bubbles", "Bubble Burst", 0xFF2A93B8, com.wiggleplay.app.games.bubbles.BubbleArt::cover, "bubbles", 1, 2, false);
         bubbles.live = com.wiggleplay.app.games.bubbles.BubbleArt.LIVE;
         g.add(bubbles);
+        // T-19: temporary speed test for the 3D race (removed in T-22, which adds the real game)
+        g.add(new GameInfo("racetest", "Race test", Theme.MUSTARD, com.wiggleplay.app.games.race.RaceTestScene::cover,
+                "racetest", 1, 2, false));
         GAMES = Collections.unmodifiableList(g);
     }
 
