@@ -139,7 +139,7 @@ public class BowlingPhysicsTest {
 
     @Test
     public void theSameRollGivesTheSameResult() {
-        BowlingPhysics a = new BowlingPhysics(2), b = new BowlingPhysics(2);
+        BowlingPhysics a = new BowlingPhysics(2, new java.util.Random(7)), b = new BowlingPhysics(2, new java.util.Random(7));
         a.roll(0.1f, 0f, 0.8f, 0.3f);
         b.roll(0.1f, 0f, 0.8f, 0.3f);
         assertEquals(a.runToEnd(10f), b.runToEnd(10f));
@@ -151,7 +151,7 @@ public class BowlingPhysicsTest {
 
     @Test
     public void spinCurvesTheBall() {
-        BowlingPhysics a = new BowlingPhysics(2), b = new BowlingPhysics(2);
+        BowlingPhysics a = new BowlingPhysics(3), b = new BowlingPhysics(3);
         a.roll(0f, 0f, 0.7f, 0f);
         b.roll(0f, 0f, 0.7f, 1f);
         for (int i = 0; i < 120; i++) {
