@@ -174,8 +174,8 @@ public class MainActivity extends Activity {
         raceGl = new RaceGlView(this);
         perf.setGlStats(raceGl.stats());
         gameView.setGlView(raceGl);
-        // the race speed test needs the GL view, which is made after the other scenes (T-19, temporary)
-        scenes.register("racetest", settings.host(new com.wiggleplay.app.games.race.RaceTestScene(env, raceGl)));
+        // the race needs the GL view, which is made after the other scenes
+        scenes.register("race", settings.host(new com.wiggleplay.app.games.race.RaceScene(env, raceGl)));
         root = new FrameLayout(this);
         root.setBackgroundColor(android.graphics.Color.BLACK);
         root.addView(raceGl, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,

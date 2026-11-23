@@ -60,6 +60,7 @@ public final class RaceLogic {
     private final float[][] slotS = new float[2][], slotX = new float[2][], slotZ = new float[2][];
     private final int[][] slotValue = new int[2][];
     private final boolean[][] resolved = new boolean[2][];
+    private final boolean[][] slotCorner = new boolean[2][];
     private final int[] scan = new int[2];
 
     private float time;
@@ -92,6 +93,7 @@ public final class RaceLogic {
         int n = sl.count + 1;
         float[] s = new float[n], off = new float[n];
         int[] val = new int[n];
+        boolean[] cor = new boolean[n];
         int k = 0;
         boolean starIn = false;
         for (int i = 0; i <= sl.count; i++) {
@@ -105,12 +107,14 @@ public final class RaceLogic {
             if (i < sl.count) {
                 s[k] = sl.s[i];
                 off[k] = sl.offset[i];
+                cor[k] = sl.corner[i];
                 val[k] = COIN_VALUE;
                 k++;
             }
         }
         slotS[p] = s;
         slotValue[p] = val;
+        slotCorner[p] = cor;
         slotX[p] = new float[n];
         slotZ[p] = new float[n];
         resolved[p] = new boolean[n];
@@ -435,6 +439,14 @@ public final class RaceLogic {
      * @return true for the star
      */
     public boolean slotIsStar(int p, int i) { return slotValue[p][i] == STAR_VALUE; }
+
+    /**
+     * Whether a slot is a coin on a corner (tests use this).
+     * @param p player 0 or 1
+     * @param i slot index
+     * @return true for a corner coin
+     */
+    public boolean slotIsCorner(int p, int i) { return slotCorner[p][i]; }
 
     /**
      * Whether a slot is already collected or passed this lap (so it is not drawn).

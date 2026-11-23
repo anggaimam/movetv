@@ -64,6 +64,7 @@ public final class Hud {
     private boolean menuReady;
     private float time;
     private RulesPainter rules;
+    private String endTitle = "Great job!";
     private float rulesMs;
     private static final float GO_X = 1370f, GO_Y = 40f, GO_W = 380f, GO_H = 250f;
     private static final float AUTO_START_MS = 5000f;
@@ -87,6 +88,14 @@ public final class Hud {
      */
     public void setRules(RulesPainter painter) {
         rules = painter;
+    }
+
+    /**
+     * Sets the title of the end screen (default "Great job!").
+     * @param title the text
+     */
+    public void setEndTitle(String title) {
+        endTitle = title == null ? "Great job!" : title;
     }
 
     /** Shows the "how to play" screen with an OK button at the top right (it starts by itself after 5 seconds) (the game starts a round when it returns "go"). */
@@ -325,7 +334,7 @@ public final class Hud {
     private void drawEnd(Canvas c) {
         FILL.setColor(0x99F3EBDD);
         c.drawRect(0f, 0f, Stage.W, Stage.H, FILL);
-        Theme.drawBanner(c, "Great job!", Stage.W / 2f, 190f, 96f, 0xE6F3EBDD, Theme.INK);
+        Theme.drawBanner(c, endTitle, Stage.W / 2f, 190f, 96f, 0xE6F3EBDD, Theme.INK);
         float count = Math.min(1f, Math.max(0f, (endAnim - 0.3f) / 1.4f));
         count = 1f - (1f - count) * (1f - count); // the score counts up and slows down at the end
         for (int p = 0; p < players; p++) {

@@ -50,6 +50,8 @@ public final class TrackLayout {
         public final float[] s;
         /** Offset from the centre line of each coin (positive = right). */
         public final float[] offset;
+        /** True for the coins on a corner (the others are on straights). */
+        public final boolean[] corner;
         /** Number of coins. */
         public final int count;
         /** Distance along the centre line of the golden star (one per lap, at a corner apex). */
@@ -57,9 +59,10 @@ public final class TrackLayout {
         /** Offset of the golden star. */
         public final float starOffset;
 
-        Slots(float[] s, float[] offset, int count, float starS, float starOffset) {
+        Slots(float[] s, float[] offset, boolean[] corner, int count, float starS, float starOffset) {
             this.s = s;
             this.offset = offset;
+            this.corner = corner;
             this.count = count;
             this.starS = starS;
             this.starOffset = starOffset;
@@ -553,8 +556,8 @@ public final class TrackLayout {
     /**
      * Coin and star positions for one lap. Every straight tile (the finish tile has none) gets a line of 5 coins
      * 1.6 apart at a lateral offset of -2.5, 0 or +2.5 that is never the same as the previous straight tile's
-     * (also not across the lap wrap); every corner gets 3 coins on the inside line (offset 1.5 toward the corner
-     * centre). One golden star sits on the centre line at the apex of a random corner.
+     * (also not across the lap wrap); every corner gets 3 coins on the OUTSIDE line (offset 1.5 away from the corner
+     * centre, radius 6.5, T-22). One golden star sits on the centre line at the apex of a random corner.
      * @param seed the random seed (the same seed gives the same slots)
      * @return the slots, sorted by distance along the lap
      */
@@ -568,6 +571,7 @@ public final class TrackLayout {
         }
         float[] cs = new float[straights * 5 + cornerTiles * 3];
         float[] co = new float[cs.length];
+        boolean[] cor = new boolean[cs.length];
         int count = 0;
         final float[] lanes = {-2.5f, 0f, 2.5f};
         int prev = -1, first = -1, seenStraights = 0;
@@ -591,16 +595,19 @@ public final class TrackLayout {
                 }
             } else {
                 cornerIdx.add(i);
-                float inside = tileRight[i] ? 1.5f : -1.5f;
+                // T-22: on the OUTSIDE of the turn (radius 6.5, away from the corner centre), where a truck
+                // that cannot turn tighter than radius ~6.8 naturally drives
+                float outside = tileRight[i] ? -1.5f : 1.5f;
                 for (int k = 1; k <= 3; k++) {
                     cs[count] = s0 + ARC_LEN * k / 4f;
-                    co[count] = inside;
+                    co[count] = outside;
+                    cor[count] = true;
                     count++;
                 }
             }
         }
         float starS = 0f;
         if (!cornerIdx.isEmpty()) starS = tileS0[cornerIdx.get(rnd.nextInt(cornerIdx.size()))] + ARC_LEN / 2f;
-        return new Slots(cs, co, count, starS, 0f);
+        return new Slots(cs, co, cor, count, starS, 0f);
     }
 }

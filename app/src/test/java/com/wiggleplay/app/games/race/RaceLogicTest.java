@@ -161,4 +161,46 @@ public class RaceLogicTest {
         assertEquals(2, r.place(1));
         assertTrue(r.time() <= r.finishTime(0) + RaceLogic.GRACE_SECONDS + 0.1f || r.time() >= RaceLogic.SAFETY_SECONDS);
     }
+
+    /** Corner coins reached (within the pickup radius) in the first lap by a pure-pursuit driver with this lookahead. */
+    private static int[] cornerCoinsReached(int lv, float look) {
+        TrackLayout t = TrackMaps.forLevel(lv);
+        RaceLogic r = new RaceLogic(t, RaceLevel.fromNumber(lv + 1), 1, 42L);
+        int n = r.slotCount(0);
+        float[] best = new float[n];
+        java.util.Arrays.fill(best, 1e9f);
+        for (int i = 0; i < 150 * 60 && r.lapsDone(0) < 1; i++) {
+            r.setControls(0, autoSteer(r, t, 0, look), false);
+            r.update(DT);
+            CarModel c = r.car(0);
+            for (int k = 0; k < n; k++) {
+                if (!r.slotIsCorner(0, k)) continue;
+                float d = (float) Math.hypot(r.slotX(0, k) - c.x(), r.slotZ(0, k) - c.z());
+                if (d < best[k]) best[k] = d;
+            }
+        }
+        int corner = 0, got = 0;
+        for (int k = 0; k < n; k++) {
+            if (!r.slotIsCorner(0, k)) continue;
+            corner++;
+            if (best[k] <= RaceLogic.PICKUP_RADIUS) got++;
+        }
+        return new int[] {got, corner};
+    }
+
+    /**
+     * T-22: with the corner coins on the outside, a driver that follows the centre line (lookahead 2.5) reaches at
+     * least 2 of every 3. The T-21 driver (lookahead 7) cuts the corners on the inside and reaches none; its numbers
+     * are printed for the report, not asserted.
+     */
+    @Test public void centreLineDriverPicksUpMostCornerCoins() {
+        for (int lv = 0; lv < 3; lv++) {
+            int[] near = cornerCoinsReached(lv, 2.5f), far = cornerCoinsReached(lv, 7f);
+            float[] res = drive(lv, 1, 42L, 2.5f);
+            System.out.println("level " + lv + ": corner coins reached " + near[0] + "/" + near[1]
+                    + " (lookahead 2.5; the T-21 driver, lookahead 7: " + far[0] + "/" + far[1] + "); full race score "
+                    + (int) res[3] + " of " + (int) res[4] + " offered, stars " + (int) res[5]);
+            assertTrue("level " + lv + " corner coins " + near[0] + "/" + near[1], near[0] * 3 >= near[1] * 2);
+        }
+    }
 }

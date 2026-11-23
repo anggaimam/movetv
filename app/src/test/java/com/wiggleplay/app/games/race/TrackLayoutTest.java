@@ -210,7 +210,7 @@ public class TrackLayoutTest {
             assertEquals(a.offset[i], b.offset[i], 0f);
         }
         assertEquals(a.starS, b.starS, 0f);
-        // star sits mid-corner; corner coins are on the inside
+        // star sits mid-corner; corner coins are on the outside (T-22)
         assertTrue(a.starS > 0f && a.starS < t.lapLength());
     }
 
@@ -220,7 +220,7 @@ public class TrackLayoutTest {
     }
 
     @Test
-    public void cornerCoinsAreOnTheInside() {
+    public void cornerCoinsAreOnTheOutside() {
         TrackLayout t = ring(); // all corners turn right (driving west then north... clockwise)
         TrackLayout.Slots sl = t.coinSlots(1L);
         TrackPoint tp = new TrackPoint();
@@ -229,7 +229,7 @@ public class TrackLayoutTest {
         for (int i = 0; i < sl.count; i++) {
             if (Math.abs(sl.offset[i]) != 1.5f) continue;
             cornerCoins++;
-            // inside means toward the arc centre: distance to arc centre is 5 - 1.5 from the corner point
+            // outside means away from the arc centre: radius 6.5 around it
             t.sample(sl.s[i], p);
             float rx = -(float) Math.cos(p[2]), rz = (float) Math.sin(p[2]);
             float cx = p[0] + rx * sl.offset[i], cz = p[1] + rz * sl.offset[i];
@@ -237,8 +237,17 @@ public class TrackLayoutTest {
             assertEquals(sl.offset[i], tp.offset, 0.1f);
         }
         assertEquals(12, cornerCoins);
-        // ring drives W then N: from the finish heading west, turning right is a right-hand corner (offset +1.5)
-        for (int i = 0; i < sl.count; i++) if (Math.abs(sl.offset[i]) == 1.5f) assertEquals(1.5f, sl.offset[i], 0f);
+        // the ring's corners all turn right, so the outside is the left of the line (offset -1.5)
+        for (int i = 0; i < sl.count; i++) if (Math.abs(sl.offset[i]) == 1.5f) assertEquals(-1.5f, sl.offset[i], 0f);
+        // and every corner coin is 6.5 from its corner's arc centre
+        for (int i = 0; i < sl.count; i++) {
+            if (Math.abs(sl.offset[i]) != 1.5f) continue;
+            t.sample(sl.s[i], p);
+            float rx = -(float) Math.cos(p[2]), rz = (float) Math.sin(p[2]);
+            float cx = p[0] + rx * sl.offset[i], cz = p[1] + rz * sl.offset[i];
+            t.project(cx, cz, -1, tp);
+            assertEquals(-1.5f, tp.offset, 0.1f);
+        }
     }
 
     private static final String[] DECOR_MAP = {

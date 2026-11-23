@@ -63,13 +63,13 @@ public final class Tracks {
         }
     }
 
-    private static final String[] NAMES = {"menu", "dance", "jungle", "sky", "fruit"};
+    private static final String[] NAMES = {"menu", "dance", "jungle", "sky", "fruit", "race"};
 
     private Tracks() { }
 
     /**
      * Names of all tracks.
-     * @return a new array: menu, dance, jungle, sky, fruit
+     * @return a new array: menu, dance, jungle, sky, fruit, race
      */
     public static String[] names() {
         return NAMES.clone();
@@ -88,6 +88,7 @@ public final class Tracks {
             case "jungle": return jungle();
             case "sky": return sky();
             case "fruit": return fruit();
+            case "race": return race();
             default: return null;
         }
     }
@@ -271,5 +272,31 @@ public final class Tracks {
             for (int[] m : mel[c]) b.bar(Inst.LEAD, bar, m[0], m[1], 2f, 0.6f);
         }
         return b.build("fruit", 116, 116, 116, 8);
+    }
+
+    /** 124 BPM, driving: a plucky bass on every eighth, claps, hats and a bright four-bar hook in A minor. */
+    private static Track race() {
+        B b = new B();
+        int[] roots = {45, 41, 48, 43};            // A, F, C, G
+        int[][] arp = {{57, 60, 64}, {53, 57, 60}, {60, 64, 67}, {55, 59, 62}};
+        b.drums(Inst.KICK, "x...x...x...x...", 36, 0.9f, 0, 8);
+        b.drums(Inst.CLAP, "....x.......x...", 40, 0.65f, 0, 8);
+        b.drums(Inst.HAT, "..x..x..x..x..x.", 42, 0.35f, 0, 8);
+        int[] bassSteps = {0, 2, 4, 6, 8, 10, 12, 14};
+        int[] arpSteps = {3, 7, 11, 15};
+        int[][] hook = {
+                {0, 0, 81, 2}, {0, 3, 81, 1}, {0, 4, 84, 2}, {0, 8, 81, 2}, {0, 12, 79, 2},
+                {1, 0, 77, 2}, {1, 3, 77, 1}, {1, 4, 81, 4}, {1, 10, 77, 2}, {1, 14, 79, 2},
+                {2, 0, 84, 2}, {2, 3, 84, 1}, {2, 4, 83, 2}, {2, 8, 79, 2}, {2, 12, 76, 2},
+                {3, 0, 79, 2}, {3, 4, 81, 2}, {3, 8, 83, 4}, {3, 14, 79, 2}};
+        for (int bar = 0; bar < 8; bar++) {
+            int c = bar % 4;
+            for (int s : bassSteps) b.bar(Inst.BASS, bar, s, roots[c], 1.5f, s % 4 == 0 ? 0.75f : 0.6f);
+            for (int k = 0; k < arpSteps.length; k++) b.bar(Inst.PLUCK, bar, arpSteps[k], arp[c][k % 3] + 12, 1f, 0.35f);
+        }
+        for (int rep = 0; rep < 2; rep++) {
+            for (int[] h : hook) b.bar(Inst.LEAD, h[0] + rep * 4, h[1], h[2], h[3], 0.65f);
+        }
+        return b.build("race", 124, 124, 124, 8);
     }
 }

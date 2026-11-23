@@ -14,6 +14,7 @@ import com.wiggleplay.app.games.bubbles.BubbleScene;
 import com.wiggleplay.app.games.fruit.FruitScene;
 import com.wiggleplay.app.games.dance.DanceScene;
 import com.wiggleplay.app.games.jungle.JungleScene;
+import com.wiggleplay.app.games.race.RaceScene;
 import com.wiggleplay.app.games.sky.SkyPlaneScene;
 import com.wiggleplay.app.games.sky.SkyScene;
 import com.wiggleplay.app.pose.TestPoseSource;
@@ -604,5 +605,69 @@ public class ScreenshotTest {
     @Test
     public void jungleEnd() throws Exception {
         junglePlay("jungle_end_1p", 1, 1, 6000);
+    }
+
+    // ---- T-22: Turbo Trucks (no OpenGL in the screenshot rig: the 3D world is replaced by a flat picture) ----
+
+    private void race(String name, int level, int frames, boolean rules, ShotRig.Script script) throws Exception {
+        RaceScene.setRulesSeen(!rules);
+        check(ShotRig.shoot(name, new RaceScene(env(), null), Scene.SceneArgs.of("level", level, "players", 1), 1,
+                frames, script));
+    }
+
+    @Test
+    public void raceRules() throws Exception { race("race_rules", 1, 75, true, null); }
+
+    @Test
+    public void raceIntro() throws Exception {
+        race("race_intro", 1, 60, false, (frame, now, body, input) -> {
+            body.setHeld(TestPoseSource.CTRL_ARMS_OUT, true);
+            body.setHeld(TestPoseSource.CTRL_LEAN_LEFT, frame > 20);
+        });
+    }
+
+    @Test
+    public void raceCountdown() throws Exception {
+        race("race_countdown", 2, 190, false, (frame, now, body, input) -> body.setHeld(TestPoseSource.CTRL_ARMS_OUT, true));
+    }
+
+    /** Racing with the arms out and tilted, the rocket full: the plane icon and gauge show. */
+    @Test
+    public void racePlay() throws Exception {
+        race("race_play", 3, 520, false, (frame, now, body, input) -> {
+            body.setHeld(TestPoseSource.CTRL_ARMS_OUT, true);
+            body.setHeld(TestPoseSource.CTRL_LEAN_RIGHT, frame > 300 && frame < 520);
+        });
+    }
+
+    /** A jump starts the boost: speed lines, the rocket drains. */
+    @Test
+    public void raceBoost() throws Exception {
+        race("race_boost", 1, 410, false, (frame, now, body, input) -> {
+            body.setHeld(TestPoseSource.CTRL_ARMS_OUT, true);
+            if (frame == 390) body.jump(now);
+        });
+    }
+
+    /** Crouching brakes: the brake icon shows. */
+    @Test
+    public void raceBrake() throws Exception {
+        race("race_brake", 1, 420, false, (frame, now, body, input) -> {
+            body.setHeld(TestPoseSource.CTRL_ARMS_OUT, frame < 300);
+            body.setHeld(TestPoseSource.CTRL_DUCK, frame > 330);
+        });
+    }
+
+    /** The game menu's second page, hand on the Turbo Trucks tile: the truck bounces, wheels turn, speed lines fly. */
+    @Test
+    public void menuGameSelectRaceTile() throws Exception {
+        GameSelectScene.setPageForTests(0);
+        check(ShotRig.shoot("menu_gameselect_race_tile", new GameSelectScene(env()), Scene.SceneArgs.EMPTY, 1, 190,
+                (frame, now, body, input) -> {
+                    if (frame == 0) input.touch(Input.TOUCH_DOWN, 1800f, 600f);
+                    if (frame == 62) input.touch(Input.TOUCH_UP, 1800f, 600f);
+                    if (frame == 70) input.touch(Input.TOUCH_DOWN, 1500f, 560f);
+                    if (frame == 71) input.touch(Input.TOUCH_MOVE, 1500f, 560f);
+                }, true));
     }
 }

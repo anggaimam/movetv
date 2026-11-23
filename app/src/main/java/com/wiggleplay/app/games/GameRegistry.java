@@ -41,9 +41,11 @@ public final class GameRegistry {
         GameInfo bubbles = new GameInfo("bubbles", "Bubble Burst", 0xFF2A93B8, com.wiggleplay.app.games.bubbles.BubbleArt::cover, "bubbles", 1, 2, false);
         bubbles.live = com.wiggleplay.app.games.bubbles.BubbleArt.LIVE;
         g.add(bubbles);
-        // T-19: temporary speed test for the 3D race (removed in T-22, which adds the real game)
-        g.add(new GameInfo("racetest", "Race test", Theme.MUSTARD, com.wiggleplay.app.games.race.RaceTestScene::cover,
-                "racetest", 1, 2, false));
+        // T-22: the 3D race (one player for now; two players come with T-24)
+        GameInfo race = new GameInfo("race", "Turbo Trucks", Theme.MUSTARD, com.wiggleplay.app.games.race.RaceArt::cover,
+                "race", 1, 1, false);
+        race.live = com.wiggleplay.app.games.race.RaceArt.LIVE;
+        g.add(race);
         GAMES = Collections.unmodifiableList(g);
     }
 

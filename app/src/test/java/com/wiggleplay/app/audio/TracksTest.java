@@ -10,13 +10,14 @@ import org.junit.Test;
 public class TracksTest {
 
     @Test
-    public void allFiveTracksExistWithTheAgreedTempos() {
+    public void allSixTracksExistWithTheAgreedTempos() {
         assertEquals(96, Tracks.get("menu").bpm);
         assertEquals(112, Tracks.get("dance").bpm);
         assertEquals(120, Tracks.get("jungle").bpm);
         assertEquals(100, Tracks.get("sky").bpm);
         assertEquals(116, Tracks.get("fruit").bpm);
-        assertEquals(5, Tracks.names().length);
+        assertEquals(124, Tracks.get("race").bpm);
+        assertEquals(6, Tracks.names().length);
         for (String n : Tracks.names()) assertNotNull(n, Tracks.get(n));
         assertNull(Tracks.get("nope"));
         assertNull(Tracks.get(null));
