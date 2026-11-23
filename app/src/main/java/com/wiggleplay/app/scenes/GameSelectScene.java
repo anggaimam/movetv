@@ -47,8 +47,8 @@ public final class GameSelectScene implements Scene {
     static List<TileMenu.Tile> layout(List<GameInfo> games) {
         List<TileMenu.Tile> out = new ArrayList<>();
         int n = games.size();
-        if (n <= 4) {
-            float w = 400f, h = 520f, gap = 48f;
+        if (n <= 5) {
+            float gap = n == 5 ? 36f : 48f, w = n == 5 ? 330f : 400f, h = 520f;
             float x0 = (Stage.W - (n * w + (n - 1) * gap)) / 2f;
             for (int i = 0; i < n; i++) out.add(tile(games.get(i), x0 + i * (w + gap), 340f, w, h));
         } else {

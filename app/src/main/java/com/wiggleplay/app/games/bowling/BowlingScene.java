@@ -215,7 +215,10 @@ public final class BowlingScene implements Scene {
                 throwBall(Math.max(0.1f, swing.power()), swing.spin());
                 return;
             }
-            if (swing.ready()) idle = Math.min(idle, HINT_AFTER - 0.01f); // swinging back counts as trying
+            // an arm on its way up counts as trying (just standing with arms down does not)
+            if (swing.state(0) == SwingDetect.RISING || swing.state(1) == SwingDetect.RISING) {
+                idle = Math.min(idle, HINT_AFTER - 0.01f);
+            }
         }
         if (okPressed(in) && !charging) {
             charging = true;
@@ -549,7 +552,7 @@ public final class BowlingScene implements Scene {
      * while the player's own arm is swung back and ready.
      */
     private void drawSwingDemo(Canvas c, float size) {
-        float cx = 250f, floor = 900f, k = 1.9f * size;
+        float cx = 250f, floor = 1010f, k = 1.7f * size;
         boolean ready = swing.ready();
         int col = ready ? 0xFFFFD84D : 0xFF29D3FF;
         // the arm goes back (behind, low) then forward and up, 1.6 s a loop
