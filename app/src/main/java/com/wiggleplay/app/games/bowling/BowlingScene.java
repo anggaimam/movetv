@@ -307,7 +307,8 @@ public final class BowlingScene implements Scene {
         if (env.perf == null || !env.perf.isVisible()) return;
         if (released) {
             env.perf.setNote("swing " + (swing.side() == 0 ? "L" : "R") + " RELEASE peak "
-                    + Math.round(swing.peakSpeed() * 10f) / 10f + " sw/s  power " + Math.round(swing.power() * 100f)
+                    + Math.round(swing.peakSpeed() * 10f) / 10f + " sw/s  rise "
+                    + Math.round(swing.riseAtRelease() * 100f) / 100f + " via " + swing.reason() + "  power " + Math.round(swing.power() * 100f)
                     + "%  spin " + Math.round(swing.spin() * 100f) + "%");
             return;
         }

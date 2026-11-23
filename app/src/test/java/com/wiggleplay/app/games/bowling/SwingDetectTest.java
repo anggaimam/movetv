@@ -140,4 +140,72 @@ public class SwingDetectTest {
         assertFalse(d.update(p, 0));
         assertFalse(d.update(null, 77));
     }
+
+    /** One picture at the bottom, then a quick swing up (what a fast, fluid kid swing looks like at 13 pictures a second). */
+    private long fluid(SwingDetect d, int steps, boolean lostOne) {
+        long t = 0;
+        for (int i = 0; i < 6; i++, t += STEP) d.update(body(0f, HIP_Y + 60f, 3f, true), t);   // hanging
+        // swing back: one picture low behind the hip
+        if (d.update(body(-40f, HIP_Y + 110f, 3f, true), t)) return -2;
+        t += STEP;
+        float fromY = HIP_Y + 110f, toY = SH_Y - 0.3f * SW;
+        long start = t;
+        for (int i = 1; i <= steps + 3; i++, t += STEP) {
+            float k = Math.min(1f, i / (float) steps);
+            PlayerPose p = body(-40f, fromY + (toY - fromY) * k, 3f, true);
+            if (lostOne && i == 2) p.kps[Kp.R_WRIST].s = 0.1f;       // the arm blurs for one picture
+            if (d.update(p, t)) return t - start;
+        }
+        return -1;
+    }
+
+    @Test
+    public void aFastFluidSwingWithOneDownPictureStillReleases() {
+        for (int steps = 2; steps <= 4; steps++) {
+            SwingDetect d = new SwingDetect();
+            long at = fluid(d, steps, false);
+            assertTrue("steps " + steps + " released at " + at, at > 0 && at <= 500);
+        }
+    }
+
+    @Test
+    public void aBlurredPictureInTheMiddleOfAFastSwingIsForgiven() {
+        SwingDetect d = new SwingDetect();
+        long at = fluid(d, 4, true);
+        assertTrue("released at " + at, at > 0 && at <= 600);
+    }
+
+    @Test
+    public void oneWildPointDoesNotReleaseABall() {
+        // arms hanging, and the tracker throws the wrist high for a single picture, even above the shoulder
+        for (float spikeY : new float[] {HIP_Y - 100f, SH_Y + 60f, SH_Y - 100f}) {
+            SwingDetect d = new SwingDetect();
+            long t = 0;
+            for (int i = 0; i < 10; i++, t += STEP) assertFalse(d.update(body(0f, HIP_Y + 80f, 3f, true), t));
+            assertFalse(d.update(body(0f, spikeY, 3f, true), t));
+            t += STEP;
+            for (int i = 0; i < 10; i++, t += STEP) assertFalse("spike " + spikeY, d.update(body(0f, HIP_Y + 80f, 3f, true), t));
+        }
+    }
+
+    @Test
+    public void aLittleLiftOfTheHandDoesNotReleaseABall() {
+        // the hand comes up a little and stays near the hip (a gesture, or adjusting): nothing rolls
+        SwingDetect d = new SwingDetect();
+        long t = 0;
+        for (int i = 0; i < 8; i++, t += STEP) assertFalse(d.update(body(0f, HIP_Y + 80f, 3f, true), t));
+        float[] ys = {HIP_Y + 30f, HIP_Y - 10f, HIP_Y - 35f, HIP_Y - 40f, HIP_Y - 40f, HIP_Y - 30f};
+        for (float y : ys) {
+            assertFalse("y " + y, d.update(body(0f, y, 3f, true), t));
+            t += STEP;
+        }
+    }
+
+    @Test
+    public void theReasonAndRiseAreReported() {
+        SwingDetect d = new SwingDetect();
+        assertTrue(swing(d, 0.35f, true, 0f) > 0);
+        assertTrue(d.reason() == 'C' || d.reason() == 'S');
+        assertTrue(d.riseAtRelease() >= SwingDetect.MIN_RISE);
+    }
 }

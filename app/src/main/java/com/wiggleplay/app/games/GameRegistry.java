@@ -31,7 +31,9 @@ public final class GameRegistry {
         GameInfo sky = new GameInfo("sky", "Sky Glider", Theme.BLUE, com.wiggleplay.app.games.sky.SkyCover::paint, "skyplane", 1, 2, false);
         sky.live = com.wiggleplay.app.games.sky.SkyCover.LIVE;
         g.add(sky);
-        g.add(new GameInfo("dance", "Animal Dance Party", 0xFF140B2E, GameRegistry::paintDance, "dance", 1, 2, false));
+        GameInfo dance = new GameInfo("dance", "Animal Dance Party", 0xFF140B2E, com.wiggleplay.app.games.dance.DanceScene::cover, "dance", 1, 2, false);
+        dance.live = com.wiggleplay.app.games.dance.DanceScene.COVER_LIVE;
+        g.add(dance);
         g.add(new GameInfo("jungle", "Jungle Dash", Theme.SAGE, GameRegistry::paintJungle, "jungle", 1, 2, false));
         GameInfo bowling = new GameInfo("bowling", "Bowling", 0xFF140B2E, com.wiggleplay.app.games.bowling.BowlingArt::cover, "bowling", 1, 4, true);
         bowling.live = com.wiggleplay.app.games.bowling.BowlingArt.LIVE;
@@ -115,33 +117,6 @@ public final class GameRegistry {
         c.drawCircle(w * 0.80f, h * 0.30f, w * 0.15f, F);
         F.setColor(0x88FFFFFF);
         c.drawCircle(w * 0.75f, h * 0.25f, w * 0.04f, F);
-    }
-
-    /** Animal Dance Party, Neon arcade: a glowing penguin face and a glowing star (the tile itself is the dark panel). */
-    private static void paintDance(Canvas c, int w, int h) {
-        Path head = new Path();
-        R.set(w * 0.22f, h * 0.24f, w * 0.78f, h * 0.84f);
-        head.addOval(R, Path.Direction.CW);
-        Brushes.neonStroke(c, head, 0xFF7FF4FF, w * 0.030f);
-        Path eyes = new Path();
-        eyes.addCircle(w * 0.41f, h * 0.48f, w * 0.045f, Path.Direction.CW);
-        eyes.addCircle(w * 0.59f, h * 0.48f, w * 0.045f, Path.Direction.CW);
-        Brushes.neonStroke(c, eyes, 0xFFFFFFFF, w * 0.025f);
-        Path beak = new Path();
-        beak.moveTo(w * 0.44f, h * 0.58f);
-        beak.lineTo(w * 0.56f, h * 0.58f);
-        beak.lineTo(w * 0.50f, h * 0.68f);
-        beak.close();
-        Brushes.neonStroke(c, beak, 0xFFFFC27A, w * 0.025f);
-        Path star = new Path();
-        for (int i = 0; i < 10; i++) {
-            double a = -Math.PI / 2 + i * Math.PI / 5;
-            float r = (i % 2 == 0) ? w * 0.11f : w * 0.045f;
-            float px = w * 0.80f + (float) Math.cos(a) * r, py = h * 0.18f + (float) Math.sin(a) * r;
-            if (i == 0) star.moveTo(px, py); else star.lineTo(px, py);
-        }
-        star.close();
-        Brushes.neonStroke(c, star, 0xFFFF4FD8, w * 0.025f);
     }
 
     /** Jungle Dash, Crayon doodle: a hatched, wobbly monkey face and a banana. */

@@ -97,6 +97,19 @@ public final class DanceScene implements Scene {
     }
 
     /**
+     * The still tile picture for the game menu.
+     * @param c canvas
+     * @param w width
+     * @param h height
+     */
+    public static void cover(android.graphics.Canvas c, int w, int h) {
+        DanceArt.cover(c, w, h);
+    }
+
+    /** The moving tile picture (wings flap while the tile is highlighted). */
+    public static final com.wiggleplay.app.ui.TileMenu.LiveIcon COVER_LIVE = DanceArt.LIVE;
+
+    /**
      * Gives the host pictures access to the app's assets (call once at start, before the game is played).
      * @param context any context
      */

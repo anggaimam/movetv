@@ -110,23 +110,26 @@ public final class RoundButton {
     static void bake(TileMenu.Tile t) {
         final boolean home = "home".equals(t.id);
         final boolean gear = "settings".equals(t.id);
-        final boolean next = "next".equals(t.id);
-        t.body = SpriteCache.shared().get("round_body_" + (home ? "home" : gear ? "settings" : next ? "next" : "back"),
+        final boolean next = "next".equals(t.id), prev = "prev".equals(t.id);
+        t.body = SpriteCache.shared().get("round_body_" + (home ? "home" : gear ? "settings" : next ? "next" : prev ? "prev" : "back"),
                 (int) DIAMETER, (int) DIAMETER,
                 (c, w, h) -> {
+                    if (next || prev) {
+                        // page arrows look unlike Back: a sunny round button with two chevrons, no tail
+                        FILL.setColor(Theme.MUSTARD);
+                        c.drawCircle(w / 2f, h / 2f, w / 2f - 3f, FILL);
+                        LINE.setColor(0x66FFFFFF);
+                        LINE.setStrokeWidth(5f);
+                        c.drawCircle(w / 2f, h / 2f, w / 2f - 12f, LINE);
+                        paintChevrons(c, w, h, next);
+                        return;
+                    }
                     FILL.setColor(Theme.INK);
                     c.drawCircle(w / 2f, h / 2f, w / 2f - 3f, FILL);
                     LINE.setColor(0x33FFFFFF);
                     LINE.setStrokeWidth(5f);
                     c.drawCircle(w / 2f, h / 2f, w / 2f - 12f, LINE);
-                    if (home) paintHouse(c, w, h);
-                    else if (gear) paintGear(c, w, h);
-                    else if (next) {
-                        c.save();
-                        c.scale(-1f, 1f, w / 2f, h / 2f);       // the back arrow, turned to point right
-                        paintArrow(c, w, h);
-                        c.restore();
-                    } else paintArrow(c, w, h);
+                    if (home) paintHouse(c, w, h); else if (gear) paintGear(c, w, h); else paintArrow(c, w, h);
                 });
         t.shadow = SpriteCache.shared().get("round_shadow", (int) DIAMETER, (int) DIAMETER, (c, w, h) -> {
             FILL.setColor(0xCC1B232B);
@@ -147,6 +150,21 @@ public final class RoundButton {
         c.drawCircle(cx, cy, w * 0.23f, FILL);
         FILL.setColor(Theme.INK);
         c.drawCircle(cx, cy, w * 0.09f, FILL);
+    }
+
+    private static void paintChevrons(Canvas c, int w, int h, boolean right) {
+        LINE.setColor(Theme.INK);
+        LINE.setStrokeWidth(w * 0.10f);
+        Path p = new Path();
+        for (int k = 0; k < 2; k++) {
+            float x = w * (0.34f + 0.20f * k), d = right ? 1f : -1f;
+            float cx = right ? x : w - x;
+            p.reset();
+            p.moveTo(cx - d * w * 0.09f, h * 0.30f);
+            p.lineTo(cx + d * w * 0.09f, h * 0.50f);
+            p.lineTo(cx - d * w * 0.09f, h * 0.70f);
+            c.drawPath(p, LINE);
+        }
     }
 
     private static void paintArrow(Canvas c, int w, int h) {

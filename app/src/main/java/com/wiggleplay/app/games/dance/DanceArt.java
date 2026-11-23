@@ -671,6 +671,33 @@ final class DanceArt {
         c.restore();
     }
 
+    // ---- the game tile: the flamingo with one wing up; it flaps and sways when the tile is highlighted ----
+
+    private static final int FLAMINGO = 5;
+    private static final float[] TILE_ANG = new float[4], TILE_ARMS = new float[8];
+
+    private static void tileArms(float beat, float calm) {
+        danceAngles(beat, TILE_ANG);
+        for (int i = 0; i < 4; i++) TILE_ANG[i] = 70f + (TILE_ANG[i] - 70f) * calm;      // a gentler flap than the dance
+        hostArmsAngles(FLAMINGO, TILE_ANG, TILE_ARMS);
+    }
+
+    /** The still picture for the game menu: the flamingo, one wing raised. */
+    static void cover(Canvas c, int w, int h) {
+        tileArms(0.3f, 1f);
+        host(c, FLAMINGO, w / 2f, h * 0.96f, h * 0.90f / HOST_H, 0f, 0f, TILE_ARMS, 0f, true);
+    }
+
+    /** The moving tile picture: wings flap, a little hop and sway on the beat. */
+    static final com.wiggleplay.app.ui.TileMenu.LiveIcon LIVE = (c, cx, cy, size, hover, time) -> {
+        float beat = time * 2.4f;
+        tileArms(beat, 0.8f);
+        c.save();
+        c.translate(cx - size / 2f, cy - size / 2f);
+        host(c, FLAMINGO, size / 2f, size * 0.96f, size * 0.90f / HOST_H, beat, 0.3f, TILE_ARMS, 0f, false);
+        c.restore();
+    };
+
     private static Path circle(float cx, float cy, float r) {
         Path p = new Path();
         p.addCircle(cx, cy, r, Path.Direction.CW);

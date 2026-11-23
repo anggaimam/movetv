@@ -146,6 +146,17 @@ public class ScreenshotTest {
                 }, true));
     }
 
+    /** Page one with a finger on the Animal Dance Party tile: the flamingo waves its wings. */
+    @Test
+    public void menuGameSelectDanceFlamingo() throws Exception {
+        GameSelectScene.setPageForTests(0);
+        check(ShotRig.shoot("menu_gameselect_dance_flamingo", new GameSelectScene(env()), Scene.SceneArgs.EMPTY, 1, 75,
+                (frame, now, body, input) -> {
+                    if (frame == 20) input.touch(Input.TOUCH_DOWN, 400f, 560f);
+                    if (frame == 21) input.touch(Input.TOUCH_MOVE, 400f, 560f);
+                }, true));
+    }
+
     @Test
     public void menuLevelSelect() throws Exception {
         File f = ShotRig.shoot("menu_levelselect", new LevelSelectScene(env()), Scene.SceneArgs.of("gameId", "fruit"),
