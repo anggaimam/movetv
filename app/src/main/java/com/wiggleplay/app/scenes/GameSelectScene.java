@@ -31,6 +31,14 @@ public final class GameSelectScene implements Scene {
     private static final float ROW_Y = 340f, ROW_H = 520f, ARROW_Y = ROW_Y + ROW_H / 2f;
     private static final float ARROW_L = 120f, ARROW_R = 1800f;
 
+    /**
+     * Starts the next visit on a page (tests and screenshots).
+     * @param p the page, 0-based
+     */
+    public static void setPageForTests(int p) {
+        lastPage = p;
+    }
+
     /** The page last shown (kept while the app runs, so coming back from a game lands on the same page). */
     private static int lastPage;
 
@@ -75,9 +83,11 @@ public final class GameSelectScene implements Scene {
             float x0 = (Stage.W - (n * w + (n - 1) * gap)) / 2f;
             for (int i = 0; i < n; i++) out.add(tile(games.get(i), x0 + i * (w + gap), ROW_Y, w, ROW_H));
         } else {
-            // four slots between the two arrows; a short last page keeps the same slots (starting from the left)
-            float w = 335f, gap = 26f, x0 = 250f;
+            // four slots between the two arrows
+            float w = 335f, gap = 26f;
             int from = Math.max(0, Math.min(pageCount(n) - 1, page)) * PER_PAGE;
+            int here = Math.min(PER_PAGE, n - from);
+            float x0 = 250f + (4 * w + 3 * gap - (here * w + (here - 1) * gap)) / 2f;   // a short last page is centred
             for (int i = from; i < n && i < from + PER_PAGE; i++) {
                 out.add(tile(games.get(i), x0 + (i - from) * (w + gap), ROW_Y, w, ROW_H));
             }

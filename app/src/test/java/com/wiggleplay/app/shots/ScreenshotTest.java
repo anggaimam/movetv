@@ -106,6 +106,7 @@ public class ScreenshotTest {
 
     @Test
     public void menuGameSelectRemoteFocus() throws Exception {
+        GameSelectScene.setPageForTests(0);
         File f = ShotRig.shoot("menu_gameselect_focus", new GameSelectScene(env()), Scene.SceneArgs.EMPTY, 1, 40,
                 (frame, now, body, input) -> {
                     if (frame == 5 || frame == 9) input.keyDown(KeyEvent.KEYCODE_DPAD_RIGHT);
@@ -117,12 +118,14 @@ public class ScreenshotTest {
     /** Five games: the first four with an arrow on the right, and dots. */
     @Test
     public void menuGameSelectPageOne() throws Exception {
+        GameSelectScene.setPageForTests(0);
         check(ShotRig.shoot("menu_gameselect_page1", new GameSelectScene(env()), Scene.SceneArgs.EMPTY, 1, 30, null));
     }
 
     /** Hold a hand on the right arrow: the second page shows (Bowling), with the left arrow. */
     @Test
     public void menuGameSelectPageTwo() throws Exception {
+        GameSelectScene.setPageForTests(0);
         check(ShotRig.shoot("menu_gameselect_page2", new GameSelectScene(env()), Scene.SceneArgs.EMPTY, 1, 80,
                 (frame, now, body, input) -> {
                     if (frame == 0) input.touch(Input.TOUCH_DOWN, 1800f, 600f);
@@ -133,7 +136,8 @@ public class ScreenshotTest {
     /** On page two the Bowling tile is highlighted and the rocket is part-way round the planet. */
     @Test
     public void menuGameSelectBowlingLap() throws Exception {
-        check(ShotRig.shoot("menu_gameselect_bowling_lap", new GameSelectScene(env()), Scene.SceneArgs.EMPTY, 1, 130,
+        GameSelectScene.setPageForTests(0);
+        check(ShotRig.shoot("menu_gameselect_bowling_lap", new GameSelectScene(env()), Scene.SceneArgs.EMPTY, 1, 165,
                 (frame, now, body, input) -> {
                     if (frame == 0) input.touch(Input.TOUCH_DOWN, 1800f, 600f);
                     if (frame == 62) input.touch(Input.TOUCH_UP, 1800f, 600f);

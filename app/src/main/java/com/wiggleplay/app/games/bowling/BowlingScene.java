@@ -572,8 +572,8 @@ public final class BowlingScene implements Scene {
         if (gold && !down) {
             // a soft golden glow and a twinkle above the golden pin
             float pulse = 0.5f + 0.5f * (float) Math.sin(time * 5f);
-            paint.setColor(0xFFFFD84D);
-            paint.setAlpha((int) (50 + 60 * pulse));
+            paint.setColor(0xFFFFF2A8);
+            paint.setAlpha((int) (35 + 55 * pulse));
             c.drawCircle(cx, base - hgt * 0.5f, hgt * (0.62f + 0.08f * pulse), paint);
             paint.setAlpha(255);
             sparkle(c, cx, base - hgt - 22f * s - 6f * pulse, 20f * s + 4f, 0xFFFFE680);
@@ -607,7 +607,7 @@ public final class BowlingScene implements Scene {
         int side = physics.pullSide();
         if (side == 0) return;
         float py = BowlingPhysics.pullY();
-        float px = BowlingArt.sx(side * 1.25f, py), y = BowlingArt.sy(py) - 30f;
+        float px = BowlingArt.sx(side * 1.08f, py), y = BowlingArt.sy(py) - 30f;
         float pulse = 0.5f + 0.5f * (float) Math.sin(time * 3f);
         paint.setColor(0xFFFF7A59);
         paint.setAlpha((int) (40 + 40 * pulse));
@@ -978,9 +978,9 @@ public final class BowlingScene implements Scene {
             }
             if (goldWon) {
                 float bob = (float) Math.abs(Math.sin(phaseT * 6f)) * 14f;
-                Theme.drawCentered(c, "Golden pin! +5", BowlingArt.CX, y + 150f - bob, 74f, 0xFFFFD84D);
-                sparkle(c, BowlingArt.CX - 330f, y + 120f - bob, 34f, 0xFFFFE680);
-                sparkle(c, BowlingArt.CX + 330f, y + 120f - bob, 34f, 0xFFFFE680);
+                Theme.drawCentered(c, "Golden pin! +5", BowlingArt.CX, y + 250f - bob, 74f, 0xFFFFD84D);
+                sparkle(c, BowlingArt.CX - 330f, y + 222f - bob, 34f, 0xFFFFE680);
+                sparkle(c, BowlingArt.CX + 330f, y + 222f - bob, 34f, 0xFFFFE680);
             }
         }
     }
