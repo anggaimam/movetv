@@ -227,6 +227,8 @@ public final class TileMenu {
         public Bitmap cornerBadge;
         /** True for the round corner buttons (Back, Home) made by {@link RoundButton}. */
         public boolean round;
+        /** True for the tall page arrows (Earlier / More games) made by {@link RoundButton}: no picture of their own. */
+        public boolean pager;
         /** Draws the picture live while the tile is highlighted (the baked picture is used otherwise), or null. */
         public LiveIcon live;
 
@@ -259,6 +261,7 @@ public final class TileMenu {
         }
 
         void bake() {
+            if (pager) return;
             if (round) {
                 RoundButton.bake(this);
                 return;
@@ -514,7 +517,9 @@ public final class TileMenu {
     public void draw(Canvas c) {
         for (int i = 0; i < tiles.size(); i++) {
             Tile t = tiles.get(i);
-            if (t.round) {
+            if (t.pager) {
+                RoundButton.drawPager(c, t, dwell.progress(t.id));
+            } else if (t.round) {
                 int pl = dwell.progressPlayer(t.id);
                 RoundButton.draw(c, t, dwell.progress(t.id), Theme.playerColour(pl < 0 ? 0 : pl));
             } else {
@@ -526,7 +531,8 @@ public final class TileMenu {
             for (int i = 0; i < tiles.size() && fid != null; i++) {
                 Tile t = tiles.get(i);
                 if (!t.id.equals(fid)) continue;
-                if (t.round) RoundButton.drawFocus(c, t, time);
+                if (t.pager) RoundButton.drawPagerFocus(c, t, time);
+                else if (t.round) RoundButton.drawFocus(c, t, time);
                 else Theme.drawFocus(c, t.x, t.y, t.w, t.h, t.hover, time);
             }
         }

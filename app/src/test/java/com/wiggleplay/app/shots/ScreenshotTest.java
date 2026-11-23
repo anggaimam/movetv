@@ -147,6 +147,17 @@ public class ScreenshotTest {
                 }, true));
     }
 
+    /** A hand near the right page arrow: the tall zone lights up and fills while it is held. */
+    @Test
+    public void menuGameSelectPageArrowHover() throws Exception {
+        GameSelectScene.setPageForTests(0);
+        check(ShotRig.shoot("menu_gameselect_arrow_hover", new GameSelectScene(env()), Scene.SceneArgs.EMPTY, 1, 60,
+                (frame, now, body, input) -> {
+                    if (frame == 15) input.touch(Input.TOUCH_DOWN, 1800f, 620f);
+                    if (frame == 16) input.touch(Input.TOUCH_MOVE, 1800f, 620f);
+                }, true));
+    }
+
     /** Page one with a finger on the Animal Dance Party tile: the flamingo waves its wings. */
     @Test
     public void menuGameSelectDanceFlamingo() throws Exception {

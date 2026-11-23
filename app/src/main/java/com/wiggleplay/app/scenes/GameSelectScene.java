@@ -29,7 +29,7 @@ public final class GameSelectScene implements Scene {
     /** Tiles on one page when there are more games than fit in one row. */
     static final int PER_PAGE = 4;
     private static final float ROW_Y = 340f, ROW_H = 520f, ARROW_Y = ROW_Y + ROW_H / 2f;
-    private static final float ARROW_L = 120f, ARROW_R = 1800f;
+    private static final float ARROW_L = 120f, ARROW_R = 1800f;  // centres of the tall page-arrow zones (200 x 520)
 
     /**
      * Starts the next visit on a page (tests and screenshots).

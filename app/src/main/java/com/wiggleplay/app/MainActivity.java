@@ -205,7 +205,10 @@ public class MainActivity extends Activity {
     @Override
     public void onTrimMemory(int level) {
         super.onTrimMemory(level);
-        SpriteCache.shared().clear();
+        SpriteCache.shared().noteTrim(level);
+        // Mild hints (5, 10) arrive while a game is running; the scenes still hold their pictures, so emptying the
+        // cache then frees nothing and only makes every sprite repaint (a hitch). Act on the serious levels only.
+        if (level >= TRIM_MEMORY_RUNNING_CRITICAL) SpriteCache.shared().clear();
     }
 
     @Override

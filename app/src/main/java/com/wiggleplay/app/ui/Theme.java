@@ -197,8 +197,20 @@ public final class Theme {
 
     // ---- cursor and ring ----
 
+    /** Joins two shapes into one silhouette (falls back to just overlapping them where the platform cannot). */
+    private static Path union(Path a, Path b) {
+        try {
+            Path out = new Path();
+            if (out.op(a, b, Path.Op.UNION)) return out;
+        } catch (RuntimeException ignored) {
+            // fall through
+        }
+        a.addPath(b);
+        return a;
+    }
+
     /**
-     * The hand cursor sprite (a white mitten with a glow in the player's colour), painted once.
+     * The hand cursor sprite (an open white hand with a glow in the player's colour), painted once.
      * @param player 0 or 1
      * @return a 168x168 bitmap whose centre is the cursor point
      */
@@ -212,32 +224,51 @@ public final class Theme {
             c.drawCircle(cx, cy, 80f, FILL);
             FILL.setColor((col & 0x00FFFFFF) | (0x55 << 24));
             c.drawCircle(cx, cy, 58f, FILL);
-            // hand: four fingers, a thumb and a palm, white with a player-colour outline
+            // hand: an open, raised hand (four fingers of different length, a thumb and a palm) drawn as ONE
+            // silhouette, white with a player-colour outline, soft palm shading and finger creases
             Path hand = new Path();
-            hand.addCircle(cx, cy + 14f, 28f, Path.Direction.CW);
+            R.set(cx - 32f, cy - 4f, cx + 32f, cy + 52f);
+            hand.addRoundRect(R, 24f, 24f, Path.Direction.CW);
+            float[] len = {50f, 60f, 54f, 42f};
+            float[] ang = {-13f, -4f, 5f, 14f};
+            android.graphics.Matrix m = new android.graphics.Matrix();
             for (int i = 0; i < 4; i++) {
-                float ang = (-24f + i * 16f);
-                float fx = cx + (float) Math.sin(Math.toRadians(ang)) * 12f;
-                R.set(fx - 8f, cy - 52f, fx + 8f, cy + 8f);
+                float fx = cx + (i - 1.5f) * 15.5f;
+                R.set(fx - 8.5f, cy + 8f - len[i] - 14f, fx + 8.5f, cy + 14f);
                 Path f = new Path();
-                f.addRoundRect(R, 8f, 8f, Path.Direction.CW);
-                android.graphics.Matrix m = new android.graphics.Matrix();
-                m.postRotate(ang, fx, cy + 8f);
+                f.addRoundRect(R, 8.5f, 8.5f, Path.Direction.CW);
+                m.reset();
+                m.postRotate(ang[i], fx, cy + 14f);
                 f.transform(m);
-                hand.addPath(f);
+                hand = union(hand, f);
             }
             Path thumb = new Path();
-            R.set(cx - 44f, cy - 8f, cx - 22f, cy + 28f);
-            thumb.addRoundRect(R, 10f, 10f, Path.Direction.CW);
-            android.graphics.Matrix tm = new android.graphics.Matrix();
-            tm.postRotate(-35f, cx - 30f, cy + 20f);
-            thumb.transform(tm);
-            hand.addPath(thumb);
+            R.set(cx - 38f, cy + 20f - 40f, cx - 19f, cy + 34f);
+            thumb.addRoundRect(R, 9.5f, 9.5f, Path.Direction.CW);
+            m.reset();
+            m.postRotate(-48f, cx - 28f, cy + 34f);
+            thumb.transform(m);
+            hand = union(hand, thumb);
+            LINE.setStrokeJoin(Paint.Join.ROUND);
             LINE.setColor(col | 0xFF000000);
-            LINE.setStrokeWidth(10f);
+            LINE.setStrokeWidth(9f);
             c.drawPath(hand, LINE);
             FILL.setColor(0xFFFFFFFF);
             c.drawPath(hand, FILL);
+            // soft palm shading and creases (thin, in the player colour)
+            FILL.setColor((col & 0x00FFFFFF) | (0x22 << 24));
+            R.set(cx - 22f, cy + 20f, cx + 24f, cy + 48f);
+            c.drawRoundRect(R, 14f, 14f, FILL);
+            LINE.setColor((col & 0x00FFFFFF) | (0x66 << 24));
+            LINE.setStrokeWidth(3f);
+            for (int i = 0; i < 3; i++) {
+                float x = cx + (i - 1f) * 15.5f;
+                c.drawLine(x, cy - 4f, x, cy + 10f, LINE);
+            }
+            Path crease = new Path();
+            crease.moveTo(cx - 20f, cy + 30f);
+            crease.quadTo(cx, cy + 38f, cx + 20f, cy + 28f);
+            c.drawPath(crease, LINE);
         });
         return cursorBmp[idx];
     }

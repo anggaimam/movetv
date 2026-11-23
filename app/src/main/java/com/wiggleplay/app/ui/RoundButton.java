@@ -91,10 +91,13 @@ public final class RoundButton {
         return pageArrow("next", title, cx, cy);
     }
 
+    /** Width and height of a page-arrow zone: as tall as the game tiles, so it is easy to reach. */
+    public static final float PAGER_W = 200f, PAGER_H = 520f;
+
     private static TileMenu.Tile pageArrow(String id, String title, float cx, float cy) {
-        TileMenu.Tile t = new TileMenu.Tile(id, title, null, Theme.INK, null, cx - PAGE_HIT / 2f, cy - PAGE_HIT / 2f,
-                PAGE_HIT, PAGE_HIT);
-        t.round = true;
+        TileMenu.Tile t = new TileMenu.Tile(id, title, null, Theme.INK, null, cx - PAGER_W / 2f, cy - PAGER_H / 2f,
+                PAGER_W, PAGER_H);
+        t.pager = true;
         t.holdMs = PAGE_HOLD_MS;
         return t;
     }
@@ -110,20 +113,9 @@ public final class RoundButton {
     static void bake(TileMenu.Tile t) {
         final boolean home = "home".equals(t.id);
         final boolean gear = "settings".equals(t.id);
-        final boolean next = "next".equals(t.id), prev = "prev".equals(t.id);
-        t.body = SpriteCache.shared().get("round_body_" + (home ? "home" : gear ? "settings" : next ? "next" : prev ? "prev" : "back"),
+        t.body = SpriteCache.shared().get("round_body_" + (home ? "home" : gear ? "settings" : "back"),
                 (int) DIAMETER, (int) DIAMETER,
                 (c, w, h) -> {
-                    if (next || prev) {
-                        // page arrows look unlike Back: a sunny round button with two chevrons, no tail
-                        FILL.setColor(Theme.MUSTARD);
-                        c.drawCircle(w / 2f, h / 2f, w / 2f - 3f, FILL);
-                        LINE.setColor(0x66FFFFFF);
-                        LINE.setStrokeWidth(5f);
-                        c.drawCircle(w / 2f, h / 2f, w / 2f - 12f, LINE);
-                        paintChevrons(c, w, h, next);
-                        return;
-                    }
                     FILL.setColor(Theme.INK);
                     c.drawCircle(w / 2f, h / 2f, w / 2f - 3f, FILL);
                     LINE.setColor(0x33FFFFFF);
@@ -150,21 +142,6 @@ public final class RoundButton {
         c.drawCircle(cx, cy, w * 0.23f, FILL);
         FILL.setColor(Theme.INK);
         c.drawCircle(cx, cy, w * 0.09f, FILL);
-    }
-
-    private static void paintChevrons(Canvas c, int w, int h, boolean right) {
-        LINE.setColor(Theme.INK);
-        LINE.setStrokeWidth(w * 0.10f);
-        Path p = new Path();
-        for (int k = 0; k < 2; k++) {
-            float x = w * (0.41f + 0.18f * k), d = right ? 1f : -1f;
-            float cx = right ? x : w - x;
-            p.reset();
-            p.moveTo(cx - d * w * 0.09f, h * 0.30f);
-            p.lineTo(cx + d * w * 0.09f, h * 0.50f);
-            p.lineTo(cx - d * w * 0.09f, h * 0.70f);
-            c.drawPath(p, LINE);
-        }
     }
 
     private static void paintArrow(Canvas c, int w, int h) {
@@ -260,5 +237,63 @@ public final class RoundButton {
         LINE.setStrokeWidth(6f);
         LINE.setColor(Theme.INK);
         c.drawCircle(cx, cy, r + 8f, LINE);
+    }
+
+    private static final Path CHEV = new Path();
+
+    /**
+     * Draws a page arrow: only a white line arrow while idle; when a hand is near, an opaque rounded panel fades in
+     * behind it, and the panel fills with sunshine from the bottom as the hold time runs.
+     * @param c canvas
+     * @param t the pager tile
+     * @param progress hold progress 0..1
+     */
+    static void drawPager(Canvas c, TileMenu.Tile t, float progress) {
+        float cx = t.x + t.w / 2f, cy = t.y + t.h / 2f, hv = Ease.outCubic(t.hover);
+        if (hv > 0f) {
+            R.set(t.x + 6f, t.y + 6f, t.x + t.w - 6f, t.y + t.h - 6f);
+            FILL.setColor(((int) (hv * 0xF2) << 24) | 0x00FFFFFF);
+            c.drawRoundRect(R, 56f, 56f, FILL);
+            if (progress > 0f) {
+                c.save();
+                c.clipRect(t.x, t.y + t.h * (1f - Math.min(1f, progress)), t.x + t.w, t.y + t.h);
+                FILL.setColor(Theme.MUSTARD);
+                c.drawRoundRect(R, 56f, 56f, FILL);
+                c.restore();
+            }
+            LINE.setStrokeWidth(5f);
+            LINE.setColor(((int) (hv * 0x66) << 24) | (Theme.INK & 0x00FFFFFF));
+            c.drawRoundRect(R, 56f, 56f, LINE);
+        }
+        float dir = "next".equals(t.id) ? 1f : -1f, nudge = hv * 6f * dir, hw = 34f, hh = 70f;
+        CHEV.reset();
+        CHEV.moveTo(cx - dir * hw + nudge, cy - hh);
+        CHEV.lineTo(cx + dir * hw + nudge, cy);
+        CHEV.lineTo(cx - dir * hw + nudge, cy + hh);
+        if (hv < 1f) {
+            LINE.setStrokeWidth(26f);
+            LINE.setColor(((int) ((1f - hv) * 0x40) << 24) | (Theme.INK & 0x00FFFFFF));
+            c.save();
+            c.translate(3f, 4f);
+            c.drawPath(CHEV, LINE);
+            c.restore();
+        }
+        LINE.setStrokeWidth(20f);
+        LINE.setColor(hv > 0.5f ? Theme.INK : 0xFFFFFFFF);
+        c.drawPath(CHEV, LINE);
+    }
+
+    /**
+     * Draws the remote focus outline around a page arrow.
+     * @param c canvas
+     * @param t the pager tile
+     * @param time seconds, for a gentle pulse
+     */
+    static void drawPagerFocus(Canvas c, TileMenu.Tile t, float time) {
+        float g = 6f + 3f * (float) Math.sin(time * 6f);
+        R.set(t.x - g, t.y - g, t.x + t.w + g, t.y + t.h + g);
+        LINE.setStrokeWidth(10f);
+        LINE.setColor(Theme.INK);
+        c.drawRoundRect(R, 62f, 62f, LINE);
     }
 }

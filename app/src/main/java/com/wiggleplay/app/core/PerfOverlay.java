@@ -203,7 +203,8 @@ public final class PerfOverlay {
                     .append("  draw ").append(one(drawSum / n)).append('/').append(one(drawMax))
                     .append(" ms  heap ").append((rt.totalMemory() - rt.freeMemory()) >> 20)
                     .append(" MB  native ").append(Debug.getNativeHeapAllocatedSize() >> 20).append(" MB  cache ")
-                    .append(SpriteCache.shared().bytes() >> 20).append(" MB");
+                    .append(SpriteCache.shared().bytes() >> 20).append(" MB (")
+                    .append(SpriteCache.shared().summary()).append(')');
             timingText = sb.toString();
             updSum = drawSum = updMax = drawMax = 0f;
             timingFrames = 0;
@@ -227,7 +228,7 @@ public final class PerfOverlay {
         boolean line2 = pointerText.length() > 0;
         boolean line3 = note.length() > 0;
         float bottom = (line2 ? 184f : 140f) + (line3 ? 44f : 0f);
-        c.drawRect(0f, 0f, 1420f, bottom, panelPaint);
+        c.drawRect(0f, 0f, 1900f, bottom, panelPaint);
         c.drawText(text, 16f, 38f, textPaint);
         c.drawText(timingText, 16f, 82f, textPaint);
         c.drawText(lockText, 16f, 126f, textPaint);

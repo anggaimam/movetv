@@ -90,7 +90,7 @@ public final class SetupScene implements Scene {
         List<TileMenu.Tile> tiles = new ArrayList<>();
         tiles.add(RoundButton.back());
         tiles.add(new TileMenu.Tile("skip", "Skip", null, Theme.MUSTARD, Theme::paintSkip,
-                Stage.W - 48f - 380f, Stage.H - 48f - 260f, 380f, 260f));
+                Stage.W - 48f - 380f, 400f, 380f, 260f));
         menu.setTiles(tiles, "skip");
         outlineWhite = outline("setup_outline_w", 0xE6FFFFFF, 10f);
         outlineGreen = outline("setup_outline_g", 0xFF6BDB7A, 16f);
