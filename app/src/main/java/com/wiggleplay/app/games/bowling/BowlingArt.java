@@ -278,7 +278,8 @@ public final class BowlingArt {
      * front), and rests where the still picture has it.
      */
     public static final com.wiggleplay.app.ui.TileMenu.LiveIcon LIVE = (c, cx, cy, size, hover, time) -> {
-        if (time - lastDraw > 0.25f) lapStart = time;       // a new highlight starts a new lap
+        float gap = time - lastDraw;
+        if (gap > 0.25f || gap < 0f) lapStart = time;        // a new highlight (or a restarted clock) starts a new lap
         lastDraw = time;
         float p = Math.max(0f, Math.min(1f, (time - lapStart) / LAP_SECONDS));
         float eased = p * p * (3f - 2f * p);
