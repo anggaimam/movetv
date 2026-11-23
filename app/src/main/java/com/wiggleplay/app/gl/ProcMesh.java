@@ -161,6 +161,33 @@ public final class ProcMesh {
         return b.mesh("ground");
     }
 
+    /**
+     * A flat square ground grid centred on the origin at Y = -0.02, facing up, split into cells x cells squares.
+     * Fog and light are worked out per vertex, so a big ground needs vertices near the camera: a single 400-unit quad
+     * has only far corners and is fogged to the sky colour everywhere (T-23). (cells + 1)^2 vertices, 2 cells^2
+     * triangles.
+     * @param size side length
+     * @param cells squares per side (at least 1)
+     * @return the mesh
+     */
+    public static MeshData groundGrid(float size, int cells) {
+        if (cells < 1) throw new IllegalArgumentException("cells must be at least 1");
+        float h = size * 0.5f, y = -0.02f, step = size / cells;
+        int n = cells + 1;
+        Buf b = new Buf(n * n, 6 * cells * cells);
+        for (int j = 0; j < n; j++) {
+            for (int i = 0; i < n; i++) b.v(-h + i * step, y, -h + j * step, 0, 1, 0);
+        }
+        for (int j = 0; j < cells; j++) {
+            for (int i = 0; i < cells; i++) {
+                int v0 = j * n + i, v1 = v0 + 1, v3 = v0 + n, v2 = v3 + 1;
+                b.t(v0, v2, v1);
+                b.t(v0, v3, v2);
+            }
+        }
+        return b.mesh("ground");
+    }
+
     /** Collects vertices and triangles. */
     private static final class Buf {
         final float[] vertices;

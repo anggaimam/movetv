@@ -43,6 +43,10 @@ public final class RaceScene implements Scene {
             "wheel-back-left", "wheel-back-right"};
     private static final int P_FL = 2, P_FR = 3;
     private static final int GRASS = 0x37966D, SKY = 0xA8DDF2;
+    /** Ground grid: 140 units (past the far plane 60 in every direction), 14 x 14 cells of 10 (392 triangles). */
+    private static final float GROUND_SIZE = 140f;
+    private static final int GROUND_CELLS = 14;
+    private static final float GROUND_STEP = GROUND_SIZE / GROUND_CELLS;
     private static final int SHADOW = 0x59000000;      // alpha 0.35, black
     private static final int COIN_COLOUR = 0xFFD04D, STAR_COLOUR = 0xFFC933, GLOW_COLOUR = 0x4DFFE066; // glow alpha 0.3
     private static final float WHEEL_R = 0.3f, TWO_PI = 6.2831855f;
@@ -78,7 +82,6 @@ public final class RaceScene implements Scene {
     private TrackLayout layout;
     private RaceLevel raceLevel = RaceLevel.EASY;
     private int level = 1;
-    private float groundX, groundZ;
     private boolean intro, introAfterRules;
     private float introT, time, noneT, finalT, wheelYawPlayer;
     private long leftUntil, rightUntil;
@@ -120,12 +123,10 @@ public final class RaceScene implements Scene {
         level = Math.max(1, Math.min(3, args.getInt("level", 1)));
         raceLevel = RaceLevel.fromNumber(level);
         layout = TrackMaps.forLevel(level - 1);
-        groundX = (layout.width() - 1) * TrackLayout.CELL / 2f;
-        groundZ = (layout.height() - 1) * TrackLayout.CELL / 2f;
         if (gl != null) {
             gl.loadMeshes("track-straight", "track-corner", "track-finish", "decoration-forest", "decoration-tents",
                     "decoration-empty", TRUCK_MESH[0], TRUCK_MESH[1], TRUCK_MESH[2], TRUCK_MESH[3]);
-            groundId = gl.addMesh("ground", ProcMesh.ground(400f));
+            groundId = gl.addMesh("ground", ProcMesh.groundGrid(GROUND_SIZE, GROUND_CELLS));
             shadowId = gl.addMesh("shadow", ProcMesh.disc(1.2f));
             coinId = gl.addMesh("coin", ProcMesh.coin(0.6f, 0.15f, 16));
             starId = gl.addMesh("star", ProcMesh.star(0.9f, 0.4f, 0.2f));
@@ -422,7 +423,11 @@ public final class RaceScene implements Scene {
 
     private void buildList() {
         list.begin();
-        Mat4.translate(mT, groundX, 0f, groundZ);
+        // T-23: the ground grid follows the camera, snapped to whole cells so its vertices don't swim
+        float[] eye = camera.eye();
+        float gx = GROUND_STEP * (float) Math.floor(eye[0] / GROUND_STEP + 0.5f);
+        float gz = GROUND_STEP * (float) Math.floor(eye[2] / GROUND_STEP + 0.5f);
+        Mat4.translate(mT, gx, 0f, gz);
         list.add(groundId, 0, mT, GRASS, true, 1);
         // coins and the golden star (only those near the truck and not behind the camera)
         CarModel car = logic.car(0);

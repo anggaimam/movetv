@@ -123,4 +123,22 @@ public class ProcMeshTest {
             // fine
         }
     }
+
+    @Test
+    public void groundGridHasVerticesNearTheMiddleAndFacesUp() {
+        MeshData m = ProcMesh.groundGrid(140f, 14);
+        MeshData.Part p = only(m);
+        assertEquals(15 * 15, p.vertexCount);
+        assertEquals(2 * 14 * 14, m.triangleCount());
+        assertIndicesInRange(m);
+        float nearest = 1e9f, maxX = 0f;
+        for (int v = 0; v < p.vertexCount; v++) {
+            assertEquals(-0.02f, p.vertices[v * 8 + 1], 1e-6f);
+            nearest = Math.min(nearest, (float) Math.hypot(p.vertices[v * 8], p.vertices[v * 8 + 2]));
+            maxX = Math.max(maxX, Math.abs(p.vertices[v * 8]));
+        }
+        assertEquals("a vertex sits under the camera, so the fog is right near it", 0f, nearest, 1e-4f);
+        assertEquals(70f, maxX, 1e-4f);
+        assertOutwardWinding(m);
+    }
 }

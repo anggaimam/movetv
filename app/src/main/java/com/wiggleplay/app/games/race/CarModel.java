@@ -9,14 +9,15 @@ package com.wiggleplay.app.games.race;
  *
  * <ul>
  *   <li>Speed eases toward the target (factor dt x 6 speeding up, dt x 8 slowing down). Target = base x (boost 1.5)
- *       x (brake and not boosting 0.4) x (off the road 0.6), never below 0.35 x base.</li>
+ *       x (brake and not boosting 0.4), never below 0.35 x base.</li>
  *   <li>Yaw rate = -steer x maxYaw x grip, with grip = clamp(speed / base, 0.2, 1) eased at dt x 4, plus the road assist
  *       {@code assist x (2 x angleDiff(roadYaw, yaw) + 0.5 x offset / roadHalf)} which turns the truck back toward the
  *       road direction and toward the centre line.</li>
  *   <li>The heading can never be more than 75 degrees away from the road direction.</li>
- *   <li>Off the road (|offset| more than the road half-width) the truck is slower. A soft wall sits 2.5 units past the
- *       edge: the truck is moved back along the road's normal, and {@link #consumeHitWall()} reports it (at most once
- *       per 0.5 s).</li>
+ *   <li>T-23: the barrier wall. |offset| can never pass {@link #WALL_LIMIT} (barrier inner edge 4.6 minus half the
+ *       truck width 0.75). At the wall the truck is put back along the road's normal and its heading turns toward the
+ *       road direction by half the difference; once per 0.5 s its speed is multiplied by 0.85 and
+ *       {@link #consumeHitWall()} reports the hit. There is no off-road slowdown any more.</li>
  * </ul>
  */
 public final class CarModel {
@@ -24,7 +25,9 @@ public final class CarModel {
     private static final float GRIP_MIN = 0.2f;
     private static final float MIN_SPEED_FRACTION = 0.35f;
     private static final float MAX_HEADING_ERROR = (float) Math.toRadians(75.0);
-    private static final float WALL_EXTRA = 2.5f;
+    /** Largest |offset| the truck can reach: barrier inner edge 4.6 minus half the truck width 0.75. */
+    public static final float WALL_LIMIT = 3.85f;
+    private static final float WALL_SPEED = 0.85f;
     private static final float WALL_GAP_S = 0.5f;
     private static final float WHEEL_RADIUS = 0.3f;
     private static final float TWO_PI = 6.2831855f;
@@ -34,7 +37,7 @@ public final class CarModel {
 
     private float x, z, yaw, speed, grip = 1f;
     private float s, offset, lean, pitch, spin, frontYaw;
-    private boolean offRoad, hitWall;
+    private boolean hitWall;
     private float sinceWall = 10f;
     private int hint = -1;
 
@@ -72,7 +75,6 @@ public final class CarModel {
         hint = t.project(x, z, -1, tp);
         s = tp.s;
         offset = tp.offset;
-        offRoad = Math.abs(offset) > t.roadHalfWidth();
     }
 
     /**
@@ -90,7 +92,7 @@ public final class CarModel {
         hint = t.project(x, z, hint, tp);
         float roadYaw = tp.tangentYaw;
 
-        float target = base * (boosting ? 1.5f : 1f) * (braking && !boosting ? 0.4f : 1f) * (offRoad ? 0.6f : 1f);
+        float target = base * (boosting ? 1.5f : 1f) * (braking && !boosting ? 0.4f : 1f);
         target = Math.max(target, MIN_SPEED_FRACTION * base);
         float before = speed;
         speed += (target - speed) * Math.min(1f, dt * (target > speed ? 6f : 8f));
@@ -108,24 +110,24 @@ public final class CarModel {
         x += (float) Math.sin(yaw) * speed * dt;
         z += (float) Math.cos(yaw) * speed * dt;
 
-        // the soft wall: put the truck back along the road's normal
+        // the barrier wall: put the truck back along the road's normal, steer it along the road, scrape
         hint = t.project(x, z, hint, tp);
         sinceWall += dt;
-        float limit = half + WALL_EXTRA;
-        if (Math.abs(tp.offset) > limit) {
-            float excess = tp.offset - Math.signum(tp.offset) * limit;
+        if (Math.abs(tp.offset) > WALL_LIMIT) {
+            float excess = tp.offset - Math.signum(tp.offset) * WALL_LIMIT;
             float rx = -(float) Math.cos(tp.tangentYaw), rz = (float) Math.sin(tp.tangentYaw);
             x -= rx * excess;
             z -= rz * excess;
             tp.offset -= excess;
+            yaw = wrap(yaw + 0.5f * angleDiff(tp.tangentYaw, yaw));
             if (sinceWall >= WALL_GAP_S) {
                 hitWall = true;
                 sinceWall = 0f;
+                speed = Math.max(speed * WALL_SPEED, MIN_SPEED_FRACTION * base);
             }
         }
         s = tp.s;
         offset = tp.offset;
-        offRoad = Math.abs(offset) > half;
 
         lean = -steer / 5f * Math.min(1f, speed / base);
         float accel = (speed - before) / dt;
@@ -189,8 +191,6 @@ public final class CarModel {
     public float s() { return s; }
     /** @return offset from the centre line (positive = right) */
     public float offset() { return offset; }
-    /** @return true while outside the road edge */
-    public boolean offRoad() { return offRoad; }
     /** @return body lean in radians (roll; leans away from the turn) */
     public float bodyLean() { return lean; }
     /** @return body pitch in radians (positive = nose up while speeding up) */

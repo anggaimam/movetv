@@ -38,7 +38,7 @@ public class RaceLogicTest {
             System.out.println("level " + lv + ": finished=" + res[0] + " time=" + res[1] + " worstOffset=" + res[2]
                     + " score=" + res[3] + " offered=" + res[4] + " stars=" + res[5]);
             assertEquals("level " + lv + " finished", 1f, res[0], 0f);
-            assertTrue("level " + lv + " stays on the road, worst offset " + res[2], res[2] < 4.0f + 2.6f);
+            assertTrue("level " + lv + " stays on the road, worst offset " + res[2], res[2] <= CarModel.WALL_LIMIT + 1e-3f);
         }
     }
 
