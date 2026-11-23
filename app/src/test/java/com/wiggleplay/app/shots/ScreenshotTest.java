@@ -114,6 +114,34 @@ public class ScreenshotTest {
         check(f);
     }
 
+    /** Five games: the first four with an arrow on the right, and dots. */
+    @Test
+    public void menuGameSelectPageOne() throws Exception {
+        check(ShotRig.shoot("menu_gameselect_page1", new GameSelectScene(env()), Scene.SceneArgs.EMPTY, 1, 30, null));
+    }
+
+    /** Hold a hand on the right arrow: the second page shows (Bowling), with the left arrow. */
+    @Test
+    public void menuGameSelectPageTwo() throws Exception {
+        check(ShotRig.shoot("menu_gameselect_page2", new GameSelectScene(env()), Scene.SceneArgs.EMPTY, 1, 80,
+                (frame, now, body, input) -> {
+                    if (frame == 0) input.touch(Input.TOUCH_DOWN, 1800f, 600f);
+                    if (frame == 70) input.touch(Input.TOUCH_UP, 1800f, 600f);
+                }));
+    }
+
+    /** On page two the Bowling tile is highlighted and the rocket is part-way round the planet. */
+    @Test
+    public void menuGameSelectBowlingLap() throws Exception {
+        check(ShotRig.shoot("menu_gameselect_bowling_lap", new GameSelectScene(env()), Scene.SceneArgs.EMPTY, 1, 130,
+                (frame, now, body, input) -> {
+                    if (frame == 0) input.touch(Input.TOUCH_DOWN, 1800f, 600f);
+                    if (frame == 62) input.touch(Input.TOUCH_UP, 1800f, 600f);
+                    if (frame == 70) input.touch(Input.TOUCH_DOWN, 420f, 560f);
+                    if (frame == 71) input.touch(Input.TOUCH_MOVE, 420f, 560f);
+                }));
+    }
+
     @Test
     public void menuLevelSelect() throws Exception {
         File f = ShotRig.shoot("menu_levelselect", new LevelSelectScene(env()), Scene.SceneArgs.of("gameId", "fruit"),
@@ -361,6 +389,7 @@ public class ScreenshotTest {
 
     private BowlingScene newBowling() {
         BowlingScene.setRulesSeen(true);
+        BowlingScene.setGoldenForTests(4);        // a known golden pin (back row, in the middle) for the pictures
         return new BowlingScene(env());
     }
 
@@ -439,6 +468,24 @@ public class ScreenshotTest {
     @Test
     public void bowlingHardResult() throws Exception {
         bowlingAt("bowling_result_hard", 3, 420);
+    }
+
+    /** Medium: the planet beside the lane and its pull arrows. */
+    @Test
+    public void bowlingMediumPlanet() throws Exception {
+        bowlingAt("bowling_aim_medium", 2, 120);
+    }
+
+    /** Hard: the pin platform, a little way along its slide. */
+    @Test
+    public void bowlingHardPlatform() throws Exception {
+        bowlingAt("bowling_aim_hard", 3, 200);
+    }
+
+    /** The golden pin falls: the banner says +5. */
+    @Test
+    public void bowlingGoldenResult() throws Exception {
+        bowlingAt("bowling_result_gold", 1, 420);
     }
 
     @Test

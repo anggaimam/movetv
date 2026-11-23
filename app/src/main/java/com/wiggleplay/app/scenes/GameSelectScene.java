@@ -2,6 +2,7 @@ package com.wiggleplay.app.scenes;
 
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
+import android.graphics.Paint;
 import android.view.KeyEvent;
 
 import com.wiggleplay.app.core.Scene;
@@ -16,17 +17,28 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Picks a game. Up to 4 games stand in one row of big tiles (400 x 520); 5 to 8 games use two rows of 4
- * (360 x 340, still well over 240 px tall, no scrolling). Games that cannot take the chosen number of
- * players are hidden. A Home tile (hold 1.5 s) at the top left goes back to the players screen.
+ * Picks a game. Up to 4 games stand in one row of big tiles (400 x 520). With more games the row shows 4 at a time
+ * (335 x 520) and a round arrow at each side turns the page (left and right arrows on the remote work the same, the
+ * dots under the row show which page it is). The page is remembered when a game is left. Games that cannot take the
+ * chosen number of players are hidden. A Back tile (hold 1.5 s) at the top left goes back to the players screen.
  */
 public final class GameSelectScene implements Scene {
 
     static final float HOME_X = 48f, HOME_Y = 40f, HOME_W = 300f, HOME_H = 250f;
     private static final String T_TITLE = "Pick a game!";
+    /** Tiles on one page when there are more games than fit in one row. */
+    static final int PER_PAGE = 4;
+    private static final float ROW_Y = 340f, ROW_H = 520f, ARROW_Y = ROW_Y + ROW_H / 2f;
+    private static final float ARROW_L = 120f, ARROW_R = 1800f;
+
+    /** The page last shown (kept while the app runs, so coming back from a game lands on the same page). */
+    private static int lastPage;
 
     private final TileMenu.Env env;
     private final TileMenu menu;
+    private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private List<GameInfo> games = new ArrayList<>();
+    private int page;
     private Bitmap camera;
     private float time;
 
@@ -37,26 +49,37 @@ public final class GameSelectScene implements Scene {
     public GameSelectScene(TileMenu.Env env) {
         this.env = env;
         this.menu = new TileMenu(env);
+        paint.setStyle(Paint.Style.FILL);
     }
 
     /**
-     * Places the game tiles.
-     * @param games the games to show
-     * @return one tile per game, placed (no home tile)
+     * How many pages the games need.
+     * @param n games
+     * @return 1 when they fit in a row, else the number of pages of {@link #PER_PAGE}
      */
-    static List<TileMenu.Tile> layout(List<GameInfo> games) {
+    static int pageCount(int n) {
+        return n <= PER_PAGE ? 1 : (n + PER_PAGE - 1) / PER_PAGE;
+    }
+
+    /**
+     * Places the game tiles of one page.
+     * @param games all the games
+     * @param page the page, 0-based (ignored when everything fits in one row)
+     * @return one tile per game on the page, placed (no buttons)
+     */
+    static List<TileMenu.Tile> layout(List<GameInfo> games, int page) {
         List<TileMenu.Tile> out = new ArrayList<>();
         int n = games.size();
-        if (n <= 5) {
-            float gap = n == 5 ? 36f : 48f, w = n == 5 ? 330f : 400f, h = 520f;
+        if (n <= PER_PAGE) {
+            float gap = 48f, w = 400f;
             float x0 = (Stage.W - (n * w + (n - 1) * gap)) / 2f;
-            for (int i = 0; i < n; i++) out.add(tile(games.get(i), x0 + i * (w + gap), 340f, w, h));
+            for (int i = 0; i < n; i++) out.add(tile(games.get(i), x0 + i * (w + gap), ROW_Y, w, ROW_H));
         } else {
-            float w = 360f, h = 340f, gap = 48f, rowGap = 40f;
-            for (int i = 0; i < n && i < 8; i++) {
-                int row = i / 4, inRow = Math.min(4, n - row * 4);
-                float x0 = (Stage.W - (inRow * w + (inRow - 1) * gap)) / 2f;
-                out.add(tile(games.get(i), x0 + (i % 4) * (w + gap), 320f + row * (h + rowGap), w, h));
+            // four slots between the two arrows; a short last page keeps the same slots (starting from the left)
+            float w = 335f, gap = 26f, x0 = 250f;
+            int from = Math.max(0, Math.min(pageCount(n) - 1, page)) * PER_PAGE;
+            for (int i = from; i < n && i < from + PER_PAGE; i++) {
+                out.add(tile(games.get(i), x0 + (i - from) * (w + gap), ROW_Y, w, ROW_H));
             }
         }
         return out;
@@ -71,15 +94,33 @@ public final class GameSelectScene implements Scene {
     @Override
     public void enter(SceneArgs args) {
         env.menuMusic();
-        List<GameInfo> games = GameRegistry.all();   // how many play is asked per game, after this screen
-        List<TileMenu.Tile> tiles = new ArrayList<>(layout(games));
+        games = GameRegistry.all();   // how many play is asked per game, after this screen
+        page = Math.max(0, Math.min(pageCount(games.size()) - 1, lastPage));
+        showPage(null);
+    }
+
+    /** Builds the tiles of the current page; keeps the remote highlight on the given tile if it is still there. */
+    private void showPage(String focusId) {
+        List<TileMenu.Tile> tiles = new ArrayList<>(layout(games, page));
+        String first = tiles.isEmpty() ? "back" : tiles.get(0).id;
+        int pages = pageCount(games.size());
+        if (pages > 1) {
+            if (page > 0) tiles.add(RoundButton.pagePrev(ARROW_L, ARROW_Y, "Earlier games"));
+            if (page < pages - 1) tiles.add(RoundButton.pageNext(ARROW_R, ARROW_Y, "More games"));
+        }
         tiles.add(0, RoundButton.back());
         tiles.add(RoundButton.settings());
-        menu.setTiles(tiles, games.isEmpty() ? "back" : games.get(0).id);
+        String focus = first;
+        if (focusId != null) {
+            for (TileMenu.Tile t : tiles) if (focusId.equals(t.id)) focus = focusId;
+        }
+        menu.setTiles(tiles, focus);
     }
 
     @Override
-    public void exit() { }
+    public void exit() {
+        lastPage = page;
+    }
 
     @Override
     public void update(float dt, Frame f) {
@@ -96,6 +137,16 @@ public final class GameSelectScene implements Scene {
             if (env.settings != null) env.settings.open();
             return;
         }
+        if ("next".equals(sel) || "prev".equals(sel)) {
+            int pages = pageCount(games.size());
+            page = Math.max(0, Math.min(pages - 1, page + ("next".equals(sel) ? 1 : -1)));
+            lastPage = page;
+            env.sfx("select");
+            // stay on an arrow if there is still another page that way, else on the first game
+            boolean more = "next".equals(sel) ? page < pages - 1 : page > 0;
+            showPage(more ? sel : null);
+            return;
+        }
         if (sel != null) env.go("players", SceneArgs.of("gameId", sel));
     }
 
@@ -104,5 +155,22 @@ public final class GameSelectScene implements Scene {
         Theme.drawBackdrop(c, camera, time);
         Theme.drawBanner(c, T_TITLE, Stage.W / 2f, 120f, 72f, 0xE6F3EBDD, Theme.INK);
         menu.draw(c);
+        int pages = pageCount(games.size());
+        if (pages > 1) {
+            // dots: the page being shown is the big white one
+            float gap = 56f, x0 = Stage.W / 2f - (pages - 1) * gap / 2f, y = ROW_Y + ROW_H + 90f;
+            for (int i = 0; i < pages; i++) {
+                boolean on = i == page;
+                paint.setColor(on ? 0xFFFFFFFF : 0x88FFFFFF);
+                c.drawCircle(x0 + i * gap, y, on ? 17f : 11f, paint);
+                if (on) {
+                    paint.setStyle(Paint.Style.STROKE);
+                    paint.setStrokeWidth(5f);
+                    paint.setColor(Theme.INK);
+                    c.drawCircle(x0 + i * gap, y, 17f, paint);
+                    paint.setStyle(Paint.Style.FILL);
+                }
+            }
+        }
     }
 }

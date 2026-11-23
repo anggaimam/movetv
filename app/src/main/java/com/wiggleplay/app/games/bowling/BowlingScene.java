@@ -49,6 +49,16 @@ public final class BowlingScene implements Scene {
     public static void setRulesSeen(boolean seen) {
         rulesSeen = seen;
     }
+
+    private static int testGolden = -1;
+
+    /**
+     * Makes the first frame's golden pin a known one (tests and screenshots).
+     * @param pin 1..9, or -1 to let it be random
+     */
+    public static void setGoldenForTests(int pin) {
+        testGolden = pin;
+    }
     private static final float INTRO_SECONDS = 1.4f, RESULT_SECONDS = 2.0f;
     private static final float CHARGE_SECONDS = 1.2f, MIN_POWER = 0.3f, HINT_AFTER = 6f, AUTO_ROLL_AFTER = 12f;
 
@@ -73,6 +83,8 @@ public final class BowlingScene implements Scene {
     private boolean pinsHeard;
     private float flash, resultLength = 2f, cheerAt = -1f, knockWait, shake, wave = -1f;
     private boolean gutterRoll;
+    private boolean goldWon;                // the golden pin fell with the roll that just ended
+    private float goldX, goldY;
 
     // arm swing (part 2)
     private final SwingDetect swing = new SwingDetect();
@@ -121,6 +133,7 @@ public final class BowlingScene implements Scene {
         players = n;
         score = new BowlingScore(n);
         physics = new BowlingPhysics(level);
+        if (testGolden > 0) physics.setGolden(testGolden);
         for (int p = 0; p < 4; p++) buildScoreText(p);
         java.util.Arrays.fill(blife, 0f);
         if (!rulesSeen) showRules();
@@ -173,6 +186,7 @@ public final class BowlingScene implements Scene {
             leave();
             return;
         }
+        if (phase == INTRO || phase == AIM || phase == RESULT) physics.drift(dt);   // the Hard platform keeps sliding
         switch (phase) {
             case RULES: {
                 String sel = menu.update(dt, f);
@@ -354,6 +368,13 @@ public final class BowlingScene implements Scene {
     private void finishRoll() {
         resultPins = physics.pinsDown();
         gutterRoll = physics.inGutter();
+        goldWon = physics.takeGolden();
+        if (goldWon) {
+            score.addGold();
+            int g = physics.goldenPin();
+            goldX = BowlingArt.sx(physics.pinX(g), physics.pinY(g));
+            goldY = BowlingArt.sy(physics.pinY(g)) - 70f;
+        }
         resultKind = score.record(resultPins);
         for (int p = 0; p < players; p++) buildScoreText(p);
         phase = RESULT;
@@ -398,6 +419,12 @@ public final class BowlingScene implements Scene {
                 }
                 break;
         }
+        if (goldWon) {
+            env.sfx("star", 1.3f);
+            sparks(goldX, goldY, 22, 0xFFFFD84D);
+            confetti(goldX, goldY, 24);
+            if (resultLength < 2.4f) resultLength = 2.4f;
+        }
     }
 
     private void nextAfterResult() {
@@ -419,7 +446,7 @@ public final class BowlingScene implements Scene {
         phase = END;
         phaseT = 0f;
         int best = 0;
-        for (int p = 0; p < players; p++) best = Math.max(best, score.totalPins(p));
+        for (int p = 0; p < players; p++) best = Math.max(best, score.total(p));
         bestStars = BowlingScore.stars(best, level);
         if (env.profile != null) env.profile.recordStars(GAME_ID, level, bestStars);
         // picture buttons, high on the screen (the lower half is hard to reach with a hand)
@@ -495,6 +522,8 @@ public final class BowlingScene implements Scene {
             paint.setStyle(Paint.Style.FILL);
             paint.setAlpha(255);
         }
+        if (level == 2) drawPlanet(c);
+        if (level == 3) drawPlatform(c);
         drawPinsAndBall(c);
         c.restore();
         drawAimUi(c);
@@ -539,11 +568,105 @@ public final class BowlingScene implements Scene {
             if (phase == RESULT) alpha = (int) (255 * Math.max(0f, 1f - phaseT / 1.0f));
             else alpha = 200;
         }
+        boolean gold = i == physics.goldenPin();
+        if (gold && !down) {
+            // a soft golden glow and a twinkle above the golden pin
+            float pulse = 0.5f + 0.5f * (float) Math.sin(time * 5f);
+            paint.setColor(0xFFFFD84D);
+            paint.setAlpha((int) (50 + 60 * pulse));
+            c.drawCircle(cx, base - hgt * 0.5f, hgt * (0.62f + 0.08f * pulse), paint);
+            paint.setAlpha(255);
+            sparkle(c, cx, base - hgt - 22f * s - 6f * pulse, 20f * s + 4f, 0xFFFFE680);
+        }
         rect.set(cx - wid / 2f, base - hgt, cx + wid / 2f, base);
         sprite.setAlpha(alpha);
-        if (alpha > 0) c.drawBitmap(BowlingArt.pin(), null, rect, sprite);
+        if (alpha > 0) c.drawBitmap(gold ? BowlingArt.goldPin() : BowlingArt.pin(), null, rect, sprite);
         sprite.setAlpha(255);
         c.restore();
+    }
+
+    /** A four-point twinkle. */
+    private void sparkle(Canvas c, float cx, float cy, float r, int col) {
+        android.graphics.Path p = tri;
+        p.reset();
+        p.moveTo(cx, cy - r);
+        p.lineTo(cx + r * 0.28f, cy - r * 0.28f);
+        p.lineTo(cx + r, cy);
+        p.lineTo(cx + r * 0.28f, cy + r * 0.28f);
+        p.lineTo(cx, cy + r);
+        p.lineTo(cx - r * 0.28f, cy + r * 0.28f);
+        p.lineTo(cx - r, cy);
+        p.lineTo(cx - r * 0.28f, cy - r * 0.28f);
+        p.close();
+        paint.setColor(col);
+        c.drawPath(p, paint);
+    }
+
+    /** Medium: the planet beside the lane, with chevrons showing which way it pulls the ball. */
+    private void drawPlanet(Canvas c) {
+        int side = physics.pullSide();
+        if (side == 0) return;
+        float py = BowlingPhysics.pullY();
+        float px = BowlingArt.sx(side * 1.25f, py), y = BowlingArt.sy(py) - 30f;
+        float pulse = 0.5f + 0.5f * (float) Math.sin(time * 3f);
+        paint.setColor(0xFFFF7A59);
+        paint.setAlpha((int) (40 + 40 * pulse));
+        c.drawCircle(px, y, 112f + 10f * pulse, paint);
+        paint.setAlpha(255);
+        rect.set(px - 130f, y - 130f, px + 130f, y + 130f);
+        c.drawBitmap(BowlingArt.planet(), null, rect, sprite);
+        // three chevrons slide from the lane toward the planet
+        float x0 = BowlingArt.sx(side * 0.72f, py), x1 = px - side * 120f;
+        paint.setStyle(Paint.Style.STROKE);
+        paint.setStrokeCap(Paint.Cap.ROUND);
+        paint.setStrokeWidth(13f);
+        for (int k = 0; k < 3; k++) {
+            float t = ((time * 0.8f) + k / 3f) % 1f;
+            float cx = x0 + (x1 - x0) * t;
+            paint.setColor(0xFFFFB199);
+            paint.setAlpha((int) (230 * Math.sin(Math.PI * t)));
+            android.graphics.Path p = tri;
+            p.reset();
+            p.moveTo(cx - side * 20f, y - 26f);
+            p.lineTo(cx + side * 6f, y);
+            p.lineTo(cx - side * 20f, y + 26f);
+            c.drawPath(p, paint);
+        }
+        paint.setAlpha(255);
+        paint.setStyle(Paint.Style.FILL);
+    }
+
+    /** Hard: a hovering platform under the pins that slides slowly from side to side. */
+    private void drawPlatform(Canvas c) {
+        float off = physics.platformX();
+        float ya = BowlingPhysics.HEAD_Y - 0.55f, yb = BowlingPhysics.HEAD_Y + 0.95f, hw = 0.47f;
+        float xl0 = BowlingArt.sx(off - hw, ya), xr0 = BowlingArt.sx(off + hw, ya), y0 = BowlingArt.sy(ya);
+        float xl1 = BowlingArt.sx(off - hw, yb), xr1 = BowlingArt.sx(off + hw, yb), y1 = BowlingArt.sy(yb);
+        // a shadow, then the glowing slab
+        paint.setColor(0x55000000);
+        rect.set(Math.min(xl0, xl1) - 10f, y1 - 6f, Math.max(xr0, xr1) + 10f, y0 + 34f);
+        c.drawOval(rect, paint);
+        android.graphics.Path p = tri;
+        p.reset();
+        p.moveTo(xl1, y1);
+        p.lineTo(xr1, y1);
+        p.lineTo(xr0, y0);
+        p.lineTo(xl0, y0);
+        p.close();
+        paint.setColor(0xCC3B2A8F);
+        c.drawPath(p, paint);
+        paint.setStyle(Paint.Style.STROKE);
+        paint.setStrokeWidth(5f);
+        paint.setColor(0xFF29D3FF);
+        c.drawPath(p, paint);
+        paint.setStyle(Paint.Style.FILL);
+        // little engine lights that flicker, and arrows hinting that it slides
+        float pulse = 0.5f + 0.5f * (float) Math.sin(time * 9f);
+        paint.setColor(0xFFFFD84D);
+        paint.setAlpha((int) (150 + 100 * pulse));
+        c.drawCircle(xl1 + 16f, y1 + 8f, 8f, paint);
+        c.drawCircle(xr1 - 16f, y1 + 8f, 8f, paint);
+        paint.setAlpha(255);
     }
 
     private void drawBall(Canvas c, boolean rolling) {
@@ -853,6 +976,12 @@ public final class BowlingScene implements Scene {
             if (resultKind == BowlingScore.GUTTER) {
                 Theme.drawCentered(c, "Try again!", BowlingArt.CX, y + 80f, 56f, 0xFFFFFFFF);
             }
+            if (goldWon) {
+                float bob = (float) Math.abs(Math.sin(phaseT * 6f)) * 14f;
+                Theme.drawCentered(c, "Golden pin! +5", BowlingArt.CX, y + 150f - bob, 74f, 0xFFFFD84D);
+                sparkle(c, BowlingArt.CX - 330f, y + 120f - bob, 34f, 0xFFFFE680);
+                sparkle(c, BowlingArt.CX + 330f, y + 120f - bob, 34f, 0xFFFFE680);
+            }
         }
     }
 
@@ -882,7 +1011,7 @@ public final class BowlingScene implements Scene {
                 if (cellText[p][k].length() > 0) {
                     int kind = score.frameKind(p, k);
                     Theme.drawCentered(c, cellText[p][k], bx + 29f, ry + 54f, 32f,
-                            kind == BowlingScore.NORMAL ? 0xFFFFFFFF : 0xFFFFD84D);
+                            kind == BowlingScore.NORMAL && !score.frameGold(p, k) ? 0xFFFFFFFF : 0xFFFFD84D);
                 }
             }
             Theme.drawCentered(c, totalText[p], x + w - 56f, ry + 58f, 44f, BowlingArt.COLOURS[p]);
@@ -969,7 +1098,7 @@ public final class BowlingScene implements Scene {
         c.rotate(60f, rx, ry);
         c.drawBitmap(BowlingArt.rocket(), null, rect, sprite);
         c.restore();
-        float ax = 1780f, ay = 640f + (float) Math.sin(time * 0.7f) * 18f;
+        float ax = 120f, ay = 640f + (float) Math.sin(time * 0.7f) * 18f;
         c.save();
         c.rotate((float) Math.sin(time * 0.3f) * 14f, ax, ay);
         rect.set(ax - 70f, ay - 70f, ax + 70f, ay + 70f);

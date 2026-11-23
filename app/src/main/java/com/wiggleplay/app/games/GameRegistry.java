@@ -33,7 +33,9 @@ public final class GameRegistry {
         g.add(sky);
         g.add(new GameInfo("dance", "Animal Dance Party", 0xFF140B2E, GameRegistry::paintDance, "dance", 1, 2, false));
         g.add(new GameInfo("jungle", "Jungle Dash", Theme.SAGE, GameRegistry::paintJungle, "jungle", 1, 2, false));
-        g.add(new GameInfo("bowling", "Bowling", 0xFF140B2E, com.wiggleplay.app.games.bowling.BowlingArt::cover, "bowling", 1, 4, true));
+        GameInfo bowling = new GameInfo("bowling", "Bowling", 0xFF140B2E, com.wiggleplay.app.games.bowling.BowlingArt::cover, "bowling", 1, 4, true);
+        bowling.live = com.wiggleplay.app.games.bowling.BowlingArt.LIVE;
+        g.add(bowling);
         GAMES = Collections.unmodifiableList(g);
     }
 

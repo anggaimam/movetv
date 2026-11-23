@@ -5,18 +5,19 @@ package com.wiggleplay.app.games.bowling;
  *
  * <p>A game is {@link #FRAMES} frames, two rolls in each. A frame scores the pins knocked down in it; a spare (all
  * ten down with the second roll) adds {@link #SPARE_BONUS}, a strike (all ten with the first roll, which ends the
- * frame) adds {@link #STRIKE_BONUS}. Nothing is ever taken away. Players take turns frame by frame: everyone bowls
+ * frame) adds {@link #STRIKE_BONUS}; knocking down the golden pin adds {@link #GOLD_BONUS}. Nothing is ever taken away. Players take turns frame by frame: everyone bowls
  * frame 1, then everyone bowls frame 2, and so on.
  */
 public final class BowlingScore {
 
     /** Frames in a game, rolls in a frame, and the bonus points for a spare and for a strike. */
-    public static final int FRAMES = 5, ROLLS = 2, SPARE_BONUS = 5, STRIKE_BONUS = 10;
+    public static final int FRAMES = 5, ROLLS = 2, SPARE_BONUS = 5, STRIKE_BONUS = 10, GOLD_BONUS = 5;
     /** What happened with a roll. */
     public static final int NORMAL = 0, SPARE = 1, STRIKE = 2, GUTTER = 3;
 
     private final int players;
     private final int[][][] pins;         // [player][frame][roll] pins knocked down, -1 = not rolled
+    private final boolean[][] gold;       // [player][frame] the golden pin fell
     private int player, frame, roll;
     private boolean finished;
 
@@ -27,6 +28,7 @@ public final class BowlingScore {
     public BowlingScore(int players) {
         this.players = Math.max(1, Math.min(4, players));
         pins = new int[this.players][FRAMES][ROLLS];
+        gold = new boolean[this.players][FRAMES];
         for (int[][] p : pins) for (int[] f : p) java.util.Arrays.fill(f, -1);
     }
 
@@ -52,6 +54,21 @@ public final class BowlingScore {
     public int pinsUpNow() {
         if (roll == 0) return 10;
         return 10 - Math.max(0, pins[player][frame][0]);
+    }
+
+    /** Pays the golden pin's bonus to the bowler whose turn it is, for the frame being bowled (call before {@link #record}). */
+    public void addGold() {
+        if (!finished) gold[player][frame] = true;
+    }
+
+    /**
+     * Whether a bowler knocked the golden pin down in a frame.
+     * @param p player
+     * @param f frame
+     * @return true if the +5 was earned
+     */
+    public boolean frameGold(int p, int f) {
+        return gold[p][f];
     }
 
     /**
@@ -103,7 +120,7 @@ public final class BowlingScore {
     }
 
     /**
-     * Points of one frame: its pins plus a spare or strike bonus.
+     * Points of one frame: its pins plus a spare or strike bonus plus the golden pin's 5.
      * @param p player
      * @param f frame
      * @return points, or -1 if the frame has not been bowled
@@ -111,9 +128,10 @@ public final class BowlingScore {
     public int framePoints(int p, int f) {
         int a = pins[p][f][0], b = pins[p][f][1];
         if (a < 0) return -1;
-        if (a == 10) return 10 + STRIKE_BONUS;
-        if (b >= 0 && a + b == 10) return 10 + SPARE_BONUS;
-        return a + Math.max(0, b);
+        int extra = gold[p][f] ? GOLD_BONUS : 0;
+        if (a == 10) return 10 + STRIKE_BONUS + extra;
+        if (b >= 0 && a + b == 10) return 10 + SPARE_BONUS + extra;
+        return a + Math.max(0, b) + extra;
     }
 
     /**
@@ -168,16 +186,16 @@ public final class BowlingScore {
     }
 
     /**
-     * Stars for a number of pins: 1 always, 2 from 32, 3 from 42 on Easy; the limits are 10% higher on Medium and 20%
-     * higher on Hard (rounded to the nearest pin). Five frames hold 50 pins at most.
-     * @param pins pins knocked down in the whole game
+     * Stars for a game's points: 1 always, then 2 and 3 from limits that rise with the level (Easy 85 and 110, Medium
+     * 80 and 104, Hard 70 and 92). A perfect game with every golden pin is 125 points.
+     * @param points a bowler's total points (strikes, spares and golden pins included)
      * @param level 1..3
      * @return 1..3
      */
-    public static int stars(int pins, int level) {
-        float k = level == 3 ? 1.2f : level == 2 ? 1.1f : 1f;
-        if (pins >= Math.round(42 * k)) return 3;
-        if (pins >= Math.round(32 * k)) return 2;
+    public static int stars(int points, int level) {
+        int two = level == 3 ? 70 : level == 2 ? 80 : 85, three = level == 3 ? 92 : level == 2 ? 104 : 110;
+        if (points >= three) return 3;
+        if (points >= two) return 2;
         return 1;
     }
 }

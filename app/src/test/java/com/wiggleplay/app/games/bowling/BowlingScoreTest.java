@@ -84,12 +84,31 @@ public class BowlingScoreTest {
     }
 
     @Test
-    public void starsRiseWithPinsAndLevel() {
+    public void starsRiseWithPointsAndLevel() {
         assertEquals(1, BowlingScore.stars(0, 1));
-        assertEquals(2, BowlingScore.stars(32, 1));
-        assertEquals(3, BowlingScore.stars(42, 1));
-        assertEquals(2, BowlingScore.stars(42, 3));   // Hard needs 50
-        assertEquals(3, BowlingScore.stars(50, 3));
-        assertEquals(2, BowlingScore.stars(35, 2));
+        assertEquals(1, BowlingScore.stars(84, 1));
+        assertEquals(2, BowlingScore.stars(85, 1));
+        assertEquals(3, BowlingScore.stars(110, 1));
+        assertEquals(2, BowlingScore.stars(103, 2));   // Medium needs 104
+        assertEquals(3, BowlingScore.stars(104, 2));
+        assertEquals(1, BowlingScore.stars(69, 3));
+        assertEquals(2, BowlingScore.stars(91, 3));    // Hard needs 92
+        assertEquals(3, BowlingScore.stars(92, 3));
+    }
+
+    @Test
+    public void theGoldenPinAddsFivePointsToItsFrame() {
+        BowlingScore s = new BowlingScore(2);
+        s.addGold();            // player 0, frame 0
+        s.record(7);
+        s.record(2);            // 9 pins + 5
+        assertTrue(s.frameGold(0, 0));
+        assertFalse(s.frameGold(1, 0));
+        assertEquals(14, s.framePoints(0, 0));
+        assertEquals(14, s.total(0));
+        s.addGold();            // player 1 strikes and hits gold: 10 + 10 + 5
+        s.record(10);
+        assertEquals(25, s.framePoints(1, 0));
+        assertEquals(9, s.framePins(0, 0));
     }
 }

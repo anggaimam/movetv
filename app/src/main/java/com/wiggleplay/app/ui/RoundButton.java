@@ -23,6 +23,9 @@ public final class RoundButton {
     public static final float HIT = 260f;
     /** Hold time in ms. */
     public static final int HOLD_MS = 1500;
+    /** Page arrows: a little smaller hit area and a quicker hold, since they are used again and again. */
+    public static final float PAGE_HIT = 220f;
+    public static final int PAGE_HOLD_MS = 800;
     /** Centre of the corner button used on every screen. */
     public static final float CORNER_X = 160f, CORNER_Y = 150f;
 
@@ -66,6 +69,36 @@ public final class RoundButton {
         return make("settings", "Settings", "settings", 1920f - CORNER_X, CORNER_Y);
     }
 
+    /**
+     * A round arrow pointing left, to show the previous page of tiles (shorter hold than the corner buttons).
+     * @param cx centre x
+     * @param cy centre y
+     * @param title the spoken name
+     * @return a tile with id "prev"
+     */
+    public static TileMenu.Tile pagePrev(float cx, float cy, String title) {
+        return pageArrow("prev", title, cx, cy);
+    }
+
+    /**
+     * A round arrow pointing right, to show the next page of tiles.
+     * @param cx centre x
+     * @param cy centre y
+     * @param title the spoken name
+     * @return a tile with id "next"
+     */
+    public static TileMenu.Tile pageNext(float cx, float cy, String title) {
+        return pageArrow("next", title, cx, cy);
+    }
+
+    private static TileMenu.Tile pageArrow(String id, String title, float cx, float cy) {
+        TileMenu.Tile t = new TileMenu.Tile(id, title, null, Theme.INK, null, cx - PAGE_HIT / 2f, cy - PAGE_HIT / 2f,
+                PAGE_HIT, PAGE_HIT);
+        t.round = true;
+        t.holdMs = PAGE_HOLD_MS;
+        return t;
+    }
+
     private static TileMenu.Tile make(String id, String title, String kind, float cx, float cy) {
         TileMenu.Tile t = new TileMenu.Tile(id, title, null, Theme.INK, null, cx - HIT / 2f, cy - HIT / 2f, HIT, HIT);
         t.round = true;
@@ -77,15 +110,23 @@ public final class RoundButton {
     static void bake(TileMenu.Tile t) {
         final boolean home = "home".equals(t.id);
         final boolean gear = "settings".equals(t.id);
-        t.body = SpriteCache.shared().get("round_body_" + (home ? "home" : gear ? "settings" : "back"), (int) DIAMETER,
-                (int) DIAMETER,
+        final boolean next = "next".equals(t.id);
+        t.body = SpriteCache.shared().get("round_body_" + (home ? "home" : gear ? "settings" : next ? "next" : "back"),
+                (int) DIAMETER, (int) DIAMETER,
                 (c, w, h) -> {
                     FILL.setColor(Theme.INK);
                     c.drawCircle(w / 2f, h / 2f, w / 2f - 3f, FILL);
                     LINE.setColor(0x33FFFFFF);
                     LINE.setStrokeWidth(5f);
                     c.drawCircle(w / 2f, h / 2f, w / 2f - 12f, LINE);
-                    if (home) paintHouse(c, w, h); else if (gear) paintGear(c, w, h); else paintArrow(c, w, h);
+                    if (home) paintHouse(c, w, h);
+                    else if (gear) paintGear(c, w, h);
+                    else if (next) {
+                        c.save();
+                        c.scale(-1f, 1f, w / 2f, h / 2f);       // the back arrow, turned to point right
+                        paintArrow(c, w, h);
+                        c.restore();
+                    } else paintArrow(c, w, h);
                 });
         t.shadow = SpriteCache.shared().get("round_shadow", (int) DIAMETER, (int) DIAMETER, (c, w, h) -> {
             FILL.setColor(0xCC1B232B);

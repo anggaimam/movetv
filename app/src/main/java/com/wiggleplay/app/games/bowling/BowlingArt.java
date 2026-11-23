@@ -31,7 +31,7 @@ public final class BowlingArt {
     /** The bowlers' colours, matching their avatars (astronaut cyan, alien green, robot orange, star pink). */
     static final int[] COLOURS = {0xFF29D3FF, 0xFF9BE22B, 0xFFFF9A1F, 0xFFFF6FAE};
 
-    private static Bitmap lane, pin;
+    private static Bitmap lane, pin, goldPin, planet;
     private static final Bitmap[] BALLS = new Bitmap[4];
 
     private static final Paint F = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -76,7 +76,7 @@ public final class BowlingArt {
 
     /** Lets go of every bowling picture (called when the game is left); they are painted again on the next visit. */
     static void unload() {
-        lane = pin = space = rocket = null;
+        lane = pin = goldPin = planet = space = rocket = null;
         java.util.Arrays.fill(BALLS, null);
         java.util.Arrays.fill(AVATAR, null);
         SpriteCache.shared().removePrefix("bowl_");
@@ -88,8 +88,22 @@ public final class BowlingArt {
     }
 
     static Bitmap pin() {
-        if (pin == null) pin = SpriteCache.shared().get("bowl_pin", PIN_W, PIN_H, BowlingArt::paintPin);
+        if (pin == null) pin = SpriteCache.shared().get("bowl_pin", PIN_W, PIN_H,
+                (c, w, h) -> paintPin(c, w, h, 0xFF3A2A7A, 0xFFFF4FD8, 0xFFE8F8FF));
         return pin;
+    }
+
+    /** The golden pin: the same shape in gold, worth five extra points. */
+    static Bitmap goldPin() {
+        if (goldPin == null) goldPin = SpriteCache.shared().get("bowl_pin_gold", PIN_W, PIN_H,
+                (c, w, h) -> paintPin(c, w, h, 0xFF8A6A12, 0xFFFFFFFF, 0xFFFFD84D));
+        return goldPin;
+    }
+
+    /** The planet beside the lane on Medium (its pull bends the ball), 260 x 260 with a ring. */
+    static Bitmap planet() {
+        if (planet == null) planet = SpriteCache.shared().get("bowl_planet", 260, 260, BowlingArt::paintPlanet);
+        return planet;
     }
 
     static Bitmap ball(int player) {
@@ -128,14 +142,18 @@ public final class BowlingArt {
         F.setStyle(Paint.Style.FILL);
         F.setColor(0xFF0E0725);
         c.drawRect(0f, 0f, w, h, F);
-        // a few stars in the dark hall
+        // stars all over the hall, up and down the whole screen, a few of them gold
         Random r = new Random(7);
-        F.setColor(0x88FFFFFF);
-        for (int i = 0; i < 70; i++) c.drawCircle(r.nextFloat() * w, r.nextFloat() * (HORIZON + 260f), 1f + r.nextFloat() * 2f, F);
-        // floor of the hall, a pink glow band at the horizon
-        F.setColor(0xFF170B33);
-        c.drawRect(0f, FAR_Y - 40f, w, h, F);
-        glow(c, 0f, FAR_Y - 40f, w, FAR_Y - 40f, 0xFFFF4FD8, 3f);
+        for (int i = 0; i < 150; i++) {
+            F.setColor(r.nextInt(6) == 0 ? 0x99FFD84D : 0x88FFFFFF);
+            c.drawCircle(r.nextFloat() * w, r.nextFloat() * h, 1f + r.nextFloat() * 2.2f, F);
+        }
+        // the floor is a soft purple shade that deepens toward the viewer (no hard edge, the stars stay visible)
+        for (int i = 0; i < 24; i++) {
+            float yy = FAR_Y - 40f + (h - (FAR_Y - 40f)) * i / 24f;
+            F.setColor(((int) (0x44 * (i + 1) / 24f) << 24) | 0x00170B33);
+            c.drawRect(0f, yy, w, yy + (h - (FAR_Y - 40f)) / 24f + 1f, F);
+        }
         float y0 = -0.9f, y1 = BowlingPhysics.LANE_L + 0.4f;
         float gut = 0.62f;
         // gutters
@@ -164,8 +182,8 @@ public final class BowlingArt {
             F.setColor(0xFFFFD84D);
             c.drawPath(P, F);
         }
-        // quiet space things on the dark floor beside the lane
-        faintPlanet(c, 1700f, 900f, 95f);
+        // quiet space things beside the lane (bottom left is clear of the lane; the Medium planet has the sides)
+        faintPlanet(c, 230f, 900f, 85f);
         faintPlanet(c, 880f, 120f, 30f);
         // foul line and the glowing edges
         glow(c, sx(-0.5f, 0f), sy(0f), sx(0.5f, 0f), sy(0f), 0xFFFF4FD8, 5f);
@@ -176,7 +194,7 @@ public final class BowlingArt {
         glow(c, sx(-gut, y1), sy(y1), sx(gut, y1), sy(y1), 0xFFFF4FD8, 4f);
     }
 
-    private static void paintPin(Canvas c, int w, int h) {
+    private static void paintPin(Canvas c, int w, int h, int fillCol, int stripeCol, int outlineCol) {
         Path p = new Path();
         p.moveTo(19f, 176f);
         p.cubicTo(6f, 150f, 8f, 118f, 24f, 94f);
@@ -188,14 +206,14 @@ public final class BowlingArt {
         p.cubicTo(64f, 118f, 66f, 150f, 53f, 176f);
         p.close();
         F.setStyle(Paint.Style.FILL);
-        F.setColor(0xFF3A2A7A);
+        F.setColor(fillCol);
         c.drawPath(p, F);
         // two stripes on the neck
-        L.setColor(0xFFFF4FD8);
+        L.setColor(stripeCol);
         L.setStrokeWidth(5f);
         c.drawLine(30f, 62f, 42f, 62f, L);
         c.drawLine(29f, 72f, 43f, 72f, L);
-        Brushes.neonStroke(c, p, 0xFFE8F8FF, 4f);
+        Brushes.neonStroke(c, p, outlineCol, 4f);
     }
 
     private static void paintBall(Canvas c, int w, int h, int col) {
@@ -215,6 +233,30 @@ public final class BowlingArt {
         c.drawCircle(cx + r * 0.12f, cy - r * 0.05f, r * 0.12f, F);
     }
 
+    private static void paintPlanet(Canvas c, int w, int h) {
+        float cx = w / 2f, cy = h / 2f, r = 78f;
+        L.setStrokeCap(Paint.Cap.ROUND);
+        L.setColor(0xFFFFD84D);
+        L.setStrokeWidth(r * 0.12f);
+        c.save();
+        c.rotate(-18f, cx, cy);
+        R.set(cx - r * 1.55f, cy - r * 0.4f, cx + r * 1.55f, cy + r * 0.4f);
+        c.drawOval(R, L);
+        c.restore();
+        circ(c, cx, cy, r, 0xFFFF7A59);
+        circ(c, cx + r * 0.18f, cy + r * 0.2f, r * 0.8f, 0xFFE8603F);
+        oval(c, cx - r * 0.35f, cy - r * 0.5f, r * 0.3f, r * 0.13f, 0xFFFFB199);
+        circ(c, cx - r * 0.4f, cy + r * 0.05f, r * 0.14f, 0xFFB93F25);
+        circ(c, cx + r * 0.25f, cy - r * 0.25f, r * 0.11f, 0xFFB93F25);
+        circ(c, cx + r * 0.05f, cy + r * 0.38f, r * 0.15f, 0xFFB93F25);
+        c.save();
+        c.clipRect(0f, cy, w, h);
+        c.rotate(-18f, cx, cy);
+        R.set(cx - r * 1.55f, cy - r * 0.4f, cx + r * 1.55f, cy + r * 0.4f);
+        c.drawOval(R, L);
+        c.restore();
+    }
+
     private static int darker(int col) {
         int r = (col >> 16 & 0xFF) / 3, g = (col >> 8 & 0xFF) / 3, b = (col & 0xFF) / 3;
         return 0xFF000000 | r << 16 | g << 8 | b;
@@ -222,20 +264,66 @@ public final class BowlingArt {
 
     /** The tile picture for the game menu: a bowling-ball planet with a ring, and a pin-shaped rocket orbiting it. */
     public static void cover(Canvas c, int w, int h) {
+        drawCover(c, w, h, 0f);
+    }
+
+    private static float[] starX, starY, starR;
+
+    /** Seconds a lap of the rocket around the planet takes when the tile is highlighted. */
+    private static final float LAP_SECONDS = 2.8f;
+    private static float lapStart, lastDraw = -100f;
+
+    /**
+     * The moving tile picture: while the tile is highlighted the rocket flies once around the planet (behind it, then in
+     * front), and rests where the still picture has it.
+     */
+    public static final com.wiggleplay.app.ui.TileMenu.LiveIcon LIVE = (c, cx, cy, size, hover, time) -> {
+        if (time - lastDraw > 0.25f) lapStart = time;       // a new highlight starts a new lap
+        lastDraw = time;
+        float p = Math.max(0f, Math.min(1f, (time - lapStart) / LAP_SECONDS));
+        float eased = p * p * (3f - 2f * p);
+        c.save();
+        c.translate(cx - size / 2f, cy - size / 2f);
+        drawCover(c, size, size, -eased * 6.2831855f);
+        c.restore();
+    };
+
+    /** The cover with the rocket at an angle on its orbit (0 is the right end, negative goes up and behind first). */
+    private static void drawCover(Canvas c, float w, float h, float theta) {
         float cx = w * 0.46f, cy = h * 0.54f, r = w * 0.27f;
-        // stars
-        Random rnd = new Random(5);
+        if (starX == null) {
+            Random rnd = new Random(5);
+            starX = new float[14];
+            starY = new float[14];
+            starR = new float[14];
+            for (int i = 0; i < 14; i++) {
+                starX[i] = rnd.nextFloat();
+                starY[i] = rnd.nextFloat();
+                starR[i] = 1f + rnd.nextFloat() * 2f;
+            }
+        }
         fill(0xAAFFFFFF);
-        for (int i = 0; i < 14; i++) c.drawCircle(rnd.nextFloat() * w, rnd.nextFloat() * h, 1f + rnd.nextFloat() * 2f, F);
+        for (int i = 0; i < 14; i++) c.drawCircle(starX[i] * w, starY[i] * h, starR[i], F);
+        // where the rocket is on the tilted ring
+        float a = r * 1.65f, b = r * 0.42f, cs = (float) Math.cos(theta), sn = (float) Math.sin(theta);
+        final float ca = 0.9396926f, sa = -0.34202015f;           // the ring is turned -20 degrees
+        float ox = a * cs, oy = b * sn;
+        float rx = cx + ox * ca - oy * sa, ry = cy + ox * sa + oy * ca;
+        float hx = a * sn, hy = -b * cs;                           // the way it is flying (clockwise ring parameter reversed)
+        float dx = hx * ca - hy * sa, dy = hx * sa + hy * ca;
+        float tilt = (float) Math.toDegrees(Math.atan2(dx, -dy));
+        float depth = r / 95f * (1f + 0.2f * sn);
+        boolean behind = sn < -0.02f;
         // back half of the ring
         L.setStrokeCap(Paint.Cap.ROUND);
         L.setColor(0xFFFFC21F);
         L.setStrokeWidth(r * 0.12f);
         c.save();
         c.rotate(-20f, cx, cy);
-        R.set(cx - r * 1.65f, cy - r * 0.42f, cx + r * 1.65f, cy + r * 0.42f);
+        R.set(cx - a, cy - b, cx + a, cy + b);
         c.drawOval(R, L);
         c.restore();
+        if (behind) paintPinRocket(c, rx, ry, depth, tilt);
         // the bowling ball planet
         circ(c, cx, cy, r, 0xFF6A3FD6);
         circ(c, cx + r * 0.18f, cy + r * 0.2f, r * 0.78f, 0xFF5A32C4);
@@ -247,11 +335,10 @@ public final class BowlingArt {
         c.save();
         c.clipRect(0f, cy, w, h);
         c.rotate(-20f, cx, cy);
-        R.set(cx - r * 1.65f, cy - r * 0.42f, cx + r * 1.65f, cy + r * 0.42f);
+        R.set(cx - a, cy - b, cx + a, cy + b);
         c.drawOval(R, L);
         c.restore();
-        // the pin rocket on its orbit, front right, climbing
-        paintPinRocket(c, cx + r * 1.3f, cy - r * 0.55f, r / 95f, 55f);
+        if (!behind) paintPinRocket(c, rx, ry, depth, tilt);
     }
 
     // ---- space avatars (flat, drawn from circles, curves and rounded boxes; design units, about -95..95) ----
