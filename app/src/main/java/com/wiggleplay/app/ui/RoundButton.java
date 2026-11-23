@@ -157,7 +157,7 @@ public final class RoundButton {
         LINE.setStrokeWidth(w * 0.10f);
         Path p = new Path();
         for (int k = 0; k < 2; k++) {
-            float x = w * (0.34f + 0.20f * k), d = right ? 1f : -1f;
+            float x = w * (0.41f + 0.18f * k), d = right ? 1f : -1f;
             float cx = right ? x : w - x;
             p.reset();
             p.moveTo(cx - d * w * 0.09f, h * 0.30f);

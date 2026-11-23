@@ -84,10 +84,10 @@ public final class GameSelectScene implements Scene {
             for (int i = 0; i < n; i++) out.add(tile(games.get(i), x0 + i * (w + gap), ROW_Y, w, ROW_H));
         } else {
             // four slots between the two arrows
-            float w = 335f, gap = 26f;
+            float w = 320f, gap = 56f;
             int from = Math.max(0, Math.min(pageCount(n) - 1, page)) * PER_PAGE;
             int here = Math.min(PER_PAGE, n - from);
-            float x0 = 250f + (4 * w + 3 * gap - (here * w + (here - 1) * gap)) / 2f;   // a short last page is centred
+            float x0 = (Stage.W - (here * w + (here - 1) * gap)) / 2f;   // a short last page is centred
             for (int i = from; i < n && i < from + PER_PAGE; i++) {
                 out.add(tile(games.get(i), x0 + (i - from) * (w + gap), ROW_Y, w, ROW_H));
             }
