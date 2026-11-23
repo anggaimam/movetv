@@ -38,6 +38,9 @@ public final class GameRegistry {
         GameInfo bowling = new GameInfo("bowling", "Bowling", 0xFF140B2E, com.wiggleplay.app.games.bowling.BowlingArt::cover, "bowling", 1, 4, true);
         bowling.live = com.wiggleplay.app.games.bowling.BowlingArt.LIVE;
         g.add(bowling);
+        GameInfo bubbles = new GameInfo("bubbles", "Bubble Burst", 0xFF2A93B8, com.wiggleplay.app.games.bubbles.BubbleArt::cover, "bubbles", 1, 2, false);
+        bubbles.live = com.wiggleplay.app.games.bubbles.BubbleArt.LIVE;
+        g.add(bubbles);
         GAMES = Collections.unmodifiableList(g);
     }
 

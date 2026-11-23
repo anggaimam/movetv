@@ -10,6 +10,7 @@ import com.wiggleplay.app.core.Input;
 import com.wiggleplay.app.core.PerfOverlay;
 import com.wiggleplay.app.core.Scene;
 import com.wiggleplay.app.games.bowling.BowlingScene;
+import com.wiggleplay.app.games.bubbles.BubbleScene;
 import com.wiggleplay.app.games.fruit.FruitScene;
 import com.wiggleplay.app.games.dance.DanceScene;
 import com.wiggleplay.app.games.jungle.JungleScene;
@@ -205,6 +206,35 @@ public class ScreenshotTest {
                 });
         check(f);
     }
+
+    private void bubbles(String name, int level, int players, int frames, boolean rules) throws Exception {
+        BubbleScene.setRulesSeen(!rules);
+        File f = ShotRig.shoot(name, new BubbleScene(env()), Scene.SceneArgs.of("level", level, "players", players), players,
+                frames, (frame, now, body, input) -> {
+                    if (frame == 0) body.pointerDown(300, 700);
+                    float t = frame / 60f;
+                    body.pointerMove(960 + (float) Math.sin(t * 2f) * 500f, 520 + (float) Math.cos(t * 2.6f) * 200f);
+                });
+        check(f);
+    }
+
+    @Test
+    public void bubblesRulesEasy() throws Exception { bubbles("bubbles_rules_1", 1, 1, 75, true); }
+
+    @Test
+    public void bubblesRulesHard() throws Exception { bubbles("bubbles_rules_3", 3, 1, 75, true); }
+
+    @Test
+    public void bubblesPlayEasy() throws Exception { bubbles("bubbles_play_1", 1, 1, 330, false); }
+
+    @Test
+    public void bubblesPlayHard() throws Exception { bubbles("bubbles_play_3", 3, 1, 420, false); }
+
+    @Test
+    public void bubblesPlayTwoPlayers() throws Exception { bubbles("bubbles_play_2p", 2, 2, 420, false); }
+
+    @Test
+    public void bubblesEnd() throws Exception { bubbles("bubbles_end", 2, 1, 5000, false); }
 
     private void fruitEnd(String name, int players) throws Exception {
         FruitScene.initArt(org.robolectric.RuntimeEnvironment.getApplication());
