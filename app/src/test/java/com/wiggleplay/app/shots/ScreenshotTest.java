@@ -141,8 +141,8 @@ public class ScreenshotTest {
                 (frame, now, body, input) -> {
                     if (frame == 0) input.touch(Input.TOUCH_DOWN, 1800f, 600f);
                     if (frame == 62) input.touch(Input.TOUCH_UP, 1800f, 600f);
-                    if (frame == 70) input.touch(Input.TOUCH_DOWN, 420f, 560f);
-                    if (frame == 71) input.touch(Input.TOUCH_MOVE, 420f, 560f);
+                    if (frame == 70) input.touch(Input.TOUCH_DOWN, 960f, 560f);
+                    if (frame == 71) input.touch(Input.TOUCH_MOVE, 960f, 560f);
                 }));
     }
 
