@@ -141,6 +141,8 @@ final class JungleArt {
         fancy = false;
         tried = false;
         SpriteCache.shared().removePrefix("jg_");
+        SpriteCache.shared().removePrefix("tile_");
+        SpriteCache.shared().removePrefix("tileicon_");
     }
 
     /** @return true when the drawn art from assets is in use (trees, critters and birds are shown) */

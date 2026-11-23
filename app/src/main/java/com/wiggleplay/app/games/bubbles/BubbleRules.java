@@ -31,7 +31,7 @@ final class BubbleRules implements Hud.RulesPainter {
      */
     BubbleRules(int level) {
         this.level = level;
-        this.panels = level == 1 ? 2 : (level == 2 ? 3 : 4);
+        this.panels = level == 1 ? 2 : 4;
         line.setStyle(Paint.Style.STROKE);
         line.setStrokeCap(Paint.Cap.ROUND);
     }
@@ -47,8 +47,8 @@ final class BubbleRules implements Hud.RulesPainter {
     @Override
     public String speech() {
         if (level == 1) return "Touch the bubbles with your hands!";
-        if (level == 2) return "Blue bubbles are for your left hand, red bubbles for your right!";
-        return "Pop the bubbles, use both hands for purple, and skip the spiky ones!";
+        if (level == 2) return "Blue bubbles are for your left hand, red for your right. Keep away from the spiky ones: they take a point!";
+        return "Pop the bubbles, use both hands for purple, and keep away from the spiky ones: they take two points!";
     }
 
     @Override
@@ -114,17 +114,17 @@ final class BubbleRules implements Hud.RulesPainter {
 
     private void special(Canvas c, float cx) {
         float lt = t % LOOP;
-        BubbleArt.drawBubble(c, BubbleLogic.GOLD, cx - 100f, TOP + 85f, 50f, 1f, t);
-        Theme.drawCentered(c, "+5", cx + 60f, TOP + 103f, 52f, 0xFFE0A100);
-        BubbleArt.drawBubble(c, BubbleLogic.BOTH, cx - 100f, TOP + 185f, 50f, 1f, t);
-        float k = (float) (0.5 + 0.5 * Math.sin(lt * 3.2f));
-        BubbleArt.drawFish(c, cx - 10f + 20f * k, TOP + 185f, false, Theme.P1, BubbleArt.FIN_BLUE, t, 0.55f);
-        BubbleArt.drawFish(c, cx + 110f - 20f * k, TOP + 185f, true, Theme.P1, BubbleArt.FIN_RED, t, 0.55f);
-        BubbleArt.drawBubble(c, BubbleLogic.DECOY, cx - 100f, TOP + 285f, 30f, 1f, t);
-        // "not this": a red ring with a bar over a small fish
-        line.setColor(0xFFD64545);
-        line.setStrokeWidth(9f);
-        c.drawCircle(cx - 100f, TOP + 285f, 42f, line);
-        c.drawLine(cx - 130f, TOP + 315f, cx - 70f, TOP + 255f, line);
+        boolean hard = level >= 3;
+        BubbleArt.drawBubble(c, BubbleLogic.GOLD, cx - 100f, TOP + (hard ? 85f : 100f), 50f, 1f, t);
+        Theme.drawCentered(c, "+5", cx + 60f, TOP + (hard ? 103f : 118f), 52f, 0xFFE0A100);
+        if (hard) {
+            BubbleArt.drawBubble(c, BubbleLogic.BOTH, cx - 100f, TOP + 185f, 50f, 1f, t);
+            float k = (float) (0.5 + 0.5 * Math.sin(lt * 3.2f));
+            BubbleArt.drawFish(c, cx - 10f + 20f * k, TOP + 185f, false, Theme.P1, BubbleArt.FIN_BLUE, t, 0.55f);
+            BubbleArt.drawFish(c, cx + 110f - 20f * k, TOP + 185f, true, Theme.P1, BubbleArt.FIN_RED, t, 0.55f);
+        }
+        float dy = hard ? 285f : 245f;
+        BubbleArt.drawBubble(c, BubbleLogic.DECOY, cx - 100f, TOP + dy, hard ? 30f : 44f, 1f, t);
+        Theme.drawCentered(c, hard ? "-2" : "-1", cx + 60f, TOP + dy + 18f, 52f, 0xFFD64545);
     }
 }

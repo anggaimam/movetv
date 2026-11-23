@@ -322,6 +322,8 @@ final class DanceArt {
         java.util.Arrays.fill(HEAD_BMP, null);
         java.util.Arrays.fill(TRIED, false);
         SpriteCache.shared().removePrefix("dance_");
+        SpriteCache.shared().removePrefix("tile_");
+        SpriteCache.shared().removePrefix("tileicon_");
     }
 
     private static Bitmap file(String name) {

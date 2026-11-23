@@ -80,6 +80,8 @@ public final class BowlingArt {
         java.util.Arrays.fill(BALLS, null);
         java.util.Arrays.fill(AVATAR, null);
         SpriteCache.shared().removePrefix("bowl_");
+        SpriteCache.shared().removePrefix("tile_");
+        SpriteCache.shared().removePrefix("tileicon_");
     }
 
     static Bitmap lane() {

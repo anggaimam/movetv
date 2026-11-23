@@ -51,7 +51,7 @@ public final class BubbleScene implements Scene {
     private final HandTrack[][] hands = new HandTrack[2][2];
     private final boolean[][] faceRight = new boolean[2][2];
     private final BubbleLogic[] logic = new BubbleLogic[2];
-    private final BubbleArt.Scenery scenery = new BubbleArt.Scenery();
+    private BubbleArt.Scenery scenery = new BubbleArt.Scenery(1L);
     private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private BubbleRules rules;
     private android.graphics.Bitmap camera;
@@ -84,6 +84,7 @@ public final class BubbleScene implements Scene {
         env.leaveMenus();
         level = Math.max(1, Math.min(3, args.getInt("level", 1)));
         players = args.getInt("players", env.players) == 2 ? 2 : 1;
+        scenery = new BubbleArt.Scenery(System.nanoTime());   // a different sea every visit
         rules = new BubbleRules(level);
         hud.setRules(rules);
         beginRound(!rulesSeen);
@@ -115,9 +116,17 @@ public final class BubbleScene implements Scene {
                 }
 
                 @Override
-                public void onDecoy(BubbleLogic.Bubble b) {
-                    env.sfx("bonk", 1.0f);
+                public void onDecoy(BubbleLogic.Bubble b, int lost) {
+                    env.sfx("bonk", 0.8f);
                     ring(b, 0.8f);
+                    Popup pu = popups.obtain();
+                    if (pu != null) {
+                        pu.x = b.x;
+                        pu.y = b.y - b.r;
+                        pu.life = 1.1f;
+                        pu.text = lost > 0 ? "-" + lost : "Oops!";
+                        pu.colour = 0xFFFF7A70;
+                    }
                 }
 
                 @Override
@@ -292,7 +301,7 @@ public final class BubbleScene implements Scene {
             float left = b.life - b.age;
             float alpha = left < 0.5f ? Math.max(0f, left / 0.5f) : 1f;
             float wob = b.wobble > 0f ? (float) Math.sin(b.wobble * 50f) * 14f * (b.wobble / 0.5f) : 0f;
-            BubbleArt.drawBubble(c, b.kind, b.x + wob, b.y, b.r * scale, alpha, time);
+            BubbleArt.drawBubble(c, b.kind, b.x + wob, b.y, b.r * scale, alpha, time + b.serial, b.look);
         }
     }
 

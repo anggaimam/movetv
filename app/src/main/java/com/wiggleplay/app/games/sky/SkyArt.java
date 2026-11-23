@@ -55,6 +55,8 @@ final class SkyArt {
         for (Bitmap[] a : new Bitmap[][]{BIRD, CLOUD, BG, FAR, NEAR}) java.util.Arrays.fill(a, null);
         ring = coin = star = balloon = magnet = shadow = null;
         SpriteCache.shared().removePrefix("sky_");
+        SpriteCache.shared().removePrefix("tile_");
+        SpriteCache.shared().removePrefix("tileicon_");
     }
 
     /**

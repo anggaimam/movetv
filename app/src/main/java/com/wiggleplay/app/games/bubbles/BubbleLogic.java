@@ -8,7 +8,8 @@ import java.util.Random;
  * The rules of Bubble Burst for one player (or one half of the screen). Plain Java, no android imports, so it is
  * tested on a laptop. Bubbles appear inside the player's reach (around the shoulders, never on top of the face),
  * live a few seconds and fade away; nothing is ever taken away from a child. Medium and Hard add colours (blue is
- * for the left hand, red for the right), golden bubbles, and on Hard two-hand bubbles and spiky decoys.
+ * for the left hand, red for the right), golden bubbles, spiky decoys that take 1 (Medium) or 2 (Hard) points
+ * away (never below zero), and on Hard two-hand bubbles.
  */
 public final class BubbleLogic {
 
@@ -33,10 +34,11 @@ public final class BubbleLogic {
         void onWrongHand(Bubble b);
 
         /**
-         * A spiky decoy was touched (it swims off, nothing is lost).
+         * A spiky decoy was touched: it takes a few points away (the score never goes below zero).
          * @param b the decoy
+         * @param lost points taken off (positive number, 0 when the score was already 0)
          */
-        void onDecoy(Bubble b);
+        void onDecoy(Bubble b, int lost);
 
         /**
          * A bubble faded away on its own.
@@ -47,7 +49,7 @@ public final class BubbleLogic {
 
     /** One bubble. */
     public static final class Bubble {
-        public int kind, serial;
+        public int kind, serial, look;
         public float x, y, r, age, life, wobble, born;
         boolean live;
     }
@@ -207,12 +209,17 @@ public final class BubbleLogic {
                 break;
             case DECOY:
                 b.live = false;
-                listener.onDecoy(b);
+                int lost = Math.min(score, penalty());
+                score -= lost;
+                listener.onDecoy(b, lost);
                 break;
             default:
                 pop(b);
         }
     }
+
+    /** @return points a spiky decoy takes away: Medium 1, Hard 2 */
+    public int penalty() { return level == 2 ? 1 : 2; }
 
     private void pop(Bubble b) {
         b.live = false;
@@ -225,7 +232,7 @@ public final class BubbleLogic {
     private int pickKind() {
         float v = rnd.nextFloat();
         if (level == 1) return ANY;
-        if (level == 2) return v < 0.08f ? GOLD : (v < 0.54f ? BLUE : RED);
+        if (level == 2) return v < 0.08f ? GOLD : (v < 0.20f ? DECOY : (v < 0.60f ? BLUE : RED));
         if (v < 0.07f) return GOLD;
         if (v < 0.19f) return BOTH;
         if (v < 0.37f) return DECOY;
@@ -257,7 +264,8 @@ public final class BubbleLogic {
                 b.serial = ++serial;
                 b.x = x;
                 b.y = y;
-                b.r = radius;
+                b.r = radius * (0.9f + rnd.nextFloat() * 0.25f);
+                b.look = rnd.nextInt(3);
                 b.age = 0f;
                 b.life = lifetime;
                 b.wobble = 0f;

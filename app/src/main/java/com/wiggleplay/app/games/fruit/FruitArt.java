@@ -90,6 +90,8 @@ final class FruitArt {
         java.util.Arrays.fill(SPRITES, null);
         for (Bitmap[] h : HALVES) java.util.Arrays.fill(h, null);
         SpriteCache.shared().removePrefix("fruit_");
+        SpriteCache.shared().removePrefix("tile_");
+        SpriteCache.shared().removePrefix("tileicon_");
     }
 
     private static Bitmap load(int kind) {

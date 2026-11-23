@@ -11,11 +11,11 @@ import org.junit.Test;
 public class BubbleLogicTest {
 
     private static final class Log implements BubbleLogic.Listener {
-        int pops, wrong, decoys, fades, points;
+        int pops, wrong, decoys, fades, points, lost;
 
         @Override public void onPop(BubbleLogic.Bubble b, int p) { pops++; points += p; }
         @Override public void onWrongHand(BubbleLogic.Bubble b) { wrong++; }
-        @Override public void onDecoy(BubbleLogic.Bubble b) { decoys++; }
+        @Override public void onDecoy(BubbleLogic.Bubble b, int l) { decoys++; lost += l; }
         @Override public void onFade(BubbleLogic.Bubble b) { fades++; }
     }
 
@@ -119,16 +119,48 @@ public class BubbleLogicTest {
     }
 
     @Test
-    public void aDecoyScoresNothingAndTakesNothingAway() {
+    public void aDecoyTakesPointsAwayButNeverBelowZero() {
+        for (int lv = 2; lv <= 3; lv++) {
+            Log log = new Log();
+            BubbleLogic l = new BubbleLogic(lv, 33, 0f, 1920f, log);
+            for (int i = 0; i < 6000 && l.score() < 3; i++) {
+                now += 16;
+                far();
+                for (int k = 0; k < l.activeCount(); k++) {
+                    BubbleLogic.Bubble b = l.at(k);
+                    if (b.kind == BubbleLogic.DECOY || b.age < 0.4f) continue;
+                    left.update(0.016f, true, b.x, b.y, now);
+                    right.update(0.016f, true, b.x, b.y, now);
+                    break;
+                }
+                l.update(0.016f, now, left, right, true);
+            }
+            assertTrue(l.score() >= 3);
+            far();
+            step(l, 40);
+            BubbleLogic.Bubble d = waitFor(l, BubbleLogic.DECOY, 6000);
+            assertTrue("a decoy in level " + lv, d != null);
+            int before = l.score();
+            left.update(0.016f, true, d.x, d.y, now);
+            step(l, 2);
+            assertEquals(1, log.decoys);
+            assertEquals(l.penalty(), log.lost);
+            assertEquals(before - l.penalty(), l.score());
+        }
         Log log = new Log();
-        BubbleLogic l = new BubbleLogic(3, 33, 0f, 1920f, log);
-        BubbleLogic.Bubble b = waitFor(l, BubbleLogic.DECOY, 6000);
-        assertTrue(b != null);
-        int before = l.score();
-        left.update(0.016f, true, b.x, b.y, now);
+        BubbleLogic l = new BubbleLogic(3, 5, 0f, 1920f, log);
+        BubbleLogic.Bubble d = waitFor(l, BubbleLogic.DECOY, 6000);
+        assertTrue(d != null);
+        left.update(0.016f, true, d.x, d.y, now);
         step(l, 2);
-        assertEquals(1, log.decoys);
-        assertEquals(before, l.score());
+        assertEquals(0, l.score());
+        assertEquals(0, log.lost);
+    }
+
+    @Test
+    public void penaltyIsOneOnMediumAndTwoOnHard() {
+        assertEquals(1, new BubbleLogic(2, 1, 0f, 1920f, new Log()).penalty());
+        assertEquals(2, new BubbleLogic(3, 1, 0f, 1920f, new Log()).penalty());
     }
 
     @Test
