@@ -8,8 +8,6 @@ import static org.junit.Assert.assertTrue;
 import org.junit.Assume;
 import org.junit.Test;
 
-import java.lang.management.ManagementFactory;
-
 public class RenderListTest {
 
     private static float[] matrix(float tx) {
@@ -84,17 +82,23 @@ public class RenderListTest {
         assertEquals(2, b.count());
     }
 
+    /** Bytes allocated so far by this thread, or -1 when the JVM cannot tell (looked up by reflection: the Android compile classpath has no java.lang.management). */
+    private static long allocatedBytes() {
+        try {
+            Class<?> mf = Class.forName("java.lang.management.ManagementFactory");
+            Object bean = mf.getMethod("getThreadMXBean").invoke(null);
+            Class<?> sun = Class.forName("com.sun.management.ThreadMXBean");
+            if (!sun.isInstance(bean)) return -1;
+            sun.getMethod("setThreadAllocatedMemoryEnabled", boolean.class).invoke(bean, true);
+            return (Long) sun.getMethod("getThreadAllocatedBytes", long.class).invoke(bean, Thread.currentThread().getId());
+        } catch (Exception | LinkageError e) {
+            return -1;
+        }
+    }
+
     @Test
     public void addBeginAndCopyDoNotAllocate() {
-        com.sun.management.ThreadMXBean mx;
-        try {
-            mx = (com.sun.management.ThreadMXBean) ManagementFactory.getThreadMXBean();
-            Assume.assumeTrue(mx.isThreadAllocatedMemorySupported());
-            mx.setThreadAllocatedMemoryEnabled(true);
-        } catch (ClassCastException | UnsupportedOperationException e) {
-            Assume.assumeTrue("allocation counter not available", false);
-            return;
-        }
+        Assume.assumeTrue("allocation counter not available", allocatedBytes() >= 0);
         RenderList a = new RenderList(512), b = new RenderList(512);
         float[] m = matrix(1);
         for (int w = 0; w < 200; w++) { // warm up the JIT
@@ -102,14 +106,13 @@ public class RenderListTest {
             for (int i = 0; i < 512; i++) a.add(i, 0, m, 0, false, 1);
             b.copyFrom(a);
         }
-        long id = Thread.currentThread().getId();
-        long before = mx.getThreadAllocatedBytes(id);
+        long before = allocatedBytes();
         for (int w = 0; w < 200; w++) {
             a.begin();
             for (int i = 0; i < 512; i++) a.add(i, 0, m, 0, false, 1);
             b.copyFrom(a);
         }
-        long used = mx.getThreadAllocatedBytes(id) - before;
+        long used = allocatedBytes() - before;
         assertTrue("allocated " + used + " bytes", used < 2048);
     }
 }
