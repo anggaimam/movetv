@@ -189,6 +189,20 @@ public final class RaceGlView extends GLSurfaceView {
     }
 
     /**
+     * Sets the swatches painted into the colormap texture (T-28 Part C). Call before the scene's first frame; a later call
+     * uploads the texture again. The palette must not be changed afterwards.
+     * @param swatches the swatches, or null for Kenney's colormap as it is
+     */
+    public void setColormapSwatches(final PaletteSwatches swatches) {
+        queueEvent(new Runnable() {
+            @Override
+            public void run() {
+                renderer.setPalette(swatches);
+            }
+        });
+    }
+
+    /**
      * Sets how many viewports are drawn: 1 = the whole picture, 2 = a left and a right half.
      * @param n 1 or 2
      */

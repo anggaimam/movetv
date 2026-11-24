@@ -163,6 +163,8 @@ public final class GlRenderer implements GLSurfaceView.Renderer {
     private final float[] snapFov = new float[2];
     private int surfaceW, surfaceH;
     private int program, texture;
+    /** Swatches painted into the decoded colormap before it is uploaded; null = Kenney's colormap as it is. */
+    private PaletteSwatches palette;
     private boolean programFailed;
     private int aPos, aNormal, aUv;
     private int uMvp, uModel, uSunDir, uEye, uFogNear, uFogFar, uTex, uFlat, uColor, uFogColor, uAlpha;
@@ -233,6 +235,18 @@ public final class GlRenderer implements GLSurfaceView.Renderer {
         spheres = newSpheres;
         order = new int[newChunks.length];
         dist = new float[newChunks.length];
+    }
+
+    /**
+     * Sets the swatches painted into the colormap (GL thread). When the texture is already uploaded it is thrown away and
+     * uploaded again with the swatches at the next frame; after a lost context the swatches are painted again.
+     */
+    void setPalette(PaletteSwatches swatches) {
+        palette = swatches;
+        if (texture != 0) {
+            GLES20.glDeleteTextures(1, new int[] {texture}, 0);
+            texture = 0;
+        }
     }
 
     /** Frees every GPU object (buffers, texture, shader) and forgets all meshes. */
@@ -490,9 +504,16 @@ public final class GlRenderer implements GLSurfaceView.Renderer {
         BitmapFactory.Options o = new BitmapFactory.Options();
         o.inScaled = false;
         o.inPreferredConfig = Bitmap.Config.ARGB_8888;
+        o.inMutable = palette != null;
         try (InputStream in = context.getAssets().open("art/race/colormap.png")) {
             Bitmap b = BitmapFactory.decodeStream(in, null, o);
             if (b != null) {
+                if (palette != null && b.getWidth() == PaletteSwatches.SIZE && b.getHeight() == PaletteSwatches.SIZE) {
+                    int[] px = new int[PaletteSwatches.SIZE * PaletteSwatches.SIZE];
+                    b.getPixels(px, 0, PaletteSwatches.SIZE, 0, 0, PaletteSwatches.SIZE, PaletteSwatches.SIZE);
+                    palette.paintInto(px);
+                    b.setPixels(px, 0, PaletteSwatches.SIZE, 0, 0, PaletteSwatches.SIZE, PaletteSwatches.SIZE);
+                }
                 GLUtils.texImage2D(GLES20.GL_TEXTURE_2D, 0, b, 0);
                 b.recycle();
             } else {
