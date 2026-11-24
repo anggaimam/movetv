@@ -2,7 +2,7 @@ package com.wiggleplay.app.games.race;
 
 /**
  * Coin, star, nitro-can and magnet positions along one lap, as (s, offset), sorted by s. Made by
- * {@link TrackPath#coinSlots}. Moved out of {@code TrackLayout} in T-28 Part B so the tile track can be deleted later.
+ * {@link TrackPath#coinSlots}. Moved out of the old tile track in T-28 Part B so that it could be deleted in Part D.
  */
 public final class Slots {
     /** Distance along the centre line of each coin. */

@@ -3,7 +3,7 @@ package com.wiggleplay.app.games.race;
 /**
  * A smooth closed road made from control points (T-28 Part A). The centre line is a closed centripetal Catmull-Rom
  * curve (alpha 0.5) through the points, resampled at equal arc length (about 0.5 m). It gives the same services as
- * {@link TrackLayout} (sample, project, lap length) in either driving direction. Plain Java, no Android classes; every
+ * the old tile track (sample, project, lap length) in either driving direction. Plain Java, no Android classes; every
  * array is allocated in {@link #build}, {@code sample} and {@code project} allocate nothing.
  *
  * <p>Coordinates: +Y up, yaw 0 = +Z, the position moves by (sin yaw, cos yaw), turning right lowers the yaw. The right

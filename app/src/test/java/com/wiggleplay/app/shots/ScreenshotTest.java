@@ -629,6 +629,29 @@ public class ScreenshotTest {
                 Scene.SceneArgs.of("gameId", "race"), 1, 60, null));
     }
 
+    /** T-28 Part D: the temporary track chip, on a reversed track (City Lights, driven the other way). */
+    @Test
+    public void raceLevelSelectTrackChip() throws Exception {
+        com.wiggleplay.app.games.race.TrackChoice.set(3);
+        try {
+            check(ShotRig.shoot("race_levelselect_track_chip", new LevelSelectScene(env()),
+                    Scene.SceneArgs.of("gameId", "race"), 1, 60, null));
+        } finally {
+            com.wiggleplay.app.games.race.TrackChoice.set(0);
+        }
+    }
+
+    /** T-28 Part D: the race HUD with the minimap of a reversed track and the two-lap pill. */
+    @Test
+    public void raceReversedTrackHud() throws Exception {
+        com.wiggleplay.app.games.race.TrackChoice.set(5);
+        try {
+            race("race_rockies_reversed_1", 1, 120, false, null);
+        } finally {
+            com.wiggleplay.app.games.race.TrackChoice.set(0);
+        }
+    }
+
     /** T-28 Part A: top views of the four spline track layouts (Desert, City, Rockies, Space). */
     @Test
     public void trackLayouts() throws Exception {

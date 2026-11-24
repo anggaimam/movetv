@@ -2,13 +2,14 @@ package com.wiggleplay.app.games.race;
 
 import android.graphics.Canvas;
 import android.graphics.Paint;
+import android.os.SystemClock;
 import android.view.KeyEvent;
 
-import com.wiggleplay.app.core.GameView;
 import com.wiggleplay.app.core.Scene;
 import com.wiggleplay.app.core.Stage;
 import com.wiggleplay.app.gl.Mat4;
 import com.wiggleplay.app.gl.MeshData;
+import com.wiggleplay.app.gl.PaletteSwatches;
 import com.wiggleplay.app.gl.ProcMesh;
 import com.wiggleplay.app.gl.RaceGlView;
 import com.wiggleplay.app.gl.RenderList;
@@ -57,7 +58,13 @@ public final class RaceScene implements Scene {
     private static final float WHEEL_R = 0.3f, TWO_PI = 6.2831855f;
     private static final float INTRO_SECONDS = 2f;
     private static final long KEY_HOLD_MS = 350;
-    private static final float[][] SCENERY_LANE = {{-2.6f}, {2.6f}, {0f}};
+    /** Cell size of the static batcher (m) and the block size of a road chunk in cells (6 x 10 m = 60 m). */
+    private static final float CELL = 10f;
+    private static final int CHUNK_CELLS = 6;
+    /** Scenery truck lanes as multiples of laneFrac x halfWidth: left, right, centre. */
+    private static final float[] SCENERY_LANE = {-1f, 1f, 0f};
+    /** Seconds the speed-meter note shows the build time after loading. */
+    private static final float BUILD_NOTE_SECONDS = 5f;
     private static final boolean[] RULES_SEEN = new boolean[4];
 
     private final TileMenu.Env env;
@@ -92,7 +99,9 @@ public final class RaceScene implements Scene {
     private final float[] scS = new float[3], scSpin = new float[3], scWheelYaw = new float[3];
 
     private RaceLogic logic;
-    private TrackLayout layout;
+    private TrackSpline layout;
+    private int buildMs;
+    private float buildNoteT;
     private RaceLevel raceLevel = RaceLevel.EASY;
     private int level = 1;
     private boolean intro, introAfterRules;
@@ -135,10 +144,10 @@ public final class RaceScene implements Scene {
         env.leaveMenus();
         level = Math.max(1, Math.min(3, args.getInt("level", 1)));
         raceLevel = RaceLevel.fromNumber(level);
-        layout = TrackMaps.forLevel(level - 1);
+        long built0 = SystemClock.uptimeMillis();
+        layout = TrackSpline.build(TrackChoice.def(), TrackChoice.reversed(), raceLevel);
         if (gl != null) {
-            gl.loadMeshes("track-straight", "track-corner", "track-finish", "decoration-forest", "decoration-tents",
-                    "decoration-empty", TRUCK_MESH[0], TRUCK_MESH[1], TRUCK_MESH[2], TRUCK_MESH[3]);
+            gl.loadMeshes(TRUCK_MESH[0], TRUCK_MESH[1], TRUCK_MESH[2], TRUCK_MESH[3]);
             groundId = gl.addMesh("ground", ProcMesh.groundGrid(GROUND_SIZE, GROUND_CELLS));
             shadowId = gl.addMesh("shadow", ProcMesh.disc(1.2f));
             coinId = gl.addMesh("coin", ProcMesh.coinReeded());
@@ -153,16 +162,38 @@ public final class RaceScene implements Scene {
             gl.setSky(SKY);
             gl.setFog(25f, 55f);
             gl.setViewports(1);
-            List<StaticBatcher.Placement> all = new ArrayList<>(layout.tilePlacements());
-            all.addAll(layout.decor(1234L, GameView.quality == GameView.LOW));
-            gl.setStatic(all);
+            // T-28 Part D: the road is built once from the spline, coloured through swatches painted into the colormap
+            PaletteSwatches pal = new PaletteSwatches();
+            List<MeshData> pieces = TrackMeshBuilder.build(layout, RoadStyle.MEADOW, pal);
+            gl.setColormapSwatches(pal);
+            List<StaticBatcher.Placement> all = new ArrayList<>(pieces.size());
+            float[] ident = new float[16];
+            Mat4.identity(ident);
+            for (int i = 0; i < pieces.size(); i++) {
+                String name = "trk_road_" + i;
+                gl.addMesh(name, pieces.get(i));
+                MeshData.Part part = pieces.get(i).parts[0];
+                float minX = Float.MAX_VALUE, maxX = -Float.MAX_VALUE, minZ = Float.MAX_VALUE, maxZ = -Float.MAX_VALUE;
+                for (int v = 0; v < part.vertexCount; v++) {
+                    float x = part.vertices[v * 8], z = part.vertices[v * 8 + 2];
+                    minX = Math.min(minX, x);
+                    maxX = Math.max(maxX, x);
+                    minZ = Math.min(minZ, z);
+                    maxZ = Math.max(maxZ, z);
+                }
+                all.add(new StaticBatcher.Placement(name, ident, (int) Math.floor((minX + maxX) / 2f / CELL),
+                        (int) Math.floor((minZ + maxZ) / 2f / CELL)));
+            }
+            gl.setStatic(all, CHUNK_CELLS);
         }
+        buildMs = (int) (SystemClock.uptimeMillis() - built0);
+        buildNoteT = BUILD_NOTE_SECONDS;
         if (env.sfx != null) {
             env.sfx.loadAsset("engine", "audio/race/engine.ogg");
             env.sfx.loadAsset("skid", "audio/race/skid.ogg");
             env.sfx.loadAsset("impact", "audio/race/impact.ogg");
         }
-        raceHud.setTrack(layout, level);
+        raceHud.setTrack(layout, TrackChoice.key());
         String steerName = args.getString("steer", env.profile != null ? env.profile.raceSteer()
                 : ProfileLogic.DEFAULT_RACE_STEER);
         mode = RaceArt.modeOf(ProfileLogic.cleanRaceSteer(steerName));
@@ -493,7 +524,7 @@ public final class RaceScene implements Scene {
         addTruck(0, car.x(), car.z(), car.yaw(), car.bodyLean(), car.bodyPitch(), car.wheelSpin(), car.frontWheelYaw());
         for (int i = 0; i < 3; i++) {
             layout.sample(scS[i], smp);
-            float off = SCENERY_LANE[i][0];
+            float off = SCENERY_LANE[i] * raceLevel.laneFrac * layout.roadHalfWidth();
             float x = smp[0] - (float) Math.cos(smp[2]) * off, z = smp[1] + (float) Math.sin(smp[2]) * off;
             addTruck(i + 1, x, z, smp[2], 0f, 0f, scSpin[i], scWheelYaw[i]);
         }
@@ -605,6 +636,7 @@ public final class RaceScene implements Scene {
      * shows, so Angga can photograph what the camera sees.
      */
     private void speedMeterNote(float dt) {
+        if (buildNoteT > 0f) buildNoteT -= dt;
         if (env.perf == null || !env.perf.isVisible()) return;
         noteT -= dt;
         if (noteT > 0f) return;
@@ -619,6 +651,7 @@ public final class RaceScene implements Scene {
         st = Math.abs(st);
         noteSb.append(st / 100).append('.').append(st % 100 < 10 ? "0" : "").append(st % 100);
         noteSb.append("  ").append(steerIn.steerState() == SteerInput.State.ACTIVE ? "ACTIVE" : "NONE");
+        if (buildNoteT > 0f) noteSb.append("  build ").append(buildMs).append(" ms");
         env.perf.setNote(noteSb.toString());
     }
 

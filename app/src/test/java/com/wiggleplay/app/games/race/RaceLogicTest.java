@@ -21,7 +21,7 @@ public class RaceLogicTest {
     }
 
     private static float[] drive(int level, int players, long seed, float look) {
-        TrackLayout t = TrackMaps.forLevel(level);
+        TrackSpline t = TestTracks.forLevel(level);
         RaceLogic r = new RaceLogic(t, RaceLevel.fromNumber(level + 1), players, seed);
         float worst = 0f;
         for (int i = 0; i < (int) (RaceLogic.SAFETY_SECONDS * 60) && !r.over(); i++) {
@@ -38,12 +38,12 @@ public class RaceLogicTest {
             System.out.println("level " + lv + ": finished=" + res[0] + " time=" + res[1] + " worstOffset=" + res[2]
                     + " score=" + res[3] + " offered=" + res[4] + " stars=" + res[5]);
             assertEquals("level " + lv + " finished", 1f, res[0], 0f);
-            assertTrue("level " + lv + " stays on the road, worst offset " + res[2], res[2] <= CarModel.wallLimit(TrackMaps.forLevel(lv).roadHalfWidth()) + 1e-3f);
+            assertTrue("level " + lv + " stays on the road, worst offset " + res[2], res[2] <= CarModel.wallLimit(TestTracks.forLevel(lv).roadHalfWidth()) + 1e-3f);
         }
     }
 
     @Test public void lapsCountOnceEach() {
-        TrackLayout t = TrackMaps.forLevel(0);
+        TrackSpline t = TestTracks.forLevel(0);
         RaceLogic r = new RaceLogic(t, RaceLevel.EASY, 1, 1L);
         int lapEvents = 0;
         for (int i = 0; i < (int) (RaceLogic.SAFETY_SECONDS * 60) && !r.over(); i++) {
@@ -67,7 +67,7 @@ public class RaceLogicTest {
     }
 
     @Test public void boostLastsExactlyAndIgnoresBrakeAndJumps() {
-        TrackLayout t = TrackMaps.forLevel(0);
+        TrackSpline t = TestTracks.forLevel(0);
         RaceLogic r = new RaceLogic(t, RaceLevel.EASY, 1, 1L);
         assertEquals(1f, r.boostMeter(0), 1e-6f);
         r.onJump(0);
@@ -87,7 +87,7 @@ public class RaceLogicTest {
     }
 
     @Test public void jumpDoesNothingWhenMeterNotFull() {
-        TrackLayout t = TrackMaps.forLevel(0);
+        TrackSpline t = TestTracks.forLevel(0);
         RaceLogic r = new RaceLogic(t, RaceLevel.EASY, 1, 1L);
         r.onJump(0);
         for (int i = 0; i < 100; i++) step(r, t, false);
@@ -98,7 +98,7 @@ public class RaceLogicTest {
     }
 
     @Test public void meterRefillsAtPointTwoPerSecondPlusCoins() {
-        TrackLayout t = TrackMaps.forLevel(0);
+        TrackSpline t = TestTracks.forLevel(0);
         RaceLogic r = new RaceLogic(t, RaceLevel.EASY, 1, 1L);
         r.onJump(0);
         for (int i = 0; i < 100; i++) step(r, t, false); // boost over
@@ -108,7 +108,7 @@ public class RaceLogicTest {
     }
 
     @Test public void scoreOfferedAndStars() {
-        TrackLayout t = TrackMaps.forLevel(1);
+        TrackSpline t = TestTracks.forLevel(1);
         RaceLogic r = new RaceLogic(t, RaceLevel.MEDIUM, 1, 5L);
         // a truck that never steers collects ~nothing but still gets one star and offered grows
         for (int i = 0; i < 20 * 60; i++) {
@@ -125,13 +125,13 @@ public class RaceLogicTest {
     }
 
     @Test public void zeroCoinsStillOneStar() {
-        TrackLayout t = TrackMaps.forLevel(0);
+        TrackSpline t = TestTracks.forLevel(0);
         RaceLogic r = new RaceLogic(t, RaceLevel.EASY, 1, 1L);
         assertEquals(1, r.stars(0));
     }
 
     @Test public void twoPlayersStartApartAndBumpApartSymmetrically() {
-        TrackLayout t = TrackMaps.forLevel(0);
+        TrackSpline t = TestTracks.forLevel(0);
         RaceLogic r = new RaceLogic(t, RaceLevel.EASY, 2, 3L);
         CarModel a = r.car(0), b = r.car(1);
         float d0 = (float) Math.hypot(b.x() - a.x(), b.z() - a.z());
@@ -148,7 +148,7 @@ public class RaceLogicTest {
     }
 
     @Test public void twoPlayerRaceEndsAfterTheGrace() {
-        TrackLayout t = TrackMaps.forLevel(0);
+        TrackSpline t = TestTracks.forLevel(0);
         RaceLogic r = new RaceLogic(t, RaceLevel.EASY, 2, 3L);
         for (int i = 0; i < (int) (RaceLogic.SAFETY_SECONDS * 60) && !r.over(); i++) {
             r.setControls(0, autoSteer(r, t, 0, 7f), false);
@@ -192,7 +192,7 @@ public class RaceLogicTest {
 
     /** Drives a full race; returns {score, offered, cornerReached, cornerTotal} (corner = min distance in lap 1). */
     private static int[] run(int lv, int kind) {
-        TrackLayout t = TrackMaps.forLevel(lv);
+        TrackSpline t = TestTracks.forLevel(lv);
         RaceLogic r = new RaceLogic(t, RaceLevel.fromNumber(lv + 1), 1, 42L);
         int n = r.slotCount(0);
         float[] best = new float[n];
@@ -256,15 +256,15 @@ public class RaceLogicTest {
     }
 
     @Test public void nitroCansPerLapAre0On_Easy_4On_Medium_5On_Hard() {
-        assertEquals(0, cans(new RaceLogic(TrackMaps.forLevel(0), RaceLevel.EASY, 1, 42L)));
-        assertEquals(4, cans(new RaceLogic(TrackMaps.forLevel(1), RaceLevel.MEDIUM, 1, 42L)));
-        assertEquals(5, cans(new RaceLogic(TrackMaps.forLevel(2), RaceLevel.HARD, 1, 42L)));
+        assertEquals(0, cans(new RaceLogic(TestTracks.forLevel(0), RaceLevel.EASY, 1, 42L)));
+        assertEquals(4, cans(new RaceLogic(TestTracks.forLevel(1), RaceLevel.MEDIUM, 1, 42L)));
+        assertEquals(5, cans(new RaceLogic(TestTracks.forLevel(2), RaceLevel.HARD, 1, 42L)));
     }
 
     /** Medium and Hard: the meter starts empty, never rises by time or coins, and rises 0.5 per can; two cans give a rocket. */
     @Test public void earnedBoostOnlyFillsFromCans() {
         for (int lv = 1; lv < 3; lv++) {
-            TrackLayout t = TrackMaps.forLevel(lv);
+            TrackSpline t = TestTracks.forLevel(lv);
             RaceLogic r = new RaceLogic(t, RaceLevel.fromNumber(lv + 1), 1, 42L);
             assertEquals("starts empty", 0f, r.boostMeter(0), 0f);
             r.onJump(0);
@@ -295,7 +295,7 @@ public class RaceLogicTest {
 
     /** Cans are worth no points, so the stars do not depend on them. */
     @Test public void nitroCansAreWorthNothing() {
-        TrackLayout t = TrackMaps.forLevel(1);
+        TrackSpline t = TestTracks.forLevel(1);
         RaceLogic r = new RaceLogic(t, RaceLevel.MEDIUM, 1, 42L);
         int canSlots = cans(r);
         assertTrue(canSlots > 0);
@@ -324,7 +324,7 @@ public class RaceLogicTest {
 
     @Test public void oneMagnetPerLapOnEveryLevelAndItIsNotACanOrTheStar() {
         for (int lv = 0; lv < 3; lv++) {
-            RaceLogic r = new RaceLogic(TrackMaps.forLevel(lv), RaceLevel.fromNumber(lv + 1), 1, 42L);
+            RaceLogic r = new RaceLogic(TestTracks.forLevel(lv), RaceLevel.fromNumber(lv + 1), 1, 42L);
             assertEquals("level " + lv, 1, magnets(r));
             for (int k = 0; k < r.slotCount(0); k++) {
                 if (r.slotIsMagnet(0, k)) assertFalse(r.slotIsNitro(0, k) || r.slotIsStar(0, k));
@@ -334,7 +334,7 @@ public class RaceLogicTest {
 
     /** The magnet is worth a coin; picking it up starts 6 s in which coins slide in; the coins go back for the next lap. */
     @Test public void magnetPullsCoinsInAndTheyGoBackNextLap() {
-        TrackLayout t = TrackMaps.forLevel(0);
+        TrackSpline t = TestTracks.forLevel(0);
         RaceLogic r = new RaceLogic(t, RaceLevel.EASY, 1, 42L);
         int n = r.slotCount(0);
         float[] x0 = new float[n], z0 = new float[n];

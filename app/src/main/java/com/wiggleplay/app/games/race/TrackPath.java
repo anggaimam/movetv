@@ -2,7 +2,7 @@ package com.wiggleplay.app.games.race;
 
 /**
  * What the truck and the race rules need from a track: the centre line (sample, project, lap length), the road width and
- * the coin layout. Implemented by the tile track ({@link TrackLayout}) and the spline track ({@link TrackSpline}).
+ * the coin layout. Implemented by the spline track ({@link TrackSpline}).
  * Plain Java.
  */
 public interface TrackPath {

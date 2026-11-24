@@ -2,7 +2,7 @@ package com.wiggleplay.app.games.race;
 
 /**
  * Where a point on the ground is relative to the track's centre line. One instance is reused for every
- * {@link TrackLayout#project} call (no allocation).
+ * {@link TrackPath#project} call (no allocation).
  */
 public final class TrackPoint {
     /** Distance along the centre line from the start line, 0 to the lap length (wraps). */

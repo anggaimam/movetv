@@ -14,7 +14,7 @@ public class CarModelTest {
     }
 
     @Test public void steeringRightTurnsRight() {
-        TrackLayout t = TrackMaps.forLevel(0);
+        TrackSpline t = TestTracks.forLevel(0);
         CarModel c = start(RaceLevel.EASY, false, t, 0f);
         float yaw0 = c.yaw();
         for (int i = 0; i < 30; i++) c.update(DT, 1f, false, false, t);
@@ -23,10 +23,11 @@ public class CarModelTest {
     }
 
     @Test public void assistPullsBackToTheCentre() {
-        TrackLayout t = TrackMaps.forLevel(0);
+        // the test needs a road that is straight for the first 25 m: Star Road (Space) has the straightest start of the four
+        TrackSpline t = TrackSpline.build(TrackDefs.byId("space"), false, RaceLevel.EASY);
         CarModel e = start(RaceLevel.EASY, false, t, 2f);
         CarModel h = start(RaceLevel.HARD, false, t, 2f);
-        for (int i = 0; i < 108; i++) { // 1.8 s: Hard is still on the straight (first corner starts at about 26 units)
+        for (int i = 0; i < 108; i++) { // 1.8 s: Hard is still on the straight at the start
             e.update(DT, 0f, false, false, t);
             h.update(DT, 0f, false, false, t);
         }
@@ -36,7 +37,7 @@ public class CarModelTest {
     }
 
     @Test public void neverTurnsMoreThan75DegreesFromTheRoad() {
-        TrackLayout t = TrackMaps.forLevel(0);
+        TrackSpline t = TestTracks.forLevel(0);
         CarModel c = start(RaceLevel.HARD, false, t, 0f);
         float limit = (float) Math.toRadians(75) + 0.05f;
         for (int i = 0; i < 600; i++) {
@@ -61,7 +62,7 @@ public class CarModelTest {
     }
 
     @Test public void speedTargets() {
-        TrackLayout t = TrackMaps.forLevel(0);
+        TrackSpline t = TestTracks.forLevel(0);
         RaceLevel lv = RaceLevel.MEDIUM;
         CarModel c = start(lv, false, t, 0f);
         for (int i = 0; i < 300; i++) c.update(DT, auto(c, t), false, false, t);
@@ -82,7 +83,7 @@ public class CarModelTest {
     }
 
     @Test public void staysNearTheRoadAndWallHitIsRateLimited() {
-        TrackLayout t = TrackMaps.forLevel(0);
+        TrackSpline t = TestTracks.forLevel(0);
         CarModel c = start(RaceLevel.EASY, false, t, 0f);
         int hits = 0;
         float time = 0;
@@ -96,7 +97,7 @@ public class CarModelTest {
     }
 
     @Test public void nudgeAndScaleSpeed() {
-        TrackLayout t = TrackMaps.forLevel(0);
+        TrackSpline t = TestTracks.forLevel(0);
         CarModel c = start(RaceLevel.EASY, false, t, 0f);
         for (int i = 0; i < 120; i++) c.update(DT, 0f, false, false, t);
         float x = c.x(), sp = c.speed();
@@ -109,7 +110,7 @@ public class CarModelTest {
     /** T-23 Part A: steer held at +1 or -1 for 10 s on every map and level never passes the barrier limit 3.85 (tile road). */
     @Test public void neverPassesTheBarrierOnAnyMap() {
         for (int lv = 0; lv < 3; lv++) {
-            TrackLayout t = TrackMaps.forLevel(lv);
+            TrackSpline t = TestTracks.forLevel(lv);
             for (float steer : new float[] {-1f, 1f}) {
                 for (boolean boost : new boolean[] {false, true}) {
                     CarModel c = start(RaceLevel.fromNumber(lv + 1), false, t, 0f);
@@ -131,7 +132,7 @@ public class CarModelTest {
      */
     @Test public void scrapesAlongTheBarrierWithoutStickingOrJitter() {
         for (int lv = 0; lv < 3; lv++) {
-            TrackLayout t = TrackMaps.forLevel(lv);
+            TrackSpline t = TestTracks.forLevel(lv);
             RaceLevel level = RaceLevel.fromNumber(lv + 1);
             for (float steer : new float[] {-1f, 1f}) {
                 CarModel c = start(level, false, t, 0f);
@@ -168,19 +169,6 @@ public class CarModelTest {
                 assertTrue("map " + lv + " jitter " + worstJump, worstJump < 0.3f);
                 assertTrue("map " + lv + " hits rate-limited: " + hits, hits <= 21);
             }
-        }
-    }
-
-    /** T-23 Part A: every coin and the star sit inside the barrier limit (lane coins at 2.5, corner coins at 0.75). */
-    @Test public void allCoinsAreInsideTheBarrier() {
-        for (int lv = 0; lv < 3; lv++) {
-            TrackLayout tile = TrackMaps.forLevel(lv);
-            Slots sl = tile.coinSlots(42L);
-            for (int i = 0; i < sl.count; i++) {
-                assertTrue("map " + lv + " slot " + i + " offset " + sl.offset[i],
-                        Math.abs(sl.offset[i]) <= CarModel.wallLimit(tile.roadHalfWidth()) - 1f);
-            }
-            assertTrue(Math.abs(sl.starOffset) <= CarModel.wallLimit(tile.roadHalfWidth()) - 1f);
         }
     }
 

@@ -28,6 +28,7 @@ final class RaceHud {
     private static final float MAP_X = 1560f, MAP_Y = 24f, MAP_W = 330f, MAP_H = 230f, PAD = 18f;
     private static final float CAM_X = 40f, CAM_Y = 1080f - 40f - 180f, CAM_W = 320f, CAM_H = 180f;
     private static final float SPEED_LIFE = 0.35f;
+    private static final int MAP_POINTS = 96;
 
     private static final class SpeedLine {
         float ang, life;
@@ -61,9 +62,8 @@ final class RaceHud {
     int playerColour = 0xFF29B6F6;
 
     private Bitmap iconOn, iconOff;
-    private TrackLayout layout;
-    private int level;
-    private float mapScale;
+    private TrackSpline layout;
+    private float mapScale, mapOx, mapOz;
     private Bitmap mapBmp;
     private float time;
     private final float[] tmp = new float[3];
@@ -84,18 +84,28 @@ final class RaceHud {
     }
 
     /**
-     * Gives the HUD the track for its minimap (the outline is baked once into the sprite cache).
+     * Gives the HUD the track for its minimap (the outline is baked once into the sprite cache from 96 points of the spline).
      * @param l the track
-     * @param levelNumber 1..3, part of the cache key
+     * @param key the track's cache key (for example {@code city-r})
      */
-    void setTrack(TrackLayout l, int levelNumber) {
+    void setTrack(TrackSpline l, String key) {
         layout = l;
-        level = levelNumber;
-        float worldW = (l.width() - 1) * TrackLayout.CELL + 12f, worldH = (l.height() - 1) * TrackLayout.CELL + 12f;
+        final float[] pts = new float[MAP_POINTS * 2];
+        l.minimap(MAP_POINTS, pts);
+        float minX = Float.MAX_VALUE, maxX = -Float.MAX_VALUE, minZ = Float.MAX_VALUE, maxZ = -Float.MAX_VALUE;
+        for (int i = 0; i < MAP_POINTS; i++) {
+            minX = Math.min(minX, pts[i * 2]);
+            maxX = Math.max(maxX, pts[i * 2]);
+            minZ = Math.min(minZ, pts[i * 2 + 1]);
+            maxZ = Math.max(maxZ, pts[i * 2 + 1]);
+        }
+        float worldW = maxX - minX + 12f, worldH = maxZ - minZ + 12f;   // the road is drawn about 12 m wide
         mapScale = Math.min((MAP_W - 2f * PAD) / worldW, (MAP_H - 2f * PAD) / worldH);
-        final TrackLayout lay = l;
-        final float sc = mapScale;
-        mapBmp = SpriteCache.shared().get("race_map_" + levelNumber, (int) MAP_W, (int) MAP_H, (c, w, h) -> {
+        // centre the outline in the panel
+        mapOx = (MAP_W - (maxX - minX) * mapScale) / 2f - minX * mapScale;
+        mapOz = (MAP_H - (maxZ - minZ) * mapScale) / 2f - minZ * mapScale;
+        final float sc = mapScale, ox = mapOx, oz = mapOz;
+        mapBmp = SpriteCache.shared().get("race_map_" + key, (int) MAP_W, (int) MAP_H, (c, w, h) -> {
             Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
             RectF r = new RectF(0f, 0f, w, h);
             p.setColor(0xCCF3EBDD);
@@ -104,13 +114,10 @@ final class RaceHud {
             line.setStyle(Paint.Style.STROKE);
             line.setStrokeCap(Paint.Cap.ROUND);
             line.setStrokeJoin(Paint.Join.ROUND);
-            float[] s = new float[3];
             Path path = new Path();
-            float len = lay.lapLength();
-            for (float d = 0f; d <= len; d += 2f) {
-                lay.sample(d, s);
-                float x = PAD + 6f * sc + s[0] * sc, y = PAD + 6f * sc + s[1] * sc;
-                if (d == 0f) path.moveTo(x, y); else path.lineTo(x, y);
+            for (int i = 0; i < MAP_POINTS; i++) {
+                float x = ox + pts[i * 2] * sc, y = oz + pts[i * 2 + 1] * sc;
+                if (i == 0) path.moveTo(x, y); else path.lineTo(x, y);
             }
             path.close();
             line.setColor(0xFF5B6B78);
@@ -119,8 +126,7 @@ final class RaceHud {
             line.setColor(0xFFC9D2D9);
             line.setStrokeWidth(Math.max(5f, 8f * sc * 2f - 5f));
             c.drawPath(path, line);
-            lay.sample(0f, s);
-            float fx = PAD + 6f * sc + s[0] * sc, fy = PAD + 6f * sc + s[1] * sc;
+            float fx = ox + pts[0] * sc, fy = oz + pts[1] * sc;
             p.setColor(0xFF2F3A45);
             c.drawRect(fx - 3f, fy - 10f, fx + 3f, fy + 10f, p);
         });
@@ -236,7 +242,7 @@ final class RaceHud {
 
     private void dot(Canvas c, float s, float r, int colour, float ring) {
         layout.sample(s, tmp);
-        float x = MAP_X + PAD + 6f * mapScale + tmp[0] * mapScale, y = MAP_Y + PAD + 6f * mapScale + tmp[1] * mapScale;
+        float x = MAP_X + mapOx + tmp[0] * mapScale, y = MAP_Y + mapOz + tmp[1] * mapScale;
         if (ring > 0f) {
             fill.setColor(0xFFFFFFFF);
             c.drawCircle(x, y, r + ring, fill);

@@ -2,6 +2,8 @@ package com.wiggleplay.app.scenes;
 
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
+import android.graphics.Paint;
+import android.graphics.RectF;
 import android.view.KeyEvent;
 
 import com.wiggleplay.app.core.ProfileLogic;
@@ -10,6 +12,7 @@ import com.wiggleplay.app.core.Stage;
 import com.wiggleplay.app.games.GameInfo;
 import com.wiggleplay.app.games.GameRegistry;
 import com.wiggleplay.app.games.race.RaceArt;
+import com.wiggleplay.app.games.race.TrackChoice;
 import com.wiggleplay.app.ui.RoundButton;
 import com.wiggleplay.app.ui.Theme;
 import com.wiggleplay.app.ui.TileMenu;
@@ -100,6 +103,10 @@ public final class LevelSelectScene implements Scene {
             if (env.settings != null) env.settings.open();
             return;
         }
+        if (racing && f.input.pressed(KeyEvent.KEYCODE_MEDIA_FAST_FORWARD)) {
+            TrackChoice.next();   // T-28 Part D: temporary, until T-32 brings the track cards
+            env.sfx("select");
+        }
         if (sel == null) return;
         if (racing && "steer".equals(sel)) {
             steerMode = steerMode == RaceArt.MODE_WHEEL ? RaceArt.MODE_LEAN : RaceArt.MODE_WHEEL;
@@ -133,5 +140,47 @@ public final class LevelSelectScene implements Scene {
         Theme.drawBackdrop(c, camera, time);
         Theme.drawBanner(c, title, Stage.W / 2f, 120f, 72f, 0xE6F3EBDD, Theme.INK);
         menu.draw(c);
+        if (racing) drawTrackChip(c);
     }
+
+    private final Paint chipPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final RectF chipRect = new RectF();
+
+    /**
+     * Temporary track chip under the level tiles (T-28 Part D): the chosen track and its direction. The remote's
+     * fast-forward key cycles the 8 tracks. The direction is drawn as a round arrow (counter-clockwise for the track as
+     * designed, clockwise reversed) because the font has no such arrow characters.
+     */
+    private void drawTrackChip(Canvas c) {
+        float cx = Stage.W / 2f, cy = 985f;
+        Theme.drawBanner(c, "Track: " + TrackChoice.name(), cx, cy, 52f, 0xE6F3EBDD, Theme.INK);
+        float ax = cx + 400f, r = 30f;
+        chipPaint.setStyle(Paint.Style.FILL);
+        chipPaint.setColor(0xE6F3EBDD);
+        c.drawCircle(ax, cy, r + 14f, chipPaint);
+        chipPaint.setStyle(Paint.Style.STROKE);
+        chipPaint.setStrokeWidth(8f);
+        chipPaint.setStrokeCap(Paint.Cap.ROUND);
+        chipPaint.setColor(Theme.INK);
+        chipRect.set(ax - r, cy - r, ax + r, cy + r);
+        boolean reversed = TrackChoice.reversed();
+        // 270 degree arc with an arrow head at its end; reversed drives clockwise
+        c.drawArc(chipRect, reversed ? -60f : 240f, reversed ? 270f : -270f, false, chipPaint);
+        double a = Math.toRadians(reversed ? 210f : -30f);   // end of the arc
+        float ex = ax + r * (float) Math.cos(a), ey = cy + r * (float) Math.sin(a);
+        float dir = reversed ? 1f : -1f;
+        double t = a + dir * Math.PI / 2.0;                   // direction of travel at the end
+        float tx = (float) Math.cos(t), ty = (float) Math.sin(t);
+        float nx = -ty, ny = tx;
+        chipPaint.setStyle(Paint.Style.FILL);
+        android.graphics.Path head = chipHead;
+        head.rewind();
+        head.moveTo(ex + tx * 16f, ey + ty * 16f);
+        head.lineTo(ex - tx * 6f + nx * 14f, ey - ty * 6f + ny * 14f);
+        head.lineTo(ex - tx * 6f - nx * 14f, ey - ty * 6f - ny * 14f);
+        head.close();
+        c.drawPath(head, chipPaint);
+    }
+
+    private final android.graphics.Path chipHead = new android.graphics.Path();
 }

@@ -163,13 +163,22 @@ public final class RaceGlView extends GLSurfaceView {
      * @throws IllegalArgumentException if a placement names a mesh that is not loaded
      */
     public void setStatic(List<StaticBatcher.Placement> placements) {
+        setStatic(placements, StaticBatcher.DEFAULT_CHUNK_CELLS);
+    }
+
+    /**
+     * Like {@link #setStatic(List)} with a chosen block size in tile cells (the spline road uses 6 cells = 60 m).
+     * @param placements the scenery
+     * @param chunkCells block size in cells, at least 1
+     */
+    public void setStatic(List<StaticBatcher.Placement> placements, int chunkCells) {
         List<StaticBatcher.Chunk> built = StaticBatcher.build(placements, new StaticBatcher.MeshLibrary() {
             @Override
             public MeshData get(String name) {
                 Integer i = ids.get(name);
                 return i == null ? null : datas.get(i);
             }
-        });
+        }, chunkCells);
         final GlMesh[] cm = new GlMesh[built.size()];
         final float[] sph = new float[built.size() * 4];
         for (int i = 0; i < cm.length; i++) {
