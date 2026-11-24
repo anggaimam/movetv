@@ -6,6 +6,8 @@ import android.graphics.RectF;
 
 import com.wiggleplay.app.core.Stage;
 import com.wiggleplay.app.games.common.Hud;
+import com.wiggleplay.app.ui.HowToFigure;
+import com.wiggleplay.app.ui.HowToPose;
 import com.wiggleplay.app.ui.Theme;
 
 /**
@@ -21,6 +23,7 @@ final class JungleRules implements Hud.RulesPainter {
     private final Paint line = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint sprite = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG);
     private final RectF r = new RectF();
+    private final HowToFigure figure = new HowToFigure();
     private float t;
 
     JungleRules() {
@@ -64,34 +67,6 @@ final class JungleRules implements Hud.RulesPainter {
         c.drawRoundRect(r, 36f, 36f, fill);
     }
 
-    /**
-     * A little kid from the front.
-     * @param feetY where the feet are
-     * @param squash 1 for standing tall, less for crouching
-     * @param armsUp 0 for arms down, 1 for arms up
-     */
-    private void kid(Canvas c, float cx, float feetY, float scale, float squash, float armsUp) {
-        c.save();
-        c.translate(cx, feetY);
-        c.scale(scale, scale * squash);
-        line.setColor(Theme.P1);
-        line.setStrokeWidth(22f);
-        float ay = -130f - armsUp * 90f, ax = 54f + armsUp * 14f;
-        c.drawLine(-44f, -150f, -ax, ay + 60f, line);
-        c.drawLine(44f, -150f, ax, ay + 60f, line);
-        c.drawLine(-22f, -60f, -26f, 0f, line);
-        c.drawLine(22f, -60f, 26f, 0f, line);
-        fill.setColor(Theme.P1);
-        r.set(-48f, -200f, 48f, -50f);
-        c.drawRoundRect(r, 38f, 38f, fill);
-        fill.setColor(0xFFF1D3B3);
-        c.drawCircle(0f, -250f, 38f, fill);
-        fill.setColor(Theme.INK);
-        c.drawCircle(-13f, -254f, 5f, fill);
-        c.drawCircle(13f, -254f, 5f, fill);
-        c.restore();
-    }
-
     private void ground(Canvas c, float cx, float y) {
         fill.setColor(0xFFC9B48A);
         r.set(cx - 240f, y, cx + 240f, y + 16f);
@@ -109,7 +84,7 @@ final class JungleRules implements Hud.RulesPainter {
         float gy = TOP + 250f;
         ground(c, cx, gy);
         float jump = (float) Math.sin(Math.min(1f, Math.max(0f, (k - 0.25f) / 0.5f)) * Math.PI);
-        kid(c, cx - 120f, gy - jump * 90f, 0.62f, 1f, jump);
+        figure.drawBetween(c, HowToPose.STAND, HowToPose.JUMP, jump, cx - 120f, gy - jump * 80f, 185f, Theme.P1);   // T-27
         float lx = cx + 200f - k * 360f;
         blit(c, JungleArt.log(), lx, gy - 20f, 170f, 45f);
         blit(c, JungleArt.markUp(), cx + 150f, TOP + 70f, 96f, 96f);
@@ -121,8 +96,9 @@ final class JungleRules implements Hud.RulesPainter {
         float k = (t % 2.4f) / 2.4f;
         float gy = TOP + 250f;
         ground(c, cx, gy);
-        float low = k > 0.3f && k < 0.75f ? 1f : 0f;
-        kid(c, cx - 120f, gy, 0.62f, 1f - 0.4f * low, 0f);
+        // the figure ducks smoothly: down between 0.28 and 0.38, held, up between 0.68 and 0.78
+        float low = Math.min(Math.max((k - 0.28f) / 0.10f, 0f), 1f) * Math.min(Math.max((0.78f - k) / 0.10f, 0f), 1f);
+        figure.drawBetween(c, HowToPose.STAND, HowToPose.SQUAT, low, cx - 120f, gy, 185f, Theme.P1);   // T-27
         float vx = cx + 200f - k * 360f;
         blit(c, JungleArt.vine(), vx, TOP + 110f, 56f, 200f);
         blit(c, JungleArt.markDown(), cx + 150f, TOP + 70f, 96f, 96f);

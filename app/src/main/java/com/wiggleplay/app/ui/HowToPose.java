@@ -46,7 +46,7 @@ public final class HowToPose {
     /** A jump: off the ground, arms up, knees bent, one foot higher. */
     public static final HowToPose JUMP = make(0f, 0.25f, 0.12f, 145f, 145f, 20f, 20f, 0f, 0f, 0.12f, 0.10f, 0.20f, 0f);
     /** A deep squat with both arms pointing forward, at the viewer. */
-    public static final HowToPose SQUAT = make(0f, 1f, 0f, 25f, 25f, 0f, 0f, 0.85f, 0.85f, 0.15f, 0f, 0f, 0f);
+    public static final HowToPose SQUAT = make(0f, 0.8f, 0f, 20f, 20f, 0f, 0f, 0.85f, 0.85f, 0.13f, 0f, 0f, 0f);
 
     private static HowToPose make(float lean, float crouch, float lift, float shL, float shR, float elL, float elR,
                                   float reachL, float reachR, float spread, float footL, float footR, float wheel) {

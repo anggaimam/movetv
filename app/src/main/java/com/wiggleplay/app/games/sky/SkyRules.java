@@ -6,6 +6,8 @@ import android.graphics.RectF;
 
 import com.wiggleplay.app.core.Stage;
 import com.wiggleplay.app.games.common.Hud;
+import com.wiggleplay.app.ui.HowToFigure;
+import com.wiggleplay.app.ui.HowToPose;
 import com.wiggleplay.app.ui.Theme;
 
 /**
@@ -21,6 +23,8 @@ final class SkyRules implements Hud.RulesPainter {
     private final Paint line = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint sprite = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG);
     private final RectF r = new RectF();
+    private final HowToFigure figure = new HowToFigure();
+    private final HowToPose pose = new HowToPose();
     private float t;
 
     SkyRules() {
@@ -65,30 +69,17 @@ final class SkyRules implements Hud.RulesPainter {
     }
 
     /**
-     * A little kid from the front: head, body, two arms.
+     * The shared how-to-play figure (T-27) with its arms out like wings: it leans from the hips, and the arms rise or fall
+     * together at the shoulders.
      * @param tilt lean in degrees (positive leans to the right of the picture)
      * @param armDeg both arms' angle above horizontal (negative = down); the arms go out to the sides
      */
     private void kid(Canvas c, float cx, float cy, float scale, float tilt, float armDeg, int colour) {
-        c.save();
-        c.translate(cx, cy);
-        c.scale(scale, scale);
-        c.rotate(tilt, 0f, 130f);
-        line.setColor(colour);
-        line.setStrokeWidth(24f);
-        double a = Math.toRadians(armDeg);
-        float ax = (float) Math.cos(a) * 118f, ay = -(float) Math.sin(a) * 118f;
-        c.drawLine(-48f, 4f, -48f - ax, 4f + ay, line);
-        c.drawLine(48f, 4f, 48f + ax, 4f + ay, line);
-        fill.setColor(colour);
-        r.set(-50f, -8f, 50f, 150f);
-        c.drawRoundRect(r, 40f, 40f, fill);
-        fill.setColor(0xFFF1D3B3);
-        c.drawCircle(0f, -52f, 38f, fill);
-        fill.setColor(Theme.INK);
-        c.drawCircle(-13f, -56f, 5f, fill);
-        c.drawCircle(13f, -56f, 5f, fill);
-        c.restore();
+        pose.set(HowToPose.T_POSE);
+        pose.lean = tilt;
+        pose.shL = 90f + armDeg;
+        pose.shR = 90f + armDeg;
+        figure.draw(c, pose, cx, cy + 195f * scale, 275f * scale, colour);
     }
 
     private int planeType, planeTheme;
@@ -186,7 +177,7 @@ final class SkyRules implements Hud.RulesPainter {
         } else {
             s = "Fly through rings!";
         }
-        kid(c, cx, cy - 20f, 1.15f, tilt, arm, Theme.P1);
+        kid(c, cx, cy - 30f, 0.95f, tilt, arm, Theme.P1);
         Theme.drawCentered(c, s, cx, cy + 190f, 44f, Theme.INK);
     }
 }

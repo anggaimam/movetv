@@ -7,6 +7,8 @@ import android.graphics.RectF;
 
 import com.wiggleplay.app.core.Stage;
 import com.wiggleplay.app.games.common.Hud;
+import com.wiggleplay.app.ui.HowToFigure;
+import com.wiggleplay.app.ui.HowToPose;
 import com.wiggleplay.app.ui.Theme;
 
 /**
@@ -24,6 +26,8 @@ final class RaceRules implements Hud.RulesPainter {
     private final Paint line = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final RectF r = new RectF();
     private final Path arrow = new Path();
+    private final HowToFigure figure = new HowToFigure();
+    private final HowToPose pose = new HowToPose();
     private float t;
     private int mode = RaceArt.MODE_PLANE;
     private static final String[] SPEECH = {
@@ -83,24 +87,29 @@ final class RaceRules implements Hud.RulesPainter {
         }
     }
 
-    /** Kid steering (arms out, leaning or turning a wheel), left then right; the truck below swings the same way. */
+    /** The figure steers (leans, or turns a wheel), right then left; the truck below swings the same way (T-27). */
     private void steer(Canvas c, float cx) {
         float lt = t % LOOP;
-        float tilt = 24f * (float) Math.sin(lt / LOOP * 2f * Math.PI);
-        if (mode == RaceArt.MODE_LEAN) RaceArt.kidLean(c, cx, TOP + 190f, 170f, tilt * 0.6f, KID);
-        else if (mode == RaceArt.MODE_WHEEL) RaceArt.kidWheel(c, cx, TOP + 190f, 180f, tilt * 1.6f, KID);
-        else RaceArt.kid(c, cx, TOP + 190f, 190f, 1f, tilt, 0f, KID);
-        float dx = -tilt * 2.2f; // left hand lower (tilt > 0) -> the truck goes left
-        RaceArt.truckSide(c, cx + dx, TOP + 255f, 1.0f, lt * 6f);
+        float s = (float) Math.sin(lt / LOOP * 2f * Math.PI);   // +1 = to the screen's right
+        if (mode == RaceArt.MODE_WHEEL) {
+            pose.set(HowToPose.WHEEL);
+            pose.wheelDeg = -55f * s;                          // clockwise turns right
+            figure.draw(c, pose, cx, TOP + 205f, 190f, KID);
+        } else if (mode == RaceArt.MODE_LEAN) {
+            figure.drawBetween(c, HowToPose.LEAN_LEFT, HowToPose.LEAN_RIGHT, 0.5f + 0.5f * s, cx, TOP + 205f, 190f, KID);
+        } else {
+            RaceArt.kid(c, cx, TOP + 190f, 190f, 1f, -24f * s, 0f, KID);
+        }
+        RaceArt.truckSide(c, cx + 52f * s, TOP + 262f, 1.0f, lt * 6f);
         line.setColor(RaceArt.ORANGE);
         line.setStrokeWidth(10f);
-        float dir = tilt > 0f ? -1f : 1f;
-        float a = Math.min(1f, Math.abs(tilt) / 10f);
+        float dir = s > 0f ? 1f : -1f;
+        float a = Math.min(1f, Math.abs(s) * 2.4f);
         line.setAlpha((int) (255 * a));
         float ax = cx + dir * 120f;
-        c.drawLine(ax - dir * 28f, TOP + 300f, ax + dir * 28f, TOP + 300f, line);
-        c.drawLine(ax + dir * 28f, TOP + 300f, ax + dir * 8f, TOP + 284f, line);
-        c.drawLine(ax + dir * 28f, TOP + 300f, ax + dir * 8f, TOP + 316f, line);
+        c.drawLine(ax - dir * 28f, TOP + 308f, ax + dir * 28f, TOP + 308f, line);
+        c.drawLine(ax + dir * 28f, TOP + 308f, ax + dir * 8f, TOP + 292f, line);
+        c.drawLine(ax + dir * 28f, TOP + 308f, ax + dir * 8f, TOP + 324f, line);
         line.setAlpha(255);
     }
 
@@ -110,7 +119,7 @@ final class RaceRules implements Hud.RulesPainter {
         float p = lt < 1.6f ? lt / 1.6f : 0f;
         float lift = (float) Math.sin(p * Math.PI);
         if (lift < 0f) lift = 0f;
-        RaceArt.kid(c, cx - 80f, TOP + 285f - 70f * lift, 170f, 0f, 0f, 0f, KID);
+        figure.drawBetween(c, HowToPose.STAND, HowToPose.JUMP, lift, cx - 80f, TOP + 290f - 40f * lift, 180f, KID);
         boolean up = lift > 0.25f;
         RaceArt.rocket(c, cx + 100f, TOP + 150f, 150f, up ? 0xFFE0605A : 0xFFB8C3CC, up ? 0.6f + 0.4f * lift : 0f, t);
         if (up) {
@@ -127,7 +136,7 @@ final class RaceRules implements Hud.RulesPainter {
     private void crouch(Canvas c, float cx) {
         float lt = t % LOOP;
         float k = lt < 0.6f ? lt / 0.6f : (lt < 2.2f ? 1f : Math.max(0f, 1f - (lt - 2.2f) / 0.6f));
-        RaceArt.kid(c, cx - 80f, TOP + 285f, 170f, 0f, 0f, k, KID);
+        figure.drawBetween(c, HowToPose.STAND, HowToPose.SQUAT, k, cx - 80f, TOP + 290f, 180f, KID);
         RaceArt.truckSide(c, cx + 85f, TOP + 215f, 0.62f, lt * (k > 0.5f ? 2f : 9f));
         line.setColor(0xFF9AA5AD);
         line.setStrokeWidth(7f);

@@ -335,11 +335,11 @@ public final class RaceArt {
 
     /** Picture for a steering choice tile: the kid making that gesture. */
     public static void paintSteerTile(Canvas c, int w, int h, int mode) {
-        float cx = w / 2f, foot = h * 0.95f, kh = h * 0.92f;
-        int kidColour = 0xFF29B6F6;
-        if (mode == MODE_LEAN) kidLean(c, cx, foot, kh, 14f, kidColour);
-        else if (mode == MODE_WHEEL) kidWheel(c, cx, foot, kh, 24f, kidColour);
-        else kid(c, cx, foot, kh, 1f, 14f, 0f, kidColour);
+        float cx = w / 2f, foot = h * 0.97f, kh = h * 0.92f;
+        com.wiggleplay.app.ui.HowToFigure f = new com.wiggleplay.app.ui.HowToFigure();
+        if (mode == MODE_LEAN) f.draw(c, com.wiggleplay.app.ui.HowToPose.LEAN_RIGHT, cx, foot, kh, com.wiggleplay.app.ui.HowToFigure.BLUE);
+        else if (mode == MODE_WHEEL) f.draw(c, com.wiggleplay.app.ui.HowToPose.WHEEL, cx, foot, kh, com.wiggleplay.app.ui.HowToFigure.BLUE);
+        else kid(c, cx, foot, kh, 1f, 14f, 0f, 0xFF29B6F6);
     }
 
     /** Size of the baked steering icons. */

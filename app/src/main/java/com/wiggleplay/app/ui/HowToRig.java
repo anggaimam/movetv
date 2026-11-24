@@ -12,7 +12,7 @@ public final class HowToRig {
     /** Hip centre to the shoulder line when standing. */
     public static final float TORSO = 0.315f;
     /** Half the distance between the shoulders. */
-    public static final float SHOULDER_HALF = 0.10f;
+    public static final float SHOULDER_HALF = 0.105f;
     /** Half the distance between the hip joints when standing. */
     public static final float HIP_HALF = 0.06f;
     /** Upper arm, forearm, thigh and shin lengths. */

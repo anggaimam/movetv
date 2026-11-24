@@ -17,7 +17,7 @@ public final class HowToFigure {
     /** The dark outline colour. */
     public static final int INK = 0xFF2B3A4A;
 
-    private static final float LIMB = 0.075f, LEG = 0.09f, TORSO_W = 0.09f, OUTLINE = 0.026f, HAND_R = 0.042f;
+    private static final float LIMB = 0.075f, LEG = 0.082f, TORSO_W = 0.11f, OUTLINE = 0.026f, HAND_R = 0.042f;
 
     private final Paint stroke = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint fill = new Paint(Paint.ANTI_ALIAS_FLAG);
