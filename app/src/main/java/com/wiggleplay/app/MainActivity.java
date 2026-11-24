@@ -175,7 +175,6 @@ public class MainActivity extends Activity {
         perf.setGlStats(raceGl.stats());
         gameView.setGlView(raceGl);
         // the race needs the GL view, which is made after the other scenes
-        scenes.register("racesteer", settings.host(new com.wiggleplay.app.games.race.RaceSteerScene(env)));
         scenes.register("race", settings.host(new com.wiggleplay.app.games.race.RaceScene(env, raceGl)));
         root = new FrameLayout(this);
         root.setBackgroundColor(android.graphics.Color.BLACK);

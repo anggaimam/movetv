@@ -71,8 +71,8 @@ public final class RaceScene implements Scene {
     private final BodyLean lean = new BodyLean();
     private final SteeringWheel wheel = new SteeringWheel();
     private final SteerInput[] steerModes = {arms, lean, wheel};
-    private SteerInput steerIn = arms;
-    private int mode = RaceArt.MODE_PLANE;
+    private SteerInput steerIn = wheel;
+    private int mode = RaceArt.MODE_WHEEL;
     private float noteT;
     private final StringBuilder noteSb = new StringBuilder(64);
     private static final String[] INTRO_TEXT = RaceHud.HINT;

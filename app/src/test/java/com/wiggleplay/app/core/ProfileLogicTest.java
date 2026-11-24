@@ -76,13 +76,13 @@ public class ProfileLogicTest {
     }
 
     @Test
-    public void raceSteerKeepsTheThreeModesAndDefaultsToPlane() {
-        assertEquals("plane", ProfileLogic.cleanRaceSteer("plane"));
+    public void raceSteerIsWheelOrLeanAndDefaultsToWheel() {
         assertEquals("lean", ProfileLogic.cleanRaceSteer("lean"));
         assertEquals("wheel", ProfileLogic.cleanRaceSteer("wheel"));
-        assertEquals("plane", ProfileLogic.cleanRaceSteer(null));
-        assertEquals("plane", ProfileLogic.cleanRaceSteer("WHEEL"));
-        assertEquals("plane", ProfileLogic.cleanRaceSteer(3));
-        assertEquals("plane", ProfileLogic.cleanRaceSteer(""));
+        assertEquals("wheel", ProfileLogic.cleanRaceSteer("plane"));   // saved by the T-23 Part B picker
+        assertEquals("wheel", ProfileLogic.cleanRaceSteer(null));
+        assertEquals("wheel", ProfileLogic.cleanRaceSteer("LEAN"));
+        assertEquals("wheel", ProfileLogic.cleanRaceSteer(3));
+        assertEquals("wheel", ProfileLogic.cleanRaceSteer(""));
     }
 }

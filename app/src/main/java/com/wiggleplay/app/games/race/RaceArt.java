@@ -274,18 +274,17 @@ public final class RaceArt {
 
     // ---- T-23: the three steering modes ----
 
-    /** Steering modes, in picker order: airplane arms, body lean, steering wheel. */
+    /** Steering modes: airplane arms (no longer chosen in the race), body lean, steering wheel. */
     public static final int MODE_PLANE = 0, MODE_LEAN = 1, MODE_WHEEL = 2;
 
     /**
      * The mode number of a saved steering name.
-     * @param name "plane", "lean" or "wheel" (anything else is "plane")
+     * @param name "lean" or "wheel" (anything else is "wheel"; plane arms are no longer offered in the race)
      * @return MODE_PLANE, MODE_LEAN or MODE_WHEEL
      */
     public static int modeOf(String name) {
         if ("lean".equals(name)) return MODE_LEAN;
-        if ("wheel".equals(name)) return MODE_WHEEL;
-        return MODE_PLANE;
+        return MODE_WHEEL;
     }
 
     /**

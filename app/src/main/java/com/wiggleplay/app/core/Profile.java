@@ -162,7 +162,7 @@ public final class Profile {
 
     /**
      * How Turbo Trucks is steered.
-     * @return "plane" (default), "lean" or "wheel"
+     * @return "wheel" (default) or "lean"
      */
     public String raceSteer() {
         return ProfileLogic.cleanRaceSteer(prefs.getAll().get(K_RACE_STEER));
@@ -170,7 +170,7 @@ public final class Profile {
 
     /**
      * Saves how Turbo Trucks is steered.
-     * @param mode "plane", "lean" or "wheel" (anything else is saved as "plane")
+     * @param mode "lean" or "wheel" (anything else is saved as "wheel")
      */
     public void setRaceSteer(String mode) {
         prefs.edit().putString(K_RACE_STEER, ProfileLogic.cleanRaceSteer(mode)).apply();

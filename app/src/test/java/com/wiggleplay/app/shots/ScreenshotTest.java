@@ -15,7 +15,6 @@ import com.wiggleplay.app.games.fruit.FruitScene;
 import com.wiggleplay.app.games.dance.DanceScene;
 import com.wiggleplay.app.games.jungle.JungleScene;
 import com.wiggleplay.app.games.race.RaceScene;
-import com.wiggleplay.app.games.race.RaceSteerScene;
 import com.wiggleplay.app.games.sky.SkyPlaneScene;
 import com.wiggleplay.app.games.sky.SkyScene;
 import com.wiggleplay.app.pose.TestPoseSource;
@@ -611,7 +610,7 @@ public class ScreenshotTest {
     // ---- T-22: Turbo Trucks (no OpenGL in the screenshot rig: the 3D world is replaced by a flat picture) ----
 
     private void race(String name, int level, int frames, boolean rules, ShotRig.Script script) throws Exception {
-        race(name, level, "plane", frames, rules, script);
+        race(name, level, "wheel", frames, rules, script);
     }
 
     private void race(String name, int level, String steer, int frames, boolean rules, ShotRig.Script script)
@@ -623,11 +622,11 @@ public class ScreenshotTest {
 
     // ---- T-23 Part B: the three steering modes ----
 
-    /** "How do you want to steer?": three tiles, the last choice ticked. */
+    /** The Turbo Trucks level screen: three levels plus the Wheel / Lean choice (Wheel ticked). */
     @Test
-    public void raceSteerMenu() throws Exception {
-        check(ShotRig.shoot("race_steer_menu", new RaceSteerScene(env()),
-                Scene.SceneArgs.of("gameId", "race", "level", 1, "players", 1), 1, 60, null));
+    public void raceLevelSelect() throws Exception {
+        check(ShotRig.shoot("race_levelselect", new LevelSelectScene(env()),
+                Scene.SceneArgs.of("gameId", "race"), 1, 60, null));
     }
 
     @Test
