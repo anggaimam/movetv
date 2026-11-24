@@ -16,7 +16,7 @@ import java.util.Random;
  * no gradients. Everything is painted once into {@link SpriteCache} bitmaps; the scene only copies them. The three
  * levels have their own sky: sunny meadow, sunset ocean with islands, starry night. Main thread only.
  */
-final class SkyArt {
+public final class SkyArt {
 
     /** Where the horizon is on the stage (the sky bands end here). */
     static final float HORIZON = 400f;
