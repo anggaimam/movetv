@@ -85,4 +85,24 @@ public class ProfileLogicTest {
         assertEquals("wheel", ProfileLogic.cleanRaceSteer(3));
         assertEquals("wheel", ProfileLogic.cleanRaceSteer(""));
     }
+
+    @Test
+    public void pictureIsAutoHighOrLowAndDefaultsToAuto() {
+        assertEquals("auto", ProfileLogic.cleanQuality(null));
+        assertEquals("auto", ProfileLogic.cleanQuality("auto"));
+        assertEquals("high", ProfileLogic.cleanQuality("high"));
+        assertEquals("low", ProfileLogic.cleanQuality("low"));
+        assertEquals("auto", ProfileLogic.cleanQuality("HIGH"));
+        assertEquals("auto", ProfileLogic.cleanQuality("ultra"));
+        assertEquals("auto", ProfileLogic.cleanQuality(2));
+        assertEquals("auto", ProfileLogic.cleanQuality(""));
+    }
+
+    @Test
+    public void pictureTileCyclesAutoHighLow() {
+        assertEquals("high", ProfileLogic.nextQuality("auto"));
+        assertEquals("low", ProfileLogic.nextQuality("high"));
+        assertEquals("auto", ProfileLogic.nextQuality("low"));
+        assertEquals("high", ProfileLogic.nextQuality("damaged"));
+    }
 }

@@ -33,7 +33,37 @@ public final class ProfileLogic {
     /** The Turbo Trucks steering used when nothing valid is saved. */
     public static final String DEFAULT_RACE_STEER = STEER_WHEEL;
 
+    /** Picture setting: drop to LOW by itself when play is slow. */
+    public static final String QUALITY_AUTO = "auto";
+    /** Picture setting: always HIGH. */
+    public static final String QUALITY_HIGH = "high";
+    /** Picture setting: always LOW. */
+    public static final String QUALITY_LOW = "low";
+
     private ProfileLogic() { }
+
+    /**
+     * Checks a Picture setting.
+     * @param o the saved value (anything, even null)
+     * @return "high" or "low" if the value is that string, otherwise "auto"
+     */
+    public static String cleanQuality(Object o) {
+        if (QUALITY_HIGH.equals(o)) return QUALITY_HIGH;
+        if (QUALITY_LOW.equals(o)) return QUALITY_LOW;
+        return QUALITY_AUTO;
+    }
+
+    /**
+     * The next Picture setting when the tile is pressed: auto, high, low, auto.
+     * @param cur the current setting (anything is cleaned first)
+     * @return the next setting
+     */
+    public static String nextQuality(Object cur) {
+        String c = cleanQuality(cur);
+        if (QUALITY_AUTO.equals(c)) return QUALITY_HIGH;
+        if (QUALITY_HIGH.equals(c)) return QUALITY_LOW;
+        return QUALITY_AUTO;
+    }
 
     /**
      * Checks a Turbo Trucks steering setting.

@@ -169,6 +169,7 @@ public class MainActivity extends Activity {
         // the sound and speed test keeps its own quick keys, so it is not wrapped
         scenes.register("demo", new DemoScene(perf, sfx, music));
         gameView = new GameView(this, hub, scenes, perf);
+        gameView.setProfile(profile);
         // The 3D view sits under the game screen (hidden until a 3D scene is current); the root is black, which
         // makes the letterbox bars.
         raceGl = new RaceGlView(this);

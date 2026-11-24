@@ -622,6 +622,21 @@ public final class Theme {
     }
 
     /**
+     * A round label for the Picture setting.
+     * @param mode "auto", "high" or "low"
+     * @return a 200x84 bitmap
+     */
+    public static Bitmap qualityBadge(final String mode) {
+        final String txt = "high".equals(mode) ? "High" : "low".equals(mode) ? "Low" : "Auto";
+        return SpriteCache.shared().get("theme_badge_quality_" + txt, 200, 84, (c, w, h) -> {
+            R.set(2f, 2f, w - 2f, h - 2f);
+            FILL.setColor("Auto".equals(txt) ? 0xFF5B8DB8 : "High".equals(txt) ? 0xFF6FA06B : 0xFFE89A4C);
+            c.drawRoundRect(R, h / 2f, h / 2f, FILL);
+            drawCentered(c, txt, w / 2f, h * 0.68f, 46f, 0xFFFFFFFF);
+        });
+    }
+
+    /**
      * A round label for the pointer setting.
      * @param reach true for "Easy reach", false for "On my hand"
      * @return a 320x84 bitmap

@@ -16,7 +16,7 @@ import java.util.List;
 
 /**
  * The settings panel, drawn over any screen. It holds the hold time (one tile that cycles 0.7 / 1.0 / 1.4 s), the pointer (on my hand / easy reach), the camera's light
- * boost and the performance overlay, all as big tiles that work with a hand or with the remote. The menu key
+ * boost, the performance overlay and the Picture setting (auto / high / low, second row), all as big tiles that work with a hand or with the remote. The menu key
  * (or Back, or the Done tile) closes it. While it is open the screen underneath is not updated, so a game
  * pauses. Wrap each scene with {@link #host(Scene)} to give it the overlay.
  */
@@ -30,7 +30,7 @@ public final class SettingsOverlay {
     private final Paint dim = new Paint();
     private boolean open;
     private float ignoreMs;
-    private TileMenu.Tile tHold, tBoost, tPerf, tPointer, tCam;
+    private TileMenu.Tile tHold, tBoost, tPerf, tPointer, tCam, tPicture;
 
     /**
      * Creates the overlay.
@@ -70,6 +70,8 @@ public final class SettingsOverlay {
                 x0 + 3f * (w + gap), y, w, h);
         tCam = new TileMenu.Tile("dancecam", "Dance camera", null, Theme.PINK, SettingsOverlay::paintCamera,
                 x0 + 4f * (w + gap), y, w, h);
+        tPicture = new TileMenu.Tile("picture", "Picture", null, Theme.SAGE, SettingsOverlay::paintPicture,
+                x0, y + h + gap, w, 300f);
         TileMenu.Tile done = new TileMenu.Tile("done", "OK", null, Theme.SAGE, Theme::paintDone, 1370f, 40f, 380f, 250f);
         tiles.add(done);
         tiles.add(tHold);
@@ -77,6 +79,7 @@ public final class SettingsOverlay {
         tiles.add(tBoost);
         tiles.add(tPerf);
         tiles.add(tCam);
+        tiles.add(tPicture);
         refresh();
         menu.setTiles(tiles, "done");
         ignoreMs = IGNORE_MS;
@@ -98,6 +101,7 @@ public final class SettingsOverlay {
         tBoost.badge = Theme.onOffBadge(env.lightBoost());
         tPerf.badge = Theme.onOffBadge(env.perf.isVisible());
         tCam.badge = Theme.onOffBadge(env.profile != null && env.profile.danceCamera());
+        tPicture.badge = Theme.qualityBadge(env.profile != null ? env.profile.quality() : ProfileLogic.QUALITY_AUTO);
     }
 
     /**
@@ -136,6 +140,9 @@ public final class SettingsOverlay {
                 break;
             case "dancecam":
                 if (env.profile != null) env.profile.setDanceCamera(!env.profile.danceCamera());
+                break;
+            case "picture":
+                if (env.profile != null) env.profile.setQuality(ProfileLogic.nextQuality(env.profile.quality()));
                 break;
             case "done":
                 close();
@@ -207,6 +214,21 @@ public final class SettingsOverlay {
         public boolean world3d() {
             return inner.world3d();
         }
+    }
+
+    /** A small TV screen with a sparkle, for the "Picture" tile. */
+    private static void paintPicture(Canvas c, int w, int h) {
+        CAM_PAINT.setStyle(Paint.Style.FILL);
+        CAM_PAINT.setColor(0xFF2F3A45);
+        CAM_RECT.set(w * 0.12f, h * 0.22f, w * 0.88f, h * 0.70f);
+        c.drawRoundRect(CAM_RECT, w * 0.06f, w * 0.06f, CAM_PAINT);
+        CAM_PAINT.setColor(0xFF7FF4FF);
+        CAM_RECT.set(w * 0.17f, h * 0.27f, w * 0.83f, h * 0.65f);
+        c.drawRoundRect(CAM_RECT, w * 0.04f, w * 0.04f, CAM_PAINT);
+        CAM_PAINT.setColor(0xFFF3EBDD);
+        c.drawCircle(w * 0.64f, h * 0.40f, w * 0.06f, CAM_PAINT);
+        CAM_RECT.set(w * 0.40f, h * 0.72f, w * 0.60f, h * 0.78f);
+        c.drawRect(CAM_RECT, CAM_PAINT);
     }
 
     private static final Paint CAM_PAINT = new Paint(Paint.ANTI_ALIAS_FLAG);

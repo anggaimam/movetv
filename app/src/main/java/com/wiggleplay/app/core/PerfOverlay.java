@@ -57,6 +57,19 @@ public final class PerfOverlay {
         glVisible = visible;
     }
 
+    private String qualityMode = "auto";
+    private int autoLowAt = -1;
+
+    /**
+     * Sets the words after the quality level on the first line.
+     * @param mode "auto" or "forced"
+     * @param autoLowAtS the second of this scene at which the automatic drop to LOW happened, or -1
+     */
+    public void setQualityMode(String mode, int autoLowAtS) {
+        qualityMode = mode == null ? "" : mode;
+        autoLowAt = autoLowAtS;
+    }
+
     /**
      * Shows a short line under the others (pass "" to remove it). Build the text only when something changes.
      * @param text the line
@@ -171,6 +184,9 @@ public final class PerfOverlay {
         secStartNanos = 0;
         secFrames = 0;
         secWorstMs = 0f;
+        fps = 0f;
+        worstMs = 0f;
+        java.util.Arrays.fill(worstBuckets, 0f);
     }
 
     /**
@@ -217,7 +233,9 @@ public final class PerfOverlay {
             sb.setLength(0);
             sb.append((int) (fps + 0.5f)).append(" fps  worst ").append((int) (worstMs + 0.5f))
                     .append(" ms  AI ").append((int) (aiFps + 0.5f)).append(" fps  ")
-                    .append(quality == GameView.LOW ? "LOW" : "HIGH");
+                    .append("quality ").append(quality == GameView.LOW ? "LOW" : "HIGH")
+                    .append(" (").append(qualityMode).append(')');
+            if (autoLowAt >= 0) sb.append("  auto LOW at ").append(autoLowAt).append(" s");
             text = sb.toString();
             sb.setLength(0);
             int n = Math.max(1, timingFrames);

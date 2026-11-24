@@ -14,7 +14,7 @@ import java.util.Map;
 public final class Profile {
 
     private static final String FILE = "movetv_profile";
-    private static final String K_HOLD = "hold_ms", K_PLAYERS = "players", K_BOOST = "light_boost", K_POINTER = "pointer", K_DANCE_CAM = "dance_camera", K_RACE_STEER = "race_steer";
+    private static final String K_HOLD = "hold_ms", K_PLAYERS = "players", K_BOOST = "light_boost", K_POINTER = "pointer", K_DANCE_CAM = "dance_camera", K_RACE_STEER = "race_steer", K_QUALITY = "quality";
 
     private final SharedPreferences prefs;
 
@@ -174,5 +174,21 @@ public final class Profile {
      */
     public void setRaceSteer(String mode) {
         prefs.edit().putString(K_RACE_STEER, ProfileLogic.cleanRaceSteer(mode)).apply();
+    }
+
+    /**
+     * The Picture setting.
+     * @return "auto" (default), "high" or "low"
+     */
+    public String quality() {
+        return ProfileLogic.cleanQuality(prefs.getAll().get(K_QUALITY));
+    }
+
+    /**
+     * Saves the Picture setting.
+     * @param mode "auto", "high" or "low" (anything else is saved as "auto")
+     */
+    public void setQuality(String mode) {
+        prefs.edit().putString(K_QUALITY, ProfileLogic.cleanQuality(mode)).apply();
     }
 }

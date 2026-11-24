@@ -23,13 +23,10 @@ public final class GameView extends View {
     public static final int LOW = 1;
 
     /**
-     * The current quality level. Scenes and loaders read it; it goes from HIGH to LOW once, when the draw
-     * speed stays under 45 fps for 3 seconds in a row, and never goes back during the session.
+     * The current quality level. Scenes and loaders read it. It is set at every scene change from the Picture
+     * setting; with Picture on auto it also goes from HIGH to LOW once (see {@link QualityGuard}) and stays LOW.
      */
     public static volatile int quality = HIGH;
-
-    private static final float LOW_FPS = 45f;
-    private static final int LOW_SECONDS = 3;
 
     private final PoseHub hub;
     private final SceneManager scenes;
@@ -39,7 +36,9 @@ public final class GameView extends View {
 
     private float scale = 1f, offX = 0f, offY = 0f;
     private long lastNanos = 0;
-    private int slowSeconds = 0;
+    private final QualityGuard guard = new QualityGuard();
+    private Profile profile;
+    private String lastScene;
 
     private RaceGlView gl;
     private boolean glWanted = false;
@@ -104,7 +103,6 @@ public final class GameView extends View {
     /** Forgets frame timing, so a pause or a screen switch is not counted as a slow game. */
     private void resetTiming() {
         lastNanos = 0;
-        slowSeconds = 0;
         perf.reset();
     }
 
@@ -124,8 +122,15 @@ public final class GameView extends View {
     protected void onDraw(Canvas c) {
         long nowN = SystemClock.elapsedRealtimeNanos();
         float dt = lastNanos == 0 ? 0f : Math.min(0.05f, (nowN - lastNanos) / 1_000_000_000f);
+        float rawMs = lastNanos == 0 ? 0f : (nowN - lastNanos) / 1_000_000f;
         lastNanos = nowN;
-        if (perf.onFrame(nowN)) checkQuality(perf.fps());
+        String sn = scenes.currentName();
+        if (sn != null && !sn.equals(lastScene)) onSceneChanged(sn);
+        perf.onFrame(nowN);
+        if (guard.onFrame(rawMs)) {
+            quality = guard.level();
+            showQualityMode();
+        }
 
         boolean want = gl != null && scenes.world3d();
         if (want != glWanted) { // switch the GL view on the next message-loop turn, not in the middle of a draw
@@ -156,14 +161,23 @@ public final class GameView extends View {
         postInvalidateOnAnimation(); // keep drawing at the TV's refresh rate
     }
 
-    /** Once a second: after 3 slow seconds in a row, switch to LOW quality for the rest of the session. */
-    private void checkQuality(float fps) {
-        if (quality != HIGH) return;
-        if (fps > 0f && fps < LOW_FPS) {
-            if (++slowSeconds >= LOW_SECONDS) quality = LOW;
-        } else {
-            slowSeconds = 0;
-        }
+    /** Gives the view the saved settings, so the Picture setting is read at every scene change. */
+    public void setProfile(Profile p) {
+        profile = p;
+    }
+
+    /** A new scene is current: restart the grace time, read the Picture setting and clear the speed meter. */
+    private void onSceneChanged(String name) {
+        lastScene = name;
+        guard.setMode(QualityGuard.modeOf(profile != null ? profile.quality() : null));
+        guard.onSceneChange();
+        quality = guard.level();
+        perf.reset();
+        showQualityMode();
+    }
+
+    private void showQualityMode() {
+        perf.setQualityMode(guard.mode() == QualityGuard.AUTO ? "auto" : "forced", guard.droppedAtSeconds());
     }
 
     @Override
