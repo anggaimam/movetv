@@ -636,6 +636,8 @@ public class ScreenshotTest {
                 new float[] {0f, 35f, 75f}, 12f, 0.8f, 1280, 420));
         check(MeshPreview.shootTurns("race_star_closeup", com.wiggleplay.app.gl.ProcMesh.starBevelled(0.9f, 0.4f, 0.2f).parts[0],
                 new float[] {0f, 35f, 75f}, 12f, 0.5f, 1280, 420));
+        check(MeshPreview.shootTurns("race_nitro_closeup", com.wiggleplay.app.gl.ProcMesh.nitroCan().parts[0],
+                new float[] {0f, 40f, 110f}, 10f, 0.55f, 1280, 420));
     }
 
     @Test

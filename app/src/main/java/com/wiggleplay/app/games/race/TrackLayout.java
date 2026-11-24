@@ -52,6 +52,8 @@ public final class TrackLayout {
         public final float[] offset;
         /** True for the coins on a corner (the others are on straights). */
         public final boolean[] corner;
+        /** True where the "coin" is a nitro can instead (T-26; it is worth no points). */
+        public final boolean[] nitro;
         /** Number of coins. */
         public final int count;
         /** Distance along the centre line of the golden star (one per lap, at a corner apex). */
@@ -59,10 +61,11 @@ public final class TrackLayout {
         /** Offset of the golden star. */
         public final float starOffset;
 
-        Slots(float[] s, float[] offset, boolean[] corner, int count, float starS, float starOffset) {
+        Slots(float[] s, float[] offset, boolean[] corner, boolean[] nitro, int count, float starS, float starOffset) {
             this.s = s;
             this.offset = offset;
             this.corner = corner;
+            this.nitro = nitro;
             this.count = count;
             this.starS = starS;
             this.starOffset = starOffset;
@@ -562,6 +565,19 @@ public final class TrackLayout {
      * @return the slots, sorted by distance along the lap
      */
     public Slots coinSlots(long seed) {
+        return coinSlots(seed, 0);
+    }
+
+    /**
+     * Coin and star positions, with nitro cans (T-26). A nitro can takes the place of the middle coin of a straight, in the
+     * same lane, so a driver who follows the coins meets it; the cans are spread evenly over the straights, starting at a
+     * place chosen from the seed (its own random numbers: the lanes of the coins are the same as without cans).
+     * The slot count is the same as without cans.
+     * @param seed layout seed
+     * @param nitroCans cans per lap (at most one per straight)
+     * @return the slots, sorted by distance along the lap
+     */
+    public Slots coinSlots(long seed, int nitroCans) {
         Random rnd = new Random(seed);
         int n = tiles.size();
         int straights = 0, cornerTiles = 0;
@@ -572,6 +588,11 @@ public final class TrackLayout {
         float[] cs = new float[straights * 5 + cornerTiles * 3];
         float[] co = new float[cs.length];
         boolean[] cor = new boolean[cs.length];
+        boolean[] nit = new boolean[cs.length];
+        int cans = Math.max(0, Math.min(nitroCans, straights));
+        float stride = cans > 0 ? (float) straights / cans : 0f;
+        float first0 = cans > 0 ? new Random(seed ^ 0x9E3779B97F4A7C15L).nextFloat() * stride : 0f;
+        int nextCan = 0, canStraight = cans > 0 ? (int) first0 : -1;
         int count = 0;
         final float[] lanes = {-2.5f, 0f, 2.5f};
         int prev = -1, first = -1, seenStraights = 0;
@@ -588,9 +609,15 @@ public final class TrackLayout {
                 } while (pick == prev || (last && straights > 1 && pick == first));
                 if (first < 0) first = pick;
                 prev = pick;
+                boolean can = cans > 0 && nextCan < cans && seenStraights - 1 == canStraight;
+                if (can) {
+                    nextCan++;
+                    canStraight = nextCan < cans ? (int) (first0 + nextCan * stride) : -1;
+                }
                 for (int k = 0; k < 5; k++) {
                     cs[count] = s0 + CELL / 2f + (k - 2) * 1.6f;
                     co[count] = lanes[pick];
+                    nit[count] = can && k == 2;
                     count++;
                 }
             } else {
@@ -608,6 +635,6 @@ public final class TrackLayout {
         }
         float starS = 0f;
         if (!cornerIdx.isEmpty()) starS = tileS0[cornerIdx.get(rnd.nextInt(cornerIdx.size()))] + ARC_LEN / 2f;
-        return new Slots(cs, co, cor, count, starS, 0f);
+        return new Slots(cs, co, cor, nit, count, starS, 0f);
     }
 }

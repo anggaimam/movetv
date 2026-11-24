@@ -14,7 +14,9 @@ import com.wiggleplay.app.games.common.StarRules;
  *   <li><b>Coins</b>: each player has their own coins (from {@link TrackLayout#coinSlots}) and one golden star per lap
  *       at the same place. A coin is picked up within 2.0 units: +1 (the star +5). Coins come back every lap.
  *       "Offered" is the sum of every coin and star that was collected or that the player drove past.</li>
- *   <li><b>Boost</b>: a meter 0..1 that starts full, fills 0.2 per second and 0.15 per coin. A jump starts a boost only
+ *   <li><b>Boost</b>: a meter 0..1. On Easy it starts full, fills 0.2 per second and 0.15 per coin. On Medium and Hard
+ *       (T-26, {@link RaceLevel#earnedBoost}) it starts empty and only nitro cans fill it, {@link RaceLevel#NITRO_FILL}
+ *       each; time and coins do nothing. A jump starts a boost only
  *       when the meter is full and no boost runs; the boost lasts exactly 1.6 s whatever happens next, the meter
  *       goes to 0, jumps during a boost do nothing and braking is ignored during it.</li>
  *   <li><b>Two players</b>: trucks are circles of radius 1.0; overlapping trucks are pushed apart equally, and lose
@@ -47,6 +49,7 @@ public final class RaceLogic {
 
     private final float[] steer = new float[2];
     private final boolean[] braking = new boolean[2];
+    private final RaceLevel level;
     private final float[] meter = {1f, 1f};
     private final float[] boostLeft = new float[2];
     private final boolean[] boosting = new boolean[2];
@@ -55,6 +58,8 @@ public final class RaceLogic {
     private final boolean[] finished = new boolean[2];
     private final int[] coinEvents = new int[2];
     private final boolean[] starEvent = new boolean[2], lapEvent = new boolean[2];
+    private final int[] nitroEvents = new int[2];
+    private final boolean[][] slotNitro = new boolean[2][];
 
     // coin slots per player (sorted by s), with their world positions
     private final float[][] slotS = new float[2][], slotX = new float[2][], slotZ = new float[2][];
@@ -78,22 +83,24 @@ public final class RaceLogic {
     public RaceLogic(TrackLayout track, RaceLevel level, int players, long seed) {
         if (players < 1 || players > 2) throw new IllegalArgumentException("players must be 1 or 2: " + players);
         this.track = track;
+        this.level = level;
         this.players = players;
         this.lap = track.lapLength();
         for (int p = 0; p < players; p++) {
             car[p] = new CarModel(level, players == 2);
             car[p].reset(track, 0f, players == 2 ? (p == 0 ? -2f : 2f) : 0f);
             lastS[p] = car[p].s();
+            if (level.earnedBoost) meter[p] = 0f;
             buildSlots(p, seed + p * 7919L);
         }
     }
 
     private void buildSlots(int p, long seed) {
-        TrackLayout.Slots sl = track.coinSlots(seed);
+        TrackLayout.Slots sl = track.coinSlots(seed, level.nitroPerLap);
         int n = sl.count + 1;
         float[] s = new float[n], off = new float[n];
         int[] val = new int[n];
-        boolean[] cor = new boolean[n];
+        boolean[] cor = new boolean[n], nit = new boolean[n];
         int k = 0;
         boolean starIn = false;
         for (int i = 0; i <= sl.count; i++) {
@@ -108,13 +115,15 @@ public final class RaceLogic {
                 s[k] = sl.s[i];
                 off[k] = sl.offset[i];
                 cor[k] = sl.corner[i];
-                val[k] = COIN_VALUE;
+                nit[k] = sl.nitro[i];
+                val[k] = nit[k] ? 0 : COIN_VALUE;   // a nitro can is worth no points: stars do not depend on it
                 k++;
             }
         }
         slotS[p] = s;
         slotValue[p] = val;
         slotCorner[p] = cor;
+        slotNitro[p] = nit;
         slotX[p] = new float[n];
         slotZ[p] = new float[n];
         resolved[p] = new boolean[n];
@@ -164,7 +173,7 @@ public final class RaceLogic {
                     boostLeft[p] = 0f;
                 }
             }
-            if (!finished[p]) meter[p] = Math.min(1f, meter[p] + 0.2f * dt);
+            if (!finished[p] && !level.earnedBoost) meter[p] = Math.min(1f, meter[p] + 0.2f * dt);
             car[p].update(dt, steer[p], boosting[p], braking[p] && !boosting[p], track);
         }
         if (players == 2) bump();
@@ -216,9 +225,15 @@ public final class RaceLogic {
                 int v = slotValue[p][i];
                 score[p] += v;
                 offered[p] += v;
-                if (v == STAR_VALUE) starEvent[p] = true;
-                else coinEvents[p]++;
-                meter[p] = Math.min(1f, meter[p] + 0.15f * (v == STAR_VALUE ? 1 : v));
+                if (slotNitro[p][i]) {
+                    nitroEvents[p]++;
+                    meter[p] = Math.min(1f, meter[p] + RaceLevel.NITRO_FILL);
+                } else if (v == STAR_VALUE) {
+                    starEvent[p] = true;
+                } else {
+                    coinEvents[p]++;
+                }
+                if (!level.earnedBoost) meter[p] = Math.min(1f, meter[p] + 0.15f * (v == STAR_VALUE ? 1 : v));
             }
         }
         while (scan[p] < n && ss[scan[p]] + PASSED_BEHIND < s) {
@@ -386,6 +401,25 @@ public final class RaceLogic {
         coinEvents[p] = 0;
         return c;
     }
+
+    /**
+     * Nitro cans picked up since the last call (for the sound).
+     * @param p player 0 or 1
+     * @return the number of cans
+     */
+    public int consumeNitro(int p) {
+        int c = nitroEvents[p];
+        nitroEvents[p] = 0;
+        return c;
+    }
+
+    /**
+     * Whether a slot is a nitro can.
+     * @param p player 0 or 1
+     * @param i slot number
+     * @return true for a nitro can
+     */
+    public boolean slotIsNitro(int p, int i) { return slotNitro[p][i]; }
 
     /**
      * Whether the golden star was picked up since the last call.

@@ -244,4 +244,29 @@ public class ProcMeshTest {
             }
         }
     }
+
+    @Test
+    public void nitroCanIsAnUprightCanWithAPaintedBolt() {
+        MeshData m = ProcMesh.nitroCan();
+        MeshData.Part p = only(m);
+        assertEquals(146, m.triangleCount());
+        assertEquals(5 * 2 * 12 + 2 * 13 + 6, p.vertexCount);
+        assertIndicesInRange(m);
+        assertOutwardWinding(m);
+        float minY = 1e9f, maxY = -1e9f, maxR = 0f;
+        boolean[] used = new boolean[ProcMesh.SWATCH_RGB.length];
+        for (int v = 0; v < p.vertexCount; v++) {
+            minY = Math.min(minY, p.vertices[v * 8 + 1]);
+            maxY = Math.max(maxY, p.vertices[v * 8 + 1]);
+            maxR = Math.max(maxR, (float) Math.hypot(p.vertices[v * 8], p.vertices[v * 8 + 2]));
+            int k = swatchOf(p, v);
+            assertTrue(k >= 0);
+            used[k] = true;
+        }
+        assertEquals(-0.45f, minY, 1e-5f);
+        assertEquals(0.52f, maxY, 1e-5f);
+        assertTrue("body radius 0.38, the bolt sits just in front of it: " + maxR, maxR >= 0.38f && maxR < 0.43f);
+        assertTrue(used[ProcMesh.SWATCH_CAN_BODY] && used[ProcMesh.SWATCH_CAN_BAND] && used[ProcMesh.SWATCH_CAN_CAP]
+                && used[ProcMesh.SWATCH_CAN_BOLT]);
+    }
 }

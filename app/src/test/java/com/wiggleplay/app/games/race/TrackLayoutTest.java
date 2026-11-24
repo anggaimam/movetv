@@ -1,6 +1,7 @@
 package com.wiggleplay.app.games.race;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -359,5 +360,43 @@ public class TrackLayoutTest {
         assertEquals(8, t.tiles().size());
         assertEquals(3, t.width());
         assertEquals(4, t.height());
+    }
+
+    @Test
+    public void nitroCansReplaceMiddleCoinsOfSpacedStraightsAndKeepTheLanes() {
+        for (int lv = 0; lv < 3; lv++) {
+            TrackLayout t = TrackMaps.forLevel(lv);
+            TrackLayout.Slots plain = t.coinSlots(11L);
+            for (int cans = 0; cans <= 5; cans++) {
+                TrackLayout.Slots sl = t.coinSlots(11L, cans);
+                assertEquals("same slot count", plain.count, sl.count);
+                int found = 0;
+                float lastCanS = -1e9f;
+                for (int i = 0; i < sl.count; i++) {
+                    assertEquals("lanes and positions are the same as without cans", plain.offset[i], sl.offset[i], 0f);
+                    assertEquals(plain.s[i], sl.s[i], 0f);
+                    if (!sl.nitro[i]) continue;
+                    found++;
+                    assertFalse("never a corner coin", sl.corner[i]);
+                    assertTrue("on a lane", sl.offset[i] == -2.5f || sl.offset[i] == 0f || sl.offset[i] == 2.5f);
+                    assertTrue("cans are spread out (at least 15 apart)", sl.s[i] - lastCanS > 15f);
+                    lastCanS = sl.s[i];
+                }
+                assertEquals("level " + lv + " cans " + cans, cans, found);
+            }
+            assertEquals("no cans without asking", 0, countNitro(plain));
+        }
+    }
+
+    private static int countNitro(TrackLayout.Slots sl) {
+        int n = 0;
+        for (int i = 0; i < sl.count; i++) if (sl.nitro[i]) n++;
+        return n;
+    }
+
+    @Test
+    public void tooManyCansAreLimitedToTheStraights() {
+        TrackLayout t = TrackMaps.forLevel(0);
+        assertEquals(17, countNitro(t.coinSlots(3L, 99)));
     }
 }

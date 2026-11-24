@@ -204,8 +204,17 @@ public final class ProcMesh {
     public static final int SWATCH_STAR_RIDGE = 5;
     /** Palette swatch of the golden star's sides. */
     public static final int SWATCH_STAR_SIDE = 6;
+    /** T-26 nitro can: blue body. */
+    public static final int SWATCH_CAN_BODY = 7;
+    /** T-26 nitro can: white band. */
+    public static final int SWATCH_CAN_BAND = 8;
+    /** T-26 nitro can: orange cap. */
+    public static final int SWATCH_CAN_CAP = 9;
+    /** T-26 nitro can: yellow lightning bolt. */
+    public static final int SWATCH_CAN_BOLT = 10;
     /** The swatch colours, 0xRRGGBB, in swatch order. {@code tools/add_coin_swatches.py} paints them into the palette. */
-    public static final int[] SWATCH_RGB = {0xF2C572, 0xD9A441, 0xC48E32, 0xFFE08A, 0xFFC933, 0xFFE680, 0xD9A21E};
+    public static final int[] SWATCH_RGB = {0xF2C572, 0xD9A441, 0xC48E32, 0xFFE08A, 0xFFC933, 0xFFE680, 0xD9A21E,
+            0x2E9BE8, 0xF5F5F5, 0xFF7E44, 0xFFE14D};
     /** Side of one swatch block in the 512 x 512 palette texture; swatch k sits at x = 16 k, y = 0 (an unused corner). */
     public static final int SWATCH_BLOCK = 16;
 
@@ -276,6 +285,34 @@ public final class ProcMesh {
             b.t(f0, k0, k1);
         }
         return b.mesh("coin");
+    }
+
+    /**
+     * A nitro can standing upright (axis Y): a blue body with a white band, a sloped shoulder, an orange cap and a yellow
+     * lightning bolt on the +Z side. About 0.9 tall and 0.76 wide, one part, one draw call, 146 triangles
+     * (draw it with {@code flat = false}). T-26.
+     * @return the mesh
+     */
+    public static MeshData nitroCan() {
+        final int n = 12;
+        Buf b = new Buf(5 * 2 * n + 2 * (n + 1) + 6, 3 * (5 * 2 * n + 2 * n + 2));
+        float r = 0.38f;
+        b.frustum(n, -0.45f, r, -0.12f, r, SWATCH_CAN_BODY);
+        b.frustum(n, -0.12f, r, 0.12f, r, SWATCH_CAN_BAND);
+        b.frustum(n, 0.12f, r, 0.30f, r, SWATCH_CAN_BODY);
+        b.frustum(n, 0.30f, r, 0.40f, 0.16f, SWATCH_CAN_BODY);
+        b.frustum(n, 0.40f, 0.16f, 0.52f, 0.16f, SWATCH_CAN_CAP);
+        b.disc(n, 0.52f, 0.16f, 1, SWATCH_CAN_CAP);
+        b.disc(n, -0.45f, r, -1, SWATCH_CAN_BODY);
+        // the bolt: two triangles on the front of the band and body, a little proud of the surface
+        float z = r + 0.012f;
+        int a0 = b.vu(0.10f, 0.32f, z, 0, 0, 1, SWATCH_CAN_BOLT), a1 = b.vu(-0.16f, -0.04f, z, 0, 0, 1, SWATCH_CAN_BOLT),
+                a2 = b.vu(0.05f, -0.04f, z, 0, 0, 1, SWATCH_CAN_BOLT);
+        b.t(a0, a1, a2);
+        int c0 = b.vu(-0.05f, 0.04f, z, 0, 0, 1, SWATCH_CAN_BOLT), c1 = b.vu(0.16f, 0.04f, z, 0, 0, 1, SWATCH_CAN_BOLT),
+                c2 = b.vu(-0.10f, -0.34f, z, 0, 0, 1, SWATCH_CAN_BOLT);
+        b.t(c0, c2, c1);
+        return b.mesh("nitro");
     }
 
     /**
@@ -384,6 +421,40 @@ public final class ProcMesh {
                 int j = (i + 1) % sides;
                 t2(side, in[i], out[i], out[j]);
                 t2(side, in[i], out[j], in[j]);
+            }
+        }
+
+        /** A cone frustum (a tube when r0 == r1) around the Y axis from (y0, r0) up to (y1, r1), normals outward. */
+        void frustum(int sides, float y0, float r0, float y1, float r1, int swatch) {
+            int[] lo = new int[sides], hi = new int[sides];
+            float dy = y1 - y0, dr = r0 - r1;
+            float nl = (float) Math.sqrt(dy * dy + dr * dr);
+            for (int i = 0; i < sides; i++) {
+                double a = 2.0 * Math.PI * i / sides;
+                float c = (float) Math.cos(a), s = (float) Math.sin(a);
+                float nxz = dy / nl, ny = dr / nl;
+                lo[i] = vu(c * r0, y0, s * r0, c * nxz, ny, s * nxz, swatch);
+                hi[i] = vu(c * r1, y1, s * r1, c * nxz, ny, s * nxz, swatch);
+            }
+            for (int i = 0; i < sides; i++) {
+                int j = (i + 1) % sides;
+                t(lo[i], hi[i], hi[j]);
+                t(lo[i], hi[j], lo[j]);
+            }
+        }
+
+        /** A disc around the Y axis at height y facing up (dir +1) or down (dir -1). */
+        void disc(int sides, float y, float r, int dir, int swatch) {
+            int c = vu(0, y, 0, 0, dir, 0, swatch);
+            int[] ring = new int[sides];
+            for (int i = 0; i < sides; i++) {
+                double a = 2.0 * Math.PI * i / sides;
+                ring[i] = vu((float) (Math.cos(a) * r), y, (float) (Math.sin(a) * r), 0, dir, 0, swatch);
+            }
+            for (int i = 0; i < sides; i++) {
+                int j = (i + 1) % sides;
+                if (dir > 0) t(c, ring[j], ring[i]);
+                else t(c, ring[i], ring[j]);
             }
         }
 

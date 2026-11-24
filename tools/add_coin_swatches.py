@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Paints the seven coin / star swatches (T-23 Part C) into the shared palette texture.
+"""Paints the coin / star / nitro-can swatches (T-23 Part C, T-26) into the shared palette texture.
 
 Usage:  python3 tools/add_coin_swatches.py            (run from anywhere; edits the project's colormap.png in place)
 
@@ -12,7 +12,8 @@ Standard library + Pillow only. Idempotent.
 import os
 from PIL import Image
 
-SWATCH_RGB = [0xF2C572, 0xD9A441, 0xC48E32, 0xFFE08A, 0xFFC933, 0xFFE680, 0xD9A21E]
+SWATCH_RGB = [0xF2C572, 0xD9A441, 0xC48E32, 0xFFE08A, 0xFFC933, 0xFFE680, 0xD9A21E,
+              0x2E9BE8, 0xF5F5F5, 0xFF7E44, 0xFFE14D]   # 7 to 10: the T-26 nitro can
 BLOCK = 16
 
 path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "app", "src", "main", "assets", "art", "race",

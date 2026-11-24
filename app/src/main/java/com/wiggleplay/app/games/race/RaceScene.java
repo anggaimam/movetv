@@ -86,7 +86,7 @@ public final class RaceScene implements Scene {
     private final int[] truckId = new int[4];
     private final int[][] partIdx = new int[4][6];
     private final MeshData[] truckData = new MeshData[4];
-    private int groundId, shadowId, coinId, starId;
+    private int groundId, shadowId, coinId, starId, nitroId;
 
     // scenery trucks
     private final float[] scS = new float[3], scSpin = new float[3], scWheelYaw = new float[3];
@@ -143,6 +143,7 @@ public final class RaceScene implements Scene {
             shadowId = gl.addMesh("shadow", ProcMesh.disc(1.2f));
             coinId = gl.addMesh("coin", ProcMesh.coinReeded());
             starId = gl.addMesh("star", ProcMesh.starBevelled(0.9f, 0.4f, 0.2f));
+            nitroId = gl.addMesh("nitro", ProcMesh.nitroCan());
             for (int t = 0; t < 4; t++) {
                 truckId[t] = gl.meshId(TRUCK_MESH[t]);
                 truckData[t] = gl.meshData(truckId[t]);
@@ -340,6 +341,7 @@ public final class RaceScene implements Scene {
     }
 
     private void raceEvents(CarModel car) {
+        if (logic.consumeNitro(0) > 0) env.sfx("star", 1.5f);   // T-26: a nitro can
         int coins = logic.consumeCoins(0);
         if (coins > 0) {
             env.sfx("coin", 1f + 0.06f * Math.min(coins, 4));
@@ -469,6 +471,11 @@ public final class RaceScene implements Scene {
                 Mat4.scale(mB, 1.6f, 1.6f, 1.6f);
                 Mat4.multiply(mC, mA, mB);
                 list.add(starId, 0, mC, GLOW_COLOUR, true, 1);
+            } else if (logic.slotIsNitro(0, i)) {
+                // T-26: a nitro can, a little bigger than a coin so it stands out among them
+                Mat4.scale(mB, 1.3f, 1.3f, 1.3f);
+                Mat4.multiply(mC, mA, mB);
+                list.add(nitroId, 0, mC, 0, false, 1);
             } else {
                 list.add(coinId, 0, mA, COIN_COLOUR, false, 1);   // T-23 Part C: one draw call, swatches from the palette
             }

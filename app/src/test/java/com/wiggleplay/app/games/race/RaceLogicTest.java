@@ -246,4 +246,71 @@ public class RaceLogicTest {
             assertTrue("map " + lv + " seeker " + pc + "%", pc >= 70f);
         }
     }
+
+    // ---- T-26: earned nitro on Medium and Hard ----
+
+    private static int cans(RaceLogic r) {
+        int n = 0;
+        for (int k = 0; k < r.slotCount(0); k++) if (r.slotIsNitro(0, k)) n++;
+        return n;
+    }
+
+    @Test public void nitroCansPerLapAre0On_Easy_4On_Medium_5On_Hard() {
+        assertEquals(0, cans(new RaceLogic(TrackMaps.forLevel(0), RaceLevel.EASY, 1, 42L)));
+        assertEquals(4, cans(new RaceLogic(TrackMaps.forLevel(1), RaceLevel.MEDIUM, 1, 42L)));
+        assertEquals(5, cans(new RaceLogic(TrackMaps.forLevel(2), RaceLevel.HARD, 1, 42L)));
+    }
+
+    /** Medium and Hard: the meter starts empty, never rises by time or coins, and rises 0.5 per can; two cans give a rocket. */
+    @Test public void earnedBoostOnlyFillsFromCans() {
+        for (int lv = 1; lv < 3; lv++) {
+            TrackLayout t = TrackMaps.forLevel(lv);
+            RaceLogic r = new RaceLogic(t, RaceLevel.fromNumber(lv + 1), 1, 42L);
+            assertEquals("starts empty", 0f, r.boostMeter(0), 0f);
+            r.onJump(0);
+            assertFalse("no boost from an empty meter", r.boosting(0));
+            int canCount = 0, coinCount = 0, boosts = 0;
+            boolean was = false;
+            for (int i = 0; i < 150 * 60 && !r.over(); i++) {
+                r.setControls(0, seekerSteer(r, t, 2.5f), false);
+                float before = r.boostMeter(0);
+                r.onJump(0);                 // a kid who jumps all the time: it only works with a full meter
+                if (r.boosting(0) && !was) boosts++;
+                was = r.boosting(0);
+                before = r.boostMeter(0);
+                r.update(DT);
+                int c = r.consumeNitro(0);
+                canCount += c;
+                coinCount += r.consumeCoins(0);
+                float rise = r.boostMeter(0) - before;
+                if (c == 0) assertTrue("level " + lv + ": the meter rose by " + rise + " with no can", rise <= 1e-6f);
+                else assertEquals("level " + lv + ": a can fills half", 0.5f * c, rise, 1e-4f);
+            }
+            assertTrue("level " + lv + " picked up cans: " + canCount, canCount >= 3);
+            assertTrue("level " + lv + " picked up coins: " + coinCount, coinCount > 20);
+            assertTrue("level " + lv + " boosts: " + boosts, boosts >= 1);
+            assertEquals("level " + lv + ": two cans per rocket", canCount / 2, boosts);
+        }
+    }
+
+    /** Cans are worth no points, so the stars do not depend on them. */
+    @Test public void nitroCansAreWorthNothing() {
+        TrackLayout t = TrackMaps.forLevel(1);
+        RaceLogic r = new RaceLogic(t, RaceLevel.MEDIUM, 1, 42L);
+        int canSlots = cans(r);
+        assertTrue(canSlots > 0);
+        int coinsAndStar = 0;
+        for (int k = 0; k < r.slotCount(0); k++) {
+            if (r.slotIsNitro(0, k)) continue;
+            coinsAndStar += r.slotIsStar(0, k) ? RaceLogic.STAR_VALUE : RaceLogic.COIN_VALUE;
+        }
+        // drive one full lap with the seeker; "offered" for a lap is every coin and the star, nothing for the cans
+        for (int i = 0; i < 150 * 60 && !r.over() && r.lapsDone(0) < 1; i++) {
+            r.setControls(0, seekerSteer(r, t, 2.5f), false);
+            r.update(DT);
+        }
+        assertEquals(1, r.lapsDone(0));
+        assertEquals(coinsAndStar, r.offered(0));
+        assertTrue(r.score(0) <= r.offered(0));
+    }
 }
