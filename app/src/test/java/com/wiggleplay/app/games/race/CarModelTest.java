@@ -7,7 +7,7 @@ import org.junit.Test;
 public class CarModelTest {
     private static final float DT = 1f / 60f;
 
-    private static CarModel start(RaceLevel lv, boolean two, TrackLayout t, float lateral) {
+    private static CarModel start(RaceLevel lv, boolean two, TrackPath t, float lateral) {
         CarModel c = new CarModel(lv, two);
         c.reset(t, 0f, lateral);
         return c;
@@ -51,7 +51,7 @@ public class CarModelTest {
         }
     }
 
-    private static float auto(CarModel c, TrackLayout t) {
+    private static float auto(CarModel c, TrackPath t) {
         float[] a = new float[3];
         t.sample(c.s() + 7f, a);
         float d = (float) Math.atan2(a[0] - c.x(), a[1] - c.z()) - c.yaw();
@@ -89,7 +89,7 @@ public class CarModelTest {
         for (int i = 0; i < 600; i++) {
             c.update(DT, -1f, false, false, t); // keep steering left, drive into the wall
             time += DT;
-            assertTrue("offset " + c.offset(), Math.abs(c.offset()) <= CarModel.WALL_LIMIT + 1e-3f);
+            assertTrue("offset " + c.offset(), Math.abs(c.offset()) <= CarModel.wallLimit(t.roadHalfWidth()) + 1e-3f);
             if (c.consumeHitWall()) hits++;
         }
         assertTrue("at most one hit per 0.5 s: " + hits, hits <= (int) (time / 0.5f) + 1);
@@ -106,7 +106,7 @@ public class CarModelTest {
         assertEquals(sp * 0.5f, c.speed(), 1e-4f);
     }
 
-    /** T-23 Part A: steer held at +1 or -1 for 10 s on every map and level never passes the barrier limit 3.85. */
+    /** T-23 Part A: steer held at +1 or -1 for 10 s on every map and level never passes the barrier limit 3.85 (tile road). */
     @Test public void neverPassesTheBarrierOnAnyMap() {
         for (int lv = 0; lv < 3; lv++) {
             TrackLayout t = TrackMaps.forLevel(lv);
@@ -119,7 +119,7 @@ public class CarModelTest {
                         worst = Math.max(worst, Math.abs(c.offset()));
                     }
                     assertTrue("map " + lv + " steer " + steer + " boost " + boost + " worst " + worst,
-                            worst <= CarModel.WALL_LIMIT + 1e-3f);
+                            worst <= CarModel.wallLimit(t.roadHalfWidth()) + 1e-3f);
                 }
             }
         }
@@ -158,7 +158,7 @@ public class CarModelTest {
                         worstJump = Math.max(worstJump, Math.abs(c.offset() - lastOff));
                     }
                     lastOff = c.offset();
-                    if (Math.abs(c.offset()) > CarModel.WALL_LIMIT - 0.01f) atWall++;
+                    if (Math.abs(c.offset()) > CarModel.wallLimit(t.roadHalfWidth()) - 0.01f) atWall++;
                     if (c.consumeHitWall()) hits++;
                 }
                 System.out.println("map " + lv + " steer " + steer + ": driven " + driven + " in 10 s, frames at the wall "
@@ -174,12 +174,89 @@ public class CarModelTest {
     /** T-23 Part A: every coin and the star sit inside the barrier limit (lane coins at 2.5, corner coins at 0.75). */
     @Test public void allCoinsAreInsideTheBarrier() {
         for (int lv = 0; lv < 3; lv++) {
-            TrackLayout.Slots sl = TrackMaps.forLevel(lv).coinSlots(42L);
+            TrackLayout tile = TrackMaps.forLevel(lv);
+            Slots sl = tile.coinSlots(42L);
             for (int i = 0; i < sl.count; i++) {
                 assertTrue("map " + lv + " slot " + i + " offset " + sl.offset[i],
-                        Math.abs(sl.offset[i]) <= CarModel.WALL_LIMIT - 1f);
+                        Math.abs(sl.offset[i]) <= CarModel.wallLimit(tile.roadHalfWidth()) - 1f);
             }
-            assertTrue(Math.abs(sl.starOffset) <= CarModel.WALL_LIMIT - 1f);
+            assertTrue(Math.abs(sl.starOffset) <= CarModel.wallLimit(tile.roadHalfWidth()) - 1f);
         }
+    }
+
+    // ---- T-28 Part B: the same rules on the spline tracks, 4 layouts x 2 directions x 3 levels ----
+
+    /** Steer held at +1 or -1 for 10 s, with and without boost, never passes wallLimit(halfWidth). */
+    @Test public void neverPassesTheBarrierOnAnySplineTrack() {
+        for (TrackDef def : TrackDefs.ALL) {
+            for (boolean rev : new boolean[] {false, true}) {
+                for (RaceLevel level : RaceLevel.values()) {
+                    TrackSpline t = TrackSpline.build(def, rev, level);
+                    float limit = CarModel.wallLimit(level.halfWidth);
+                    for (float steer : new float[] {-1f, 1f}) {
+                        for (boolean boost : new boolean[] {false, true}) {
+                            CarModel c = start(level, false, t, 0f);
+                            float worst = 0f;
+                            for (int i = 0; i < 600; i++) {
+                                c.update(DT, steer, boost, false, t);
+                                worst = Math.max(worst, Math.abs(c.offset()));
+                            }
+                            assertTrue(TrackSpline.key(def, rev) + " " + level + " steer " + steer + " boost " + boost
+                                    + " worst " + worst, worst <= limit + 0.01f);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /** Against the barrier the truck keeps moving along the road, never goes backwards, keeps its speed floor, hardly jitters. */
+    @Test public void scrapesAlongTheBarrierOnAnySplineTrack() {
+        for (TrackDef def : TrackDefs.ALL) {
+            for (boolean rev : new boolean[] {false, true}) {
+                for (RaceLevel level : RaceLevel.values()) {
+                    TrackSpline t = TrackSpline.build(def, rev, level);
+                    float limit = CarModel.wallLimit(level.halfWidth);
+                    String id = TrackSpline.key(def, rev) + " " + level;
+                    for (float steer : new float[] {-1f, 1f}) {
+                        CarModel c = start(level, false, t, 0f);
+                        float lap = t.lapLength(), driven = 0f, lastS = c.s(), lastOff = c.offset(), worstJump = 0f, window = 0f;
+                        int atWall = 0, hits = 0;
+                        for (int i = 0; i < 600; i++) {
+                            c.update(DT, steer, false, false, t);
+                            float ds = c.s() - lastS;
+                            if (ds < -lap / 2f) ds += lap;
+                            if (ds > lap / 2f) ds -= lap;
+                            assertTrue(id + " frame " + i + " jumped back " + ds, ds > -0.05f);
+                            driven += ds;
+                            window += ds;
+                            if (i % 30 == 29) {
+                                assertTrue(id + " window ending " + i + " went backwards " + window, window > 0.5f);
+                                window = 0f;
+                            }
+                            lastS = c.s();
+                            if (i > 60) {
+                                assertTrue(id + " speed " + c.speed(), c.speed() >= 0.35f * level.baseSpeed - 1e-3f);
+                                worstJump = Math.max(worstJump, Math.abs(c.offset() - lastOff));
+                            }
+                            lastOff = c.offset();
+                            if (Math.abs(c.offset()) > limit - 0.01f) atWall++;
+                            if (c.consumeHitWall()) hits++;
+                        }
+                        assertTrue(id + " steer " + steer + " reached the wall", atWall > 0);
+                        assertTrue(id + " steer " + steer + " kept driving: " + driven, driven > 0.35f * level.baseSpeed * 10f);
+                        assertTrue(id + " steer " + steer + " jitter " + worstJump, worstJump < 0.3f);
+                        assertTrue(id + " steer " + steer + " hits rate-limited: " + hits, hits <= 21);
+                    }
+                }
+            }
+        }
+    }
+
+    @Test public void wallLimitIsHalfWidthMinusAQuarterOfAMetreOrSo() {
+        assertEquals(3.85f, CarModel.wallLimit(4.0f), 1e-6f);
+        assertEquals(5.35f, CarModel.wallLimit(RaceLevel.EASY.halfWidth), 1e-6f);
+        assertEquals(4.85f, CarModel.wallLimit(RaceLevel.MEDIUM.halfWidth), 1e-6f);
+        assertEquals(4.35f, CarModel.wallLimit(RaceLevel.HARD.halfWidth), 1e-6f);
     }
 }

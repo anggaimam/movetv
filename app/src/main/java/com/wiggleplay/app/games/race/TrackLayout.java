@@ -20,7 +20,7 @@ import java.util.Random;
  * <p>Tile art at rotation 0: straight and finish run along Z (edges -Z and +Z); the corner joins the -X
  * and +Z edges along a quarter circle of radius 5 around the cell corner (-5, +5).
  */
-public final class TrackLayout {
+public final class TrackLayout implements TrackPath {
 
     /** The three kinds of road tile. */
     public enum Kind { STRAIGHT, CORNER, FINISH }
@@ -41,37 +41,6 @@ public final class TrackLayout {
             this.cz = cz;
             this.kind = kind;
             this.rotDeg = rotDeg;
-        }
-    }
-
-    /** Coin and star positions along the lap, as (s, offset), sorted by s. */
-    public static final class Slots {
-        /** Distance along the centre line of each coin. */
-        public final float[] s;
-        /** Offset from the centre line of each coin (positive = right). */
-        public final float[] offset;
-        /** True for the coins on a corner (the others are on straights). */
-        public final boolean[] corner;
-        /** True where the "coin" is a nitro can instead (T-26; it is worth no points). */
-        public final boolean[] nitro;
-        /** True where the "coin" is a magnet instead (it is worth 1 point like the coin it replaces). */
-        public final boolean[] magnet;
-        /** Number of coins. */
-        public final int count;
-        /** Distance along the centre line of the golden star (one per lap, at a corner apex). */
-        public final float starS;
-        /** Offset of the golden star. */
-        public final float starOffset;
-
-        Slots(float[] s, float[] offset, boolean[] corner, boolean[] nitro, boolean[] magnet, int count, float starS, float starOffset) {
-            this.magnet = magnet;
-            this.s = s;
-            this.offset = offset;
-            this.corner = corner;
-            this.nitro = nitro;
-            this.count = count;
-            this.starS = starS;
-            this.starOffset = starOffset;
         }
     }
 

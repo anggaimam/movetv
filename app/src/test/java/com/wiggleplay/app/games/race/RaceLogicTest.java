@@ -8,7 +8,7 @@ public class RaceLogicTest {
     private static final float DT = 1f / 60f;
 
     /** Pure-pursuit auto driver: steers at a point on the centre line ahead of the truck. */
-    private static float autoSteer(RaceLogic r, TrackLayout t, int p, float look) {
+    private static float autoSteer(RaceLogic r, TrackPath t, int p, float look) {
         CarModel c = r.car(p);
         float[] a = new float[3];
         t.sample(c.s() + look, a);
@@ -24,7 +24,7 @@ public class RaceLogicTest {
         TrackLayout t = TrackMaps.forLevel(level);
         RaceLogic r = new RaceLogic(t, RaceLevel.fromNumber(level + 1), players, seed);
         float worst = 0f;
-        for (int i = 0; i < 150 * 60 && !r.over(); i++) {
+        for (int i = 0; i < (int) (RaceLogic.SAFETY_SECONDS * 60) && !r.over(); i++) {
             for (int p = 0; p < players; p++) r.setControls(p, autoSteer(r, t, p, look), false);
             r.update(DT);
             for (int p = 0; p < players; p++) worst = Math.max(worst, Math.abs(r.car(p).offset()));
@@ -32,13 +32,13 @@ public class RaceLogicTest {
         return new float[] {r.finished(0) ? 1f : 0f, r.time(), worst, r.score(0), r.offered(0), r.stars(0)};
     }
 
-    @Test public void autoDriverFinishesThreeLapsOnAllMaps() {
+    @Test public void autoDriverFinishesAllLapsOnAllMaps() {
         for (int lv = 0; lv < 3; lv++) {
             float[] res = drive(lv, 1, 42L, 7f);
             System.out.println("level " + lv + ": finished=" + res[0] + " time=" + res[1] + " worstOffset=" + res[2]
                     + " score=" + res[3] + " offered=" + res[4] + " stars=" + res[5]);
             assertEquals("level " + lv + " finished", 1f, res[0], 0f);
-            assertTrue("level " + lv + " stays on the road, worst offset " + res[2], res[2] <= CarModel.WALL_LIMIT + 1e-3f);
+            assertTrue("level " + lv + " stays on the road, worst offset " + res[2], res[2] <= CarModel.wallLimit(TrackMaps.forLevel(lv).roadHalfWidth()) + 1e-3f);
         }
     }
 
@@ -46,19 +46,19 @@ public class RaceLogicTest {
         TrackLayout t = TrackMaps.forLevel(0);
         RaceLogic r = new RaceLogic(t, RaceLevel.EASY, 1, 1L);
         int lapEvents = 0;
-        for (int i = 0; i < 150 * 60 && !r.over(); i++) {
+        for (int i = 0; i < (int) (RaceLogic.SAFETY_SECONDS * 60) && !r.over(); i++) {
             r.setControls(0, autoSteer(r, t, 0, 7f), false);
             r.update(DT);
             if (r.consumeLap(0)) lapEvents++;
         }
-        assertEquals(3, lapEvents);
-        assertEquals(3, r.lapsDone(0));
+        assertEquals(RaceLevel.EASY.laps, lapEvents);
+        assertEquals(RaceLevel.EASY.laps, r.lapsDone(0));
         assertTrue(r.finished(0));
         assertEquals(1, r.place(0));
     }
 
     /** Steps one frame with the auto driver and returns the meter gain expected from coins picked up in it. */
-    private static float step(RaceLogic r, TrackLayout t, boolean brake) {
+    private static float step(RaceLogic r, TrackPath t, boolean brake) {
         r.setControls(0, autoSteer(r, t, 0, 7f), brake);
         r.update(DT);
         int coins = r.consumeCoins(0);
@@ -150,7 +150,7 @@ public class RaceLogicTest {
     @Test public void twoPlayerRaceEndsAfterTheGrace() {
         TrackLayout t = TrackMaps.forLevel(0);
         RaceLogic r = new RaceLogic(t, RaceLevel.EASY, 2, 3L);
-        for (int i = 0; i < 150 * 60 && !r.over(); i++) {
+        for (int i = 0; i < (int) (RaceLogic.SAFETY_SECONDS * 60) && !r.over(); i++) {
             r.setControls(0, autoSteer(r, t, 0, 7f), false);
             r.setControls(1, 0f, true); // player 2 just brakes
             r.update(DT);
@@ -173,7 +173,7 @@ public class RaceLogicTest {
     }
 
     /** Lane-seeker: aims at the next uncollected coin ahead when it is near, otherwise follows the centre line. */
-    private static float seekerSteer(RaceLogic r, TrackLayout t, float look) {
+    private static float seekerSteer(RaceLogic r, TrackPath t, float look) {
         CarModel c = r.car(0);
         int n = r.slotCount(0);
         float bestD = 1e9f;
@@ -197,7 +197,7 @@ public class RaceLogicTest {
         int n = r.slotCount(0);
         float[] best = new float[n];
         java.util.Arrays.fill(best, 1e9f);
-        for (int i = 0; i < 150 * 60 && !r.over(); i++) {
+        for (int i = 0; i < (int) (RaceLogic.SAFETY_SECONDS * 60) && !r.over(); i++) {
             float st = kind == CUTTER ? autoSteer(r, t, 0, 7f)
                     : kind == CENTRE ? autoSteer(r, t, 0, 2.5f) : seekerSteer(r, t, 2.5f);
             r.setControls(0, st, false);
@@ -271,7 +271,7 @@ public class RaceLogicTest {
             assertFalse("no boost from an empty meter", r.boosting(0));
             int canCount = 0, coinCount = 0, boosts = 0;
             boolean was = false;
-            for (int i = 0; i < 150 * 60 && !r.over(); i++) {
+            for (int i = 0; i < (int) (RaceLogic.SAFETY_SECONDS * 60) && !r.over(); i++) {
                 r.setControls(0, seekerSteer(r, t, 2.5f), false);
                 float before = r.boostMeter(0);
                 r.onJump(0);                 // a kid who jumps all the time: it only works with a full meter
@@ -305,7 +305,7 @@ public class RaceLogicTest {
             coinsAndStar += r.slotIsStar(0, k) ? RaceLogic.STAR_VALUE : RaceLogic.COIN_VALUE;
         }
         // drive one full lap with the seeker; "offered" for a lap is every coin and the star, nothing for the cans
-        for (int i = 0; i < 150 * 60 && !r.over() && r.lapsDone(0) < 1; i++) {
+        for (int i = 0; i < (int) (RaceLogic.SAFETY_SECONDS * 60) && !r.over() && r.lapsDone(0) < 1; i++) {
             r.setControls(0, seekerSteer(r, t, 2.5f), false);
             r.update(DT);
         }
@@ -366,5 +366,143 @@ public class RaceLogicTest {
         assertTrue("coins slid towards the truck", moved);
         assertTrue("coins collected while it pulled: " + coinsWhile, coinsWhile >= 2);
         assertTrue("a lap was finished", wrapped);
+    }
+
+    // ---- T-28 Part B: spline tracks, per-level laps, the 180 s limit and the three-driver table ----
+
+    private static RaceLogic splineRace(TrackSpline t, RaceLevel lv) {
+        return new RaceLogic(t, lv, 1, 42L);
+    }
+
+    @Test public void lapsPerLevelAndTheSafetyLimit() {
+        assertEquals(180f, RaceLogic.SAFETY_SECONDS, 0f);
+        int[] laps = {2, 3, 3};
+        for (int i = 0; i < 3; i++) {
+            RaceLevel lv = RaceLevel.values()[i];
+            assertEquals(laps[i], lv.laps);
+            TrackSpline t = TrackSpline.build(TrackDefs.ALL[1], false, lv);
+            RaceLogic r = splineRace(t, lv);
+            assertEquals(laps[i], r.lapsTotal());
+            assertEquals(1, r.currentLap(0));
+            int events = 0;
+            for (int k = 0; k < (int) (RaceLogic.SAFETY_SECONDS * 60) && !r.over(); k++) {
+                r.setControls(0, autoSteer(r, t, 0, 7f), false);
+                r.update(DT);
+                if (r.consumeLap(0)) events++;
+            }
+            assertEquals(lv + " lap events", laps[i], events);
+            assertTrue(lv + " finished", r.finished(0));
+            assertEquals(laps[i], r.currentLap(0));
+        }
+        // a truck that never steers: the race ends by the limit at 180 s, not 150
+        TrackSpline t = TrackSpline.build(TrackDefs.ALL[0], false, RaceLevel.HARD);
+        RaceLogic r = splineRace(t, RaceLevel.HARD);
+        for (int k = 0; k < 170 * 60; k++) {
+            r.setControls(0, 0f, true);
+            r.update(DT);
+        }
+        assertFalse("not over at 170 s", r.over());
+        for (int k = 0; k < 11 * 60; k++) {
+            r.setControls(0, 0f, true);
+            r.update(DT);
+        }
+        assertTrue("over after 180 s", r.over());
+    }
+
+    @Test public void nitroRulesHoldOnSplineTracks() {
+        for (int lvI = 1; lvI < 3; lvI++) {
+            RaceLevel lv = RaceLevel.values()[lvI];
+            for (TrackDef def : TrackDefs.ALL) {
+                for (boolean rev : new boolean[] {false, true}) {
+                    TrackSpline t = TrackSpline.build(def, rev, lv);
+                    RaceLogic r = splineRace(t, lv);
+                    String id = TrackSpline.key(def, rev) + " " + lv;
+                    assertEquals(id + " starts empty", 0f, r.boostMeter(0), 0f);
+                    assertEquals(id + " cans per lap", lv.nitroPerLap, cans(r));
+                    int canCount = 0, boosts = 0;
+                    boolean was = false;
+                    for (int i = 0; i < (int) (RaceLogic.SAFETY_SECONDS * 60) && !r.over(); i++) {
+                        r.setControls(0, seekerSteer(r, t, 2.5f), false);
+                        r.onJump(0);
+                        if (r.boosting(0) && !was) boosts++;
+                        was = r.boosting(0);
+                        float before = r.boostMeter(0);
+                        r.update(DT);
+                        int c = r.consumeNitro(0);
+                        canCount += c;
+                        r.consumeCoins(0);
+                        float rise = r.boostMeter(0) - before;
+                        if (c == 0) assertTrue(id + ": the meter rose by " + rise + " with no can", rise <= 1e-6f);
+                        else assertEquals(id + ": a can fills half", 0.5f * c, rise, 1e-4f);
+                    }
+                    assertEquals(id + " the seeker gets every can", lv.nitroPerLap * lv.laps, canCount);
+                    assertEquals(id + ": two cans per rocket", canCount / 2, boosts);
+                }
+            }
+        }
+    }
+
+    @Test public void easyRefillIsUnchangedOnSplineTracks() {
+        TrackSpline t = TrackSpline.build(TrackDefs.ALL[2], false, RaceLevel.EASY);
+        RaceLogic r = splineRace(t, RaceLevel.EASY);
+        assertEquals(1f, r.boostMeter(0), 1e-6f);
+        r.onJump(0);
+        assertTrue(r.boosting(0));
+        for (int i = 0; i < 100; i++) step(r, t, false);   // the boost is over
+        float m0 = r.boostMeter(0), expect = 0f;
+        for (int i = 0; i < 60; i++) expect += 0.2f * DT + step(r, t, false);
+        assertEquals(Math.min(1f, m0 + expect), r.boostMeter(0), 0.02f);
+    }
+
+    /** One race by one driver on a spline track: {score, offered, cans, finished, seconds}. */
+    private static float[] splineRun(TrackSpline t, RaceLevel lv, int kind) {
+        RaceLogic r = splineRace(t, lv);
+        int cans = 0;
+        for (int i = 0; i < (int) (RaceLogic.SAFETY_SECONDS * 60) && !r.over(); i++) {
+            float st = kind == CUTTER ? autoSteer(r, t, 0, 7f) : kind == CENTRE ? autoSteer(r, t, 0, 2.5f) : seekerSteer(r, t, 2.5f);
+            r.setControls(0, st, false);
+            r.update(DT);
+            cans += r.consumeNitro(0);
+        }
+        return new float[] {r.score(0), r.offered(0), cans, r.finished(0) ? 1f : 0f, r.time()};
+    }
+
+    /** T-28 B: three auto-drivers on 4 layouts x 2 directions x 3 levels (24 races each, the magnet on, seed 42). */
+    @Test public void threeDriversOnTheSplineTracks() {
+        float[] lo = {50f, 45f, 40f}, hi = {65f, 60f, 55f};   // centre driver bands per level (8-track average)
+        StringBuilder bad = new StringBuilder();
+        for (int lvI = 0; lvI < 3; lvI++) {
+            RaceLevel lv = RaceLevel.values()[lvI];
+            for (int kind = 0; kind < 3; kind++) {
+                float sum = 0f;
+                int races = 0;
+                for (TrackDef def : TrackDefs.ALL) {
+                    for (boolean rev : new boolean[] {false, true}) {
+                        TrackSpline t = TrackSpline.build(def, rev, lv);
+                        float[] x = splineRun(t, lv, kind);
+                        float pc = 100f * x[0] / x[1];
+                        sum += pc;
+                        races++;
+                        int stars = com.wiggleplay.app.games.common.StarRules.stars((int) x[0], (int) x[1]);
+                        System.out.printf("%-6s %-11s %-8s score %3.0f / offered %3.0f = %5.1f%% stars %d cans/lap %.1f time %.0f s%n",
+                                lv, DRIVER_NAMES[kind], TrackSpline.key(def, rev), x[0], x[1], pc, stars, x[2] / lv.laps, x[4]);
+                        String id = lv + " " + DRIVER_NAMES[kind] + " " + TrackSpline.key(def, rev) + " ";
+                        if (x[3] != 1f) bad.append(id).append("did not finish; ");
+                        // a single race may be 3 points under the low edge or 5 over the high edge
+                        if (kind == CENTRE && (pc < lo[lvI] - 3f || pc > hi[lvI] + 5f)) bad.append(id).append("centre ").append(pc).append("%; ");
+                        if (kind == SEEKER && pc < 72f) bad.append(id).append("seeker ").append(pc).append("%; ");
+                        if (kind == CUTTER && pc < 37f) bad.append(id).append("cutter ").append(pc).append("%; ");
+                        if (kind == CENTRE && lvI == 1 && x[2] / lv.laps < 3f) bad.append(id).append("cans/lap ").append(x[2] / lv.laps).append("; ");
+                    }
+                }
+                float avg = sum / races;
+                System.out.printf("%-6s %-11s AVERAGE over %d tracks %5.1f%%%n", lv, DRIVER_NAMES[kind], races, avg);
+                String id = lv + " " + DRIVER_NAMES[kind] + " average ";
+                if (kind == CENTRE && (avg < lo[lvI] || avg > hi[lvI])) bad.append(id).append(avg).append("%; ");
+                if (kind == SEEKER && avg < 75f) bad.append(id).append(avg).append("%; ");
+                if (kind == CUTTER && avg < 40f) bad.append(id).append(avg).append("%; ");
+            }
+        }
+        assertEquals("out of band: " + bad, 0, bad.length());
     }
 }

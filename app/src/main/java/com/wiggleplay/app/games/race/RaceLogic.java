@@ -8,10 +8,10 @@ import com.wiggleplay.app.games.common.StarRules;
  * calls {@link #update} once per frame. Nothing is allocated after construction.
  *
  * <ul>
- *   <li><b>Laps</b>: 3. A lap counts when the distance along the lap wraps past the finish line and the player has
+ *   <li><b>Laps</b>: {@link RaceLevel#laps} (Easy 2, Medium 3, Hard 3). A lap counts when the distance along the lap wraps past the finish line and the player has
  *       covered at least 0.9 laps since the last count. A race ends when everybody has finished, or 10 s after the
- *       first finisher in a two-player race, or after 150 s. There is never a game over.</li>
- *   <li><b>Coins</b>: each player has their own coins (from {@link TrackLayout#coinSlots}) and one golden star per lap
+ *       first finisher in a two-player race, or after 180 s. There is never a game over.</li>
+ *   <li><b>Coins</b>: each player has their own coins (from {@link TrackPath#coinSlots}) and one golden star per lap
  *       at the same place. A coin is picked up within 2.0 units: +1 (the star +5). Coins come back every lap.
  *       One coin per lap is a <b>magnet</b> (worth 1 like the coin it replaces): for {@link #MAGNET_SECONDS} s every plain coin
  *       within {@link #MAGNET_RANGE} units of the truck slides to it and is picked up (like the Sky Glider magnet).
@@ -27,12 +27,12 @@ import com.wiggleplay.app.games.common.StarRules;
  */
 public final class RaceLogic {
 
-    /** Laps in a race. */
+    /** The most laps any level has (the scene still uses it for the last-lap sound; use {@link #lapsTotal()} for a race). */
     public static final int LAPS = 3;
     /** Seconds a boost lasts. */
     public static final float BOOST_SECONDS = 1.6f;
     /** Longest race in seconds. */
-    public static final float SAFETY_SECONDS = 150f;
+    public static final float SAFETY_SECONDS = 180f;
     /** Seconds the second player has after the first one finishes (two players). */
     public static final float GRACE_SECONDS = 10f;
     /** Coin pickup distance. */
@@ -46,7 +46,8 @@ public final class RaceLogic {
     private static final float PASSED_BEHIND = 2.5f;
     private static final float LOOK_AHEAD = 3f;
 
-    private final TrackLayout track;
+    private final TrackPath track;
+    private final int lapTotal;
     private final int players;
     private final float lap;
     private final CarModel[] car = new CarModel[2];
@@ -88,10 +89,11 @@ public final class RaceLogic {
      * @param players 1 or 2 (2: lateral start offsets -2 and +2, more assist, trucks bump)
      * @param seed coin layout seed (a new one per round); each player gets a different layout from it
      */
-    public RaceLogic(TrackLayout track, RaceLevel level, int players, long seed) {
+    public RaceLogic(TrackPath track, RaceLevel level, int players, long seed) {
         if (players < 1 || players > 2) throw new IllegalArgumentException("players must be 1 or 2: " + players);
         this.track = track;
         this.level = level;
+        this.lapTotal = level.laps;
         this.players = players;
         this.lap = track.lapLength();
         for (int p = 0; p < players; p++) {
@@ -104,7 +106,7 @@ public final class RaceLogic {
     }
 
     private void buildSlots(int p, long seed) {
-        TrackLayout.Slots sl = track.coinSlots(seed, level.nitroPerLap, 1);
+        Slots sl = track.coinSlots(seed, level.nitroPerLap, 1);
         int n = sl.count + 1;
         float[] s = new float[n], off = new float[n];
         int[] val = new int[n];
@@ -219,7 +221,7 @@ public final class RaceLogic {
             sinceCount[p] = s;
             laps[p]++;
             lapEvent[p] = true;
-            if (laps[p] >= LAPS) {
+            if (laps[p] >= lapTotal) {
                 finished[p] = true;
                 finishTime[p] = time;
                 finishPlace[p] = ++finishedCount;
@@ -318,7 +320,7 @@ public final class RaceLogic {
 
     /**
      * Whether the race has ended.
-     * @return true when everybody finished, 10 s after the first finisher in a two-player race, or after 150 s
+     * @return true when everybody finished, 10 s after the first finisher in a two-player race, or after 180 s
      */
     public boolean over() {
         if (time >= SAFETY_SECONDS) return true;
@@ -329,16 +331,22 @@ public final class RaceLogic {
     /**
      * Laps completed.
      * @param p player 0 or 1
-     * @return 0 to 3
+     * @return 0 to the laps of the race
      */
     public int lapsDone(int p) { return laps[p]; }
 
     /**
      * The lap being driven, for the HUD ("Lap 2/3").
      * @param p player 0 or 1
-     * @return 1 to 3
+     * @return 1 to the laps of the race
      */
-    public int currentLap(int p) { return Math.min(LAPS, laps[p] + 1); }
+    public int currentLap(int p) { return Math.min(lapTotal, laps[p] + 1); }
+
+    /**
+     * Laps in this race.
+     * @return 2 on Easy, 3 on Medium and Hard
+     */
+    public int lapsTotal() { return lapTotal; }
 
     /**
      * Whether a player has done all laps.

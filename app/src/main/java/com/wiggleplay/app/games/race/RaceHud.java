@@ -23,6 +23,7 @@ final class RaceHud {
 
     private static final int INK = RaceArt.INK, PAPER = RaceArt.PAPER;
     private static final String[] LAP = {"Lap 1/3", "Lap 2/3", "Lap 3/3"};
+    private static final String[] LAP_OF_2 = {"Lap 1/2", "Lap 2/2"};
     private static final String[] PLUS = {"+0", "+1", "+2", "+3", "+4", "+5"};
     private static final float MAP_X = 1560f, MAP_Y = 24f, MAP_W = 330f, MAP_H = 230f, PAD = 18f;
     private static final float CAM_X = 40f, CAM_Y = 1080f - 40f - 180f, CAM_W = 320f, CAM_H = 180f;
@@ -39,6 +40,8 @@ final class RaceHud {
 
     // set by the scene each frame
     int lap = 1;
+    /** Laps in this race (2 or 3). */
+    int lapTotal = 3;
     float meter, boostLeft;
     /** Magnet time left, 0..1 of {@link RaceLogic#MAGNET_SECONDS}. */
     float magnetK;
@@ -202,7 +205,7 @@ final class RaceHud {
         drawRocket(c);
         drawMagnet(c);
         if (braking) drawBrake(c);
-        if (lap >= 3 && finalLapSeconds < 2.6f) {
+        if (lap >= lapTotal && finalLapSeconds < 2.6f) {
             Theme.drawBanner(c, "Final lap!", Stage.W / 2f, 260f, 84f, 0xE6F3EBDD, RaceArt.ORANGE);
         }
         drawCamera(c);
@@ -250,7 +253,8 @@ final class RaceHud {
         rect.set(x + 6f, y + 6f, x + 214f, y + 66f);
         fill.setColor(PAPER);
         c.drawRoundRect(rect, 30f, 30f, fill);
-        Theme.drawCentered(c, LAP[Math.max(1, Math.min(3, lap)) - 1], x + 110f, y + 50f, 44f, INK);
+        String[] names = lapTotal == 2 ? LAP_OF_2 : LAP;
+        Theme.drawCentered(c, names[Math.max(1, Math.min(names.length, lap)) - 1], x + 110f, y + 50f, 44f, INK);
     }
 
     private void drawPopups(Canvas c) {

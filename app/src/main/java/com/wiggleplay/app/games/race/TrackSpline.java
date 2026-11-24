@@ -10,7 +10,7 @@ package com.wiggleplay.app.games.race;
  * of a heading, seen from a chase camera behind the truck, is (-cos yaw, sin yaw) in (x, z). Offsets are positive to
  * the right.
  */
-public final class TrackSpline {
+public final class TrackSpline implements TrackPath {
 
     private static final int STEPS_PER_SEGMENT = 200;
     private static final float SAMPLE_STEP = 0.5f;
@@ -26,6 +26,7 @@ public final class TrackSpline {
     private final float ds;
     private final float[] x, z, yaw, radius, fwdX, fwdZ;
     private final float minRadius;
+    private RaceLevel level;
 
     private TrackSpline(float halfWidth, float lapLength, int count, float[] x, float[] z) {
         this.halfWidth = halfWidth;
@@ -100,6 +101,33 @@ public final class TrackSpline {
             sz[i] = (float) (rz[j] + (rz[j + 1] - rz[j]) * t);
         }
         return new TrackSpline(halfWidth, (float) len, m, sx, sz);
+    }
+
+    /**
+     * Builds the road for a level: the half-width comes from the level, and {@link #coinSlots} lays the coins out for it.
+     * @param def the track shape
+     * @param reversed true to drive the road the other way
+     * @param level the level (half-width, coin and can rules)
+     * @return the spline
+     */
+    public static TrackSpline build(TrackDef def, boolean reversed, RaceLevel level) {
+        TrackSpline t = build(def, reversed, level.halfWidth);
+        t.level = level;
+        return t;
+    }
+
+    /**
+     * Coin, star, nitro-can and magnet positions for one lap, laid out by {@link CoinPlanner}.
+     * @param seed layout seed
+     * @param nitroCans nitro cans per lap
+     * @param magnets 0 or 1 magnet per lap
+     * @return the slots, sorted by distance along the lap
+     * @throws IllegalStateException if the spline was built from a bare half-width and not from a level
+     */
+    @Override
+    public Slots coinSlots(long seed, int nitroCans, int magnets) {
+        if (level == null) throw new IllegalStateException("coinSlots needs a spline built with a RaceLevel");
+        return CoinPlanner.plan(this, level, seed, nitroCans, magnets);
     }
 
     /**

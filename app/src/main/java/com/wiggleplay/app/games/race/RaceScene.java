@@ -354,8 +354,8 @@ public final class RaceScene implements Scene {
             raceHud.popup(5);
         }
         if (logic.consumeLap(0)) {
-            if (logic.lapsDone(0) < RaceLogic.LAPS) env.sfx("go");
-            if (logic.currentLap(0) == RaceLogic.LAPS && !logic.finished(0)) finalT = 0f;
+            if (logic.lapsDone(0) < logic.lapsTotal()) env.sfx("go");
+            if (logic.currentLap(0) == logic.lapsTotal() && !logic.finished(0)) finalT = 0f;
         }
         if (car.consumeHitWall() && env.sfx != null) {
             env.sfx.play("impact", 1f, Math.max(0.25f, Math.min(1f, car.speed() / (raceLevel.baseSpeed * 1.2f))));
@@ -372,6 +372,7 @@ public final class RaceScene implements Scene {
     private void updateHud(float dt, boolean racing, Controls in) {
         CarModel car = logic.car(0);
         raceHud.lap = logic.currentLap(0);
+        raceHud.lapTotal = logic.lapsTotal();
         raceHud.meter = logic.boostMeter(0);
         raceHud.boosting = logic.boosting(0);
         raceHud.boostLeft = logic.boostLeft(0);

@@ -14,8 +14,8 @@ package com.wiggleplay.app.games.race;
  *       {@code assist x (2 x angleDiff(roadYaw, yaw) + 0.5 x offset / roadHalf)} which turns the truck back toward the
  *       road direction and toward the centre line.</li>
  *   <li>The heading can never be more than 75 degrees away from the road direction.</li>
- *   <li>T-23: the barrier wall. |offset| can never pass {@link #WALL_LIMIT} (barrier inner edge 4.6 minus half the
- *       truck width 0.75). At the wall the truck is put back along the road's normal and its heading turns toward the
+ *   <li>T-23: the barrier wall. |offset| can never pass {@link #wallLimit} (barrier inner edge = half-width + 0.6, minus
+ *       half the truck width 0.75). At the wall the truck is put back along the road's normal and its heading turns toward the
  *       road direction by half the difference; once per 0.5 s its speed is multiplied by 0.85 and
  *       {@link #consumeHitWall()} reports the hit. There is no off-road slowdown any more.</li>
  * </ul>
@@ -25,8 +25,6 @@ public final class CarModel {
     private static final float GRIP_MIN = 0.2f;
     private static final float MIN_SPEED_FRACTION = 0.35f;
     private static final float MAX_HEADING_ERROR = (float) Math.toRadians(75.0);
-    /** Largest |offset| the truck can reach: barrier inner edge 4.6 minus half the truck width 0.75. */
-    public static final float WALL_LIMIT = 3.85f;
     private static final float WALL_SPEED = 0.85f;
     private static final float WALL_GAP_S = 0.5f;
     private static final float WHEEL_RADIUS = 0.3f;
@@ -40,6 +38,16 @@ public final class CarModel {
     private boolean hitWall;
     private float sinceWall = 10f;
     private int hint = -1;
+
+    /**
+     * Largest |offset| the truck can reach on a road: the barrier's inner face (half-width + 0.6) minus half the truck
+     * width (0.75).
+     * @param halfWidth half the width of the drivable road
+     * @return the wall limit (3.85 for the tile road of half-width 4.0)
+     */
+    public static float wallLimit(float halfWidth) {
+        return halfWidth - 0.15f;
+    }
 
     /**
      * Creates a truck for a level.
@@ -58,7 +66,7 @@ public final class CarModel {
      * @param startS distance along the lap
      * @param lateral offset from the centre line (positive = right as seen from behind)
      */
-    public void reset(TrackLayout t, float startS, float lateral) {
+    public void reset(TrackPath t, float startS, float lateral) {
         float[] p = new float[3];
         t.sample(startS, p);
         yaw = p[2];
@@ -85,9 +93,10 @@ public final class CarModel {
      * @param braking true while braking (ignored while boosting)
      * @param t the track
      */
-    public void update(float dt, float steer, boolean boosting, boolean braking, TrackLayout t) {
+    public void update(float dt, float steer, boolean boosting, boolean braking, TrackPath t) {
         if (dt <= 0f) return;
         float half = t.roadHalfWidth();
+        float wall = wallLimit(half);
         // where we are now, for the assist and the heading limit
         hint = t.project(x, z, hint, tp);
         float roadYaw = tp.tangentYaw;
@@ -113,8 +122,8 @@ public final class CarModel {
         // the barrier wall: put the truck back along the road's normal, steer it along the road, scrape
         hint = t.project(x, z, hint, tp);
         sinceWall += dt;
-        if (Math.abs(tp.offset) > WALL_LIMIT) {
-            float excess = tp.offset - Math.signum(tp.offset) * WALL_LIMIT;
+        if (Math.abs(tp.offset) > wall) {
+            float excess = tp.offset - Math.signum(tp.offset) * wall;
             float rx = -(float) Math.cos(tp.tangentYaw), rz = (float) Math.sin(tp.tangentYaw);
             x -= rx * excess;
             z -= rz * excess;
@@ -199,6 +208,6 @@ public final class CarModel {
     public float wheelSpin() { return spin; }
     /** @return front wheel angle in radians (same sign as yaw) */
     public float frontWheelYaw() { return frontYaw; }
-    /** @return the track search hint to pass to {@link TrackLayout#project} */
+    /** @return the track search hint to pass to {@link TrackPath#project} */
     public int trackHint() { return hint; }
 }

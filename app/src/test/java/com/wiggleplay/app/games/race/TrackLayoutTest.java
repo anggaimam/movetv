@@ -184,7 +184,7 @@ public class TrackLayoutTest {
     @Test
     public void coinSlotsFollowTheRules() {
         TrackLayout t = TrackMaps.forLevel(0);
-        TrackLayout.Slots a = t.coinSlots(7L);
+        Slots a = t.coinSlots(7L);
         assertEquals(17 * 5 + 4 * 3, a.count);
         for (int i = 1; i < a.count; i++) assertTrue(a.s[i] >= a.s[i - 1] - 1e-4f);
         // straight lines: 5 coins, same lateral offset, never repeating the previous straight's lane
@@ -205,7 +205,7 @@ public class TrackLayoutTest {
         assertEquals(17, lines);
         assertTrue("wrap lane repeats", lastLane != firstLane);
         // determinism
-        TrackLayout.Slots b = t.coinSlots(7L);
+        Slots b = t.coinSlots(7L);
         for (int i = 0; i < a.count; i++) {
             assertEquals(a.s[i], b.s[i], 0f);
             assertEquals(a.offset[i], b.offset[i], 0f);
@@ -215,7 +215,7 @@ public class TrackLayoutTest {
         assertTrue(a.starS > 0f && a.starS < t.lapLength());
     }
 
-    private static boolean sameLine(TrackLayout.Slots a, int i) {
+    private static boolean sameLine(Slots a, int i) {
         return i > 0 && Math.abs(a.offset[i - 1]) != 0.75f && a.offset[i - 1] == a.offset[i]
                 && a.s[i] - a.s[i - 1] < 1.7f;
     }
@@ -223,7 +223,7 @@ public class TrackLayoutTest {
     @Test
     public void cornerCoinsAreOnTheOutside() {
         TrackLayout t = ring(); // all corners turn right (driving west then north... clockwise)
-        TrackLayout.Slots sl = t.coinSlots(1L);
+        Slots sl = t.coinSlots(1L);
         TrackPoint tp = new TrackPoint();
         float[] p = new float[3];
         int cornerCoins = 0;
@@ -366,9 +366,9 @@ public class TrackLayoutTest {
     public void nitroCansReplaceMiddleCoinsOfSpacedStraightsAndKeepTheLanes() {
         for (int lv = 0; lv < 3; lv++) {
             TrackLayout t = TrackMaps.forLevel(lv);
-            TrackLayout.Slots plain = t.coinSlots(11L);
+            Slots plain = t.coinSlots(11L);
             for (int cans = 0; cans <= 5; cans++) {
-                TrackLayout.Slots sl = t.coinSlots(11L, cans);
+                Slots sl = t.coinSlots(11L, cans);
                 assertEquals("same slot count", plain.count, sl.count);
                 int found = 0;
                 float lastCanS = -1e9f;
@@ -388,7 +388,7 @@ public class TrackLayoutTest {
         }
     }
 
-    private static int countNitro(TrackLayout.Slots sl) {
+    private static int countNitro(Slots sl) {
         int n = 0;
         for (int i = 0; i < sl.count; i++) if (sl.nitro[i]) n++;
         return n;
@@ -405,7 +405,7 @@ public class TrackLayoutTest {
         for (int lv = 0; lv < 3; lv++) {
             TrackLayout t = TrackMaps.forLevel(lv);
             int cans = lv == 0 ? 0 : lv == 1 ? 4 : 5;
-            TrackLayout.Slots with = t.coinSlots(42L, cans, 1), without = t.coinSlots(42L, cans, 0);
+            Slots with = t.coinSlots(42L, cans, 1), without = t.coinSlots(42L, cans, 0);
             assertEquals(without.count, with.count);
             int m = 0;
             for (int i = 0; i < with.count; i++) {
