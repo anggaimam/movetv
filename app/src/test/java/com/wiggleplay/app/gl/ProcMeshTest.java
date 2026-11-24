@@ -234,12 +234,12 @@ public class ProcMeshTest {
     /** The palette texture really holds the swatch colours (tools/glb_to_mesh.py would overwrite them with Kenney's copy). */
     @Test
     public void paletteHoldsTheCoinSwatches() throws Exception {
-        java.awt.image.BufferedImage im = javax.imageio.ImageIO.read(new java.io.File("src/main/assets/art/race/colormap.png"));
-        assertEquals(512, im.getWidth());
-        assertEquals(512, im.getHeight());
+        PngPixels im = new PngPixels(new java.io.File("src/main/assets/art/race/colormap.png"));
+        assertEquals(512, im.width);
+        assertEquals(512, im.height);
         for (int k = 0; k < ProcMesh.SWATCH_RGB.length; k++) {
             for (int d : new int[] {0, 8, 15}) {
-                int rgb = im.getRGB(k * ProcMesh.SWATCH_BLOCK + d, d) & 0xFFFFFF;
+                int rgb = im.rgb(k * ProcMesh.SWATCH_BLOCK + d, d);
                 assertEquals("swatch " + k + " pixel " + d, ProcMesh.SWATCH_RGB[k], rgb);
             }
         }
