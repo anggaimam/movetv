@@ -26,6 +26,24 @@ public final class SceneManager {
     private float t;
     private String pendingName;
     private Scene.SceneArgs pendingArgs;
+    private SwapListener swapListener;
+
+    /** Told just before a new scene's {@code enter} runs (the game view uses it to settle the picture quality first). */
+    public interface SwapListener {
+        /**
+         * Called after the old scene has exited and before the new one is entered.
+         * @param name the name of the scene about to be entered
+         */
+        void beforeEnter(String name);
+    }
+
+    /**
+     * Sets the listener told before every scene is entered.
+     * @param l the listener, or null
+     */
+    public void setSwapListener(SwapListener l) {
+        swapListener = l;
+    }
 
     /** Creates an empty manager. */
     public SceneManager() {
@@ -87,6 +105,7 @@ public final class SceneManager {
         if (current != null) current.exit();
         current = scenes.get(name);
         currentName = name;
+        if (swapListener != null) swapListener.beforeEnter(name);
         current.enter(args);
     }
 

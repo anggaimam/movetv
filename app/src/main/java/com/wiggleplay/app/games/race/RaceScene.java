@@ -5,6 +5,7 @@ import android.graphics.Paint;
 import android.os.SystemClock;
 import android.view.KeyEvent;
 
+import com.wiggleplay.app.core.GameView;
 import com.wiggleplay.app.core.Scene;
 import com.wiggleplay.app.core.Stage;
 import com.wiggleplay.app.gl.Mat4;
@@ -48,7 +49,6 @@ public final class RaceScene implements Scene {
     private static final String[] PART_NAMES = {"underside", "body", "wheel-front-left", "wheel-front-right",
             "wheel-back-left", "wheel-back-right"};
     private static final int P_FL = 2, P_FR = 3;
-    private static final int GRASS = 0x37966D, SKY = 0xA8DDF2;
     /** Ground grid: 140 units (past the far plane 60 in every direction), 14 x 14 cells of 10 (392 triangles). */
     private static final float GROUND_SIZE = 140f;
     private static final int GROUND_CELLS = 14;
@@ -94,6 +94,10 @@ public final class RaceScene implements Scene {
     private final int[][] partIdx = new int[4][6];
     private final MeshData[] truckData = new MeshData[4];
     private int groundId, shadowId, coinId, starId, nitroId, magnetId;
+    /** The world's look (T-29). Written in full because {@code Theme} here means the menu theme in com.wiggleplay.app.ui. */
+    private com.wiggleplay.app.games.race.Theme theme = Themes.MEADOW;
+    private final int[] ringId = new int[4];
+    private int ringCount;
 
     // scenery trucks
     private final float[] scS = new float[3], scSpin = new float[3], scWheelYaw = new float[3];
@@ -159,14 +163,20 @@ public final class RaceScene implements Scene {
                 truckData[t] = gl.meshData(truckId[t]);
                 for (int p = 0; p < 6; p++) partIdx[t][p] = truckData[t].partIndex(PART_NAMES[p]);
             }
-            gl.setSky(SKY);
-            gl.setFog(25f, 55f);
+            // T-29: the theme decides sky, fog, sun, ground, road colours, ground patches and the backdrop rings
+            theme = Themes.byId(TrackChoice.def().themeId);
+            boolean low = GameView.quality == GameView.LOW;
+            gl.setSky(theme.sky);
+            gl.setFogColor(theme.horizon);
+            gl.setFog(theme.fogNear, theme.fogFar);
+            gl.setSunDir(theme.sunDir[0], theme.sunDir[1], theme.sunDir[2]);
             gl.setViewports(1);
             // T-28 Part D: the road is built once from the spline, coloured through swatches painted into the colormap
             PaletteSwatches pal = new PaletteSwatches();
-            List<MeshData> pieces = TrackMeshBuilder.build(layout, RoadStyle.MEADOW, pal);
+            theme.fillPalette(pal);
+            List<MeshData> pieces = TrackMeshBuilder.build(layout, theme.road, pal);
             gl.setColormapSwatches(pal);
-            List<StaticBatcher.Placement> all = new ArrayList<>(pieces.size());
+            List<StaticBatcher.Placement> all = new ArrayList<>(pieces.size() + theme.patchCount);
             float[] ident = new float[16];
             Mat4.identity(ident);
             for (int i = 0; i < pieces.size(); i++) {
@@ -183,6 +193,18 @@ public final class RaceScene implements Scene {
                 }
                 all.add(new StaticBatcher.Placement(name, ident, (int) Math.floor((minX + maxX) / 2f / CELL),
                         (int) Math.floor((minZ + maxZ) / 2f / CELL)));
+            }
+            List<GroundPatches.Patch> patches = GroundPatches.generate(layout, theme, TrackChoice.def().id.hashCode(), low);
+            for (int i = 0; i < patches.size(); i++) {
+                GroundPatches.Patch pt = patches.get(i);
+                String name = "patch_" + i;
+                gl.addMesh(name, GroundPatches.mesh(pt, pal));
+                all.add(new StaticBatcher.Placement(name, ident, (int) Math.floor(pt.x / CELL), (int) Math.floor(pt.z / CELL)));
+            }
+            ringCount = 0;
+            for (int i = 0; i < theme.rings.length && ringCount < ringId.length; i++) {
+                if (low && !theme.rings[i].low) continue;
+                ringId[ringCount++] = gl.addMesh("ring_" + i, Backdrop.build(theme, i, pal));
             }
             gl.setStatic(all, CHUNK_CELLS);
         }
@@ -488,7 +510,12 @@ public final class RaceScene implements Scene {
         float gx = GROUND_STEP * (float) Math.floor(eye[0] / GROUND_STEP + 0.5f);
         float gz = GROUND_STEP * (float) Math.floor(eye[2] / GROUND_STEP + 0.5f);
         Mat4.translate(mT, gx, 0f, gz);
-        list.add(groundId, 0, mT, GRASS, true, 1);
+        list.add(groundId, 0, mT, theme.ground, true, 1);
+        // T-29: the backdrop rings follow the camera's position (not its turning) and are drawn without fog
+        for (int i = 0; i < ringCount; i++) {
+            Mat4.translate(mT, eye[0], 0f, eye[2]);
+            list.add(ringId[i], 0, mT, 0, false, 1, true);
+        }
         // coins and the golden star (only those near the truck and not behind the camera)
         CarModel car = logic.car(0);
         float fx = (float) Math.sin(car.yaw()), fz = (float) Math.cos(car.yaw());

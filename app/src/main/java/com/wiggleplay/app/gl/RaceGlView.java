@@ -246,6 +246,27 @@ public final class RaceGlView extends GLSurfaceView {
      */
     public void setSky(int rgb) {
         renderer.setSky(rgb);
+        renderer.setFogColor(-1);
+    }
+
+    /**
+     * Sets the fog colour on its own (T-29). Until it is called, and after {@link #setSky}, the fog colour is the sky colour.
+     * @param rgb 0xRRGGBB
+     */
+    public void setFogColor(int rgb) {
+        renderer.setFogColor(rgb);
+    }
+
+    /**
+     * Sets the sun: the direction the light travels (normalised here). The default is the old fixed sun.
+     * @param x x of the direction
+     * @param y y of the direction (negative = light from above)
+     * @param z z of the direction
+     */
+    public void setSunDir(float x, float y, float z) {
+        float len = (float) Math.sqrt(x * x + y * y + z * z);
+        if (len < 1e-6f) return;
+        renderer.setSunDir(x / len, y / len, z / len);
     }
 
     /**

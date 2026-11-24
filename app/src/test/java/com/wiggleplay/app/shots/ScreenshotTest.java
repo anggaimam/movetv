@@ -658,6 +658,12 @@ public class ScreenshotTest {
         for (File f : TrackLayoutShots.shootAll()) check(f);
     }
 
+    /** T-29 Part A: the three Desert backdrop rings unrolled (angle against height). */
+    @Test
+    public void desertBackdrop() throws Exception {
+        check(BackdropShots.shootDesert());
+    }
+
     /** T-23 Part C: the new coin and the golden star close up, turned 0, 35 and 75 degrees (a software drawing of the mesh). */
     @Test
     public void raceCoinCloseUp() throws Exception {

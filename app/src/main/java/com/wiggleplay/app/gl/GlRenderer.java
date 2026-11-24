@@ -34,6 +34,8 @@ public final class GlRenderer implements GLSurfaceView.Renderer {
     private static final float[] IDENTITY = new float[16];
     private static final float SUN_LEN = (float) Math.sqrt(Shaders.SUN_X * Shaders.SUN_X
             + Shaders.SUN_Y * Shaders.SUN_Y + Shaders.SUN_Z * Shaders.SUN_Z);
+    /** Fog distance of an item drawn without fog (far beyond anything in the scene). */
+    private static final float NO_FOG = 1e6f;
 
     static {
         Mat4.identity(IDENTITY);
@@ -151,6 +153,8 @@ public final class GlRenderer implements GLSurfaceView.Renderer {
     private final Object lock = new Object();
     private final DoubleBuffer items = new DoubleBuffer(1024);
     private int skyRgb = 0xA8DDF2;
+    private int fogRgb = -1;   // -1: the fog colour is the sky colour
+    private final float[] sun = {Shaders.SUN_X / SUN_LEN, Shaders.SUN_Y / SUN_LEN, Shaders.SUN_Z / SUN_LEN};
     private float fogNear = 25f, fogFar = 55f;
     private int viewports = 1;
     private final float[][] camEye = {{0f, 3f, -6f}, {0f, 3f, -6f}};
@@ -193,6 +197,22 @@ public final class GlRenderer implements GLSurfaceView.Renderer {
     void setSky(int rgb) {
         synchronized (lock) {
             skyRgb = rgb;
+        }
+    }
+
+    /** Sets the fog colour; a negative value makes it the sky colour again. */
+    void setFogColor(int rgb) {
+        synchronized (lock) {
+            fogRgb = rgb < 0 ? -1 : rgb & 0xFFFFFF;
+        }
+    }
+
+    /** Sets the sun direction (the way the light travels); the vector must already be normalised. */
+    void setSunDir(float x, float y, float z) {
+        synchronized (lock) {
+            sun[0] = x;
+            sun[1] = y;
+            sun[2] = z;
         }
     }
 
@@ -301,11 +321,16 @@ public final class GlRenderer implements GLSurfaceView.Renderer {
         for (GlMesh m : meshes) if (m != null && !m.isUploaded()) m.upload();
         for (GlMesh m : chunks) if (m != null && !m.isUploaded()) m.upload();
 
-        int sky, nv;
+        int sky, fog, nv;
         float fn, ff;
+        float sx, sy, sz;
         RenderList list;
         synchronized (lock) {
             sky = skyRgb;
+            fog = fogRgb < 0 ? skyRgb : fogRgb;
+            sx = sun[0];
+            sy = sun[1];
+            sz = sun[2];
             fn = fogNear;
             ff = fogFar;
             nv = viewports;
@@ -317,13 +342,14 @@ public final class GlRenderer implements GLSurfaceView.Renderer {
             list = items.acquire();
         }
         float sr = ((sky >> 16) & 0xFF) / 255f, sg = ((sky >> 8) & 0xFF) / 255f, sb = (sky & 0xFF) / 255f;
+        float fr = ((fog >> 16) & 0xFF) / 255f, fgr = ((fog >> 8) & 0xFF) / 255f, fb = (fog & 0xFF) / 255f;
 
         GLES20.glUseProgram(program);
         GLES20.glActiveTexture(GLES20.GL_TEXTURE0);
         GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, texture);
         GLES20.glUniform1i(uTex, 0);
-        GLES20.glUniform3f(uSunDir, Shaders.SUN_X / SUN_LEN, Shaders.SUN_Y / SUN_LEN, Shaders.SUN_Z / SUN_LEN);
-        GLES20.glUniform3f(uFogColor, sr, sg, sb);
+        GLES20.glUniform3f(uSunDir, sx, sy, sz);
+        GLES20.glUniform3f(uFogColor, fr, fgr, fb);
         GLES20.glUniform1f(uFogNear, fn);
         GLES20.glUniform1f(uFogFar, ff);
         GLES20.glEnable(GLES20.GL_DEPTH_TEST);
@@ -383,6 +409,7 @@ public final class GlRenderer implements GLSurfaceView.Renderer {
 
             // dynamic items: opaque first, then the translucent flat ones
             int bit = 1 << v;
+            boolean fogOff = false;
             for (int pass = 0; pass < 2; pass++) {
                 boolean alphaPass = pass == 1;
                 if (alphaPass) {
@@ -400,6 +427,12 @@ public final class GlRenderer implements GLSurfaceView.Renderer {
                     if (id < 0 || id >= meshes.length) continue;
                     GlMesh m = meshes[id];
                     if (m == null || !m.isUploaded()) continue;
+                    boolean nf = list.noFog(i);
+                    if (nf != fogOff) {
+                        fogOff = nf;
+                        GLES20.glUniform1f(uFogNear, nf ? NO_FOG : fn);
+                        GLES20.glUniform1f(uFogFar, nf ? NO_FOG * 2f : ff);
+                    }
                     System.arraycopy(list.models(), list.modelOffset(i), model, 0, 16);
                     Mat4.multiply(mvp, vp, model);
                     GLES20.glUniformMatrix4fv(uMvp, 1, false, mvp, 0);
@@ -418,6 +451,10 @@ public final class GlRenderer implements GLSurfaceView.Renderer {
             }
             GLES20.glDisable(GLES20.GL_BLEND);
             GLES20.glDepthMask(true);
+            if (fogOff) { // the next viewport draws its static chunks with the normal fog
+                GLES20.glUniform1f(uFogNear, fn);
+                GLES20.glUniform1f(uFogFar, ff);
+            }
         }
         long now = System.nanoTime();
         stats.frameDone(now, now - t0, tris, draws);

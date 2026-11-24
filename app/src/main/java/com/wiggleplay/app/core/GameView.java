@@ -38,7 +38,6 @@ public final class GameView extends View {
     private long lastNanos = 0;
     private final QualityGuard guard = new QualityGuard();
     private Profile profile;
-    private String lastScene;
 
     private RaceGlView gl;
     private boolean glWanted = false;
@@ -66,6 +65,12 @@ public final class GameView extends View {
         // No background of its own: the black letterbox comes from the activity's root layout, so the GL view
         // underneath shows through while a 3D scene is current.
         setFocusable(true);
+        scenes.setSwapListener(new SceneManager.SwapListener() {
+            @Override
+            public void beforeEnter(String name) {
+                onSceneChanged();
+            }
+        });
     }
 
     /**
@@ -124,8 +129,6 @@ public final class GameView extends View {
         float dt = lastNanos == 0 ? 0f : Math.min(0.05f, (nowN - lastNanos) / 1_000_000_000f);
         float rawMs = lastNanos == 0 ? 0f : (nowN - lastNanos) / 1_000_000f;
         lastNanos = nowN;
-        String sn = scenes.currentName();
-        if (sn != null && !sn.equals(lastScene)) onSceneChanged(sn);
         perf.onFrame(nowN);
         if (guard.onFrame(rawMs)) {
             quality = guard.level();
@@ -166,9 +169,11 @@ public final class GameView extends View {
         profile = p;
     }
 
-    /** A new scene is current: restart the grace time, read the Picture setting and clear the speed meter. */
-    private void onSceneChanged(String name) {
-        lastScene = name;
+    /**
+     * A new scene is about to be entered (the scene manager calls this just before {@code enter}, so the scene already sees the
+     * quality it will run at): restart the grace time, read the Picture setting and clear the speed meter.
+     */
+    private void onSceneChanged() {
         guard.setMode(QualityGuard.modeOf(profile != null ? profile.quality() : null));
         guard.onSceneChange();
         quality = guard.level();

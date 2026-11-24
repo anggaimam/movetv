@@ -5,8 +5,8 @@ package com.wiggleplay.app.gl;
  * {@link #begin()}, {@link #add} and {@link #copyFrom} never allocate. Plain Java (no Android classes).
  *
  * <p>An item is: which mesh ({@code meshId}), which part of it, the model matrix (copied in), a colour,
- * whether it is drawn {@code flat} (with the colour instead of the palette texture), and a viewport mask
- * (bit 0 = left or only viewport, bit 1 = right viewport).
+ * whether it is drawn {@code flat} (with the colour instead of the palette texture), a viewport mask
+ * (bit 0 = left or only viewport, bit 1 = right viewport) and whether it is drawn without fog (the backdrop rings, T-29).
  */
 public final class RenderList {
 
@@ -16,6 +16,7 @@ public final class RenderList {
     private final int[] colors;
     private final int[] masks;
     private final boolean[] flats;
+    private final boolean[] noFogs;
     private final float[] models;
     private int count;
 
@@ -30,6 +31,7 @@ public final class RenderList {
         colors = new int[capacity];
         masks = new int[capacity];
         flats = new boolean[capacity];
+        noFogs = new boolean[capacity];
         models = new float[capacity * 16];
     }
 
@@ -49,7 +51,23 @@ public final class RenderList {
      * @return false if the list is full (the item is not added)
      */
     public boolean add(int meshId, int part, float[] model, int colorRgb, boolean flat, int viewportMask) {
+        return add(meshId, part, model, colorRgb, flat, viewportMask, false);
+    }
+
+    /**
+     * Adds an item, with the choice of drawing it without fog.
+     * @param meshId which loaded mesh
+     * @param part the part index inside that mesh
+     * @param model the 16 model matrix floats (copied)
+     * @param colorRgb 0xRRGGBB, used when {@code flat}
+     * @param flat draw with {@code colorRgb} instead of the texture
+     * @param viewportMask which viewports show it (bit 0 = left/only, bit 1 = right)
+     * @param noFog true to draw it with no distance fog (the backdrop rings)
+     * @return false if the list is full (the item is not added)
+     */
+    public boolean add(int meshId, int part, float[] model, int colorRgb, boolean flat, int viewportMask, boolean noFog) {
         if (count >= capacity) return false;
+        noFogs[count] = noFog;
         meshIds[count] = meshId;
         parts[count] = part;
         colors[count] = colorRgb;
@@ -101,6 +119,13 @@ public final class RenderList {
     public boolean flat(int i) { return flats[i]; }
 
     /**
+     * Whether an item is drawn without fog.
+     * @param i item index
+     * @return true for no fog
+     */
+    public boolean noFog(int i) { return noFogs[i]; }
+
+    /**
      * Viewport mask of an item.
      * @param i item index
      * @return the mask
@@ -133,6 +158,7 @@ public final class RenderList {
         System.arraycopy(src.colors, 0, colors, 0, n);
         System.arraycopy(src.masks, 0, masks, 0, n);
         System.arraycopy(src.flats, 0, flats, 0, n);
+        System.arraycopy(src.noFogs, 0, noFogs, 0, n);
         System.arraycopy(src.models, 0, models, 0, n * 16);
         count = n;
     }

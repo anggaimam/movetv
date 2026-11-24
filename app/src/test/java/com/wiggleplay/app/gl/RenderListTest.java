@@ -75,6 +75,22 @@ public class RenderListTest {
     }
 
     @Test
+    public void noFogDefaultsToFalseAndIsStoredAndCopied() {
+        RenderList a = new RenderList(4), b = new RenderList(4);
+        a.add(1, 0, matrix(0), 0, false, 1);
+        a.add(2, 0, matrix(0), 0, false, 1, true);
+        assertFalse(a.noFog(0));
+        assertTrue(a.noFog(1));
+        b.add(9, 9, matrix(9), 0, false, 1, true);
+        b.copyFrom(a);
+        assertFalse(b.noFog(0));
+        assertTrue(b.noFog(1));
+        a.begin();
+        a.add(3, 0, matrix(0), 0, false, 1);
+        assertFalse(a.noFog(0));
+    }
+
+    @Test
     public void copyFromDropsWhatDoesNotFit() {
         RenderList a = new RenderList(4), b = new RenderList(2);
         for (int i = 0; i < 4; i++) a.add(i, 0, matrix(i), 0, false, 1);
