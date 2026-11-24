@@ -57,7 +57,7 @@ public final class LevelSelectScene implements Scene {
         int asked = args.getInt("players", -1);   // coming back from a game: the count last picked for it
         int max = game != null ? game.maxPlayers : 2;
         players = asked > 0 ? asked : env.profile != null ? env.profile.playersFor(gameId, max, env.players) : env.players;
-        title = game != null ? game.title + ": pick a level" : "Pick a level";
+        title = game != null && !"race".equals(gameId) ? game.title + ": pick a level" : "Pick a level";   // Turbo Trucks: the steering button sits where a long title would run
         List<TileMenu.Tile> tiles = new ArrayList<>();
         tiles.add(RoundButton.back());
         tiles.add(RoundButton.settings());
