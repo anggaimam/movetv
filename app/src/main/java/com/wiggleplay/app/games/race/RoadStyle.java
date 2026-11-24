@@ -13,11 +13,11 @@ public final class RoadStyle {
             SW_START_DARK = 5, SW_START_LIGHT = 6, SW_ARCH_POST = 7, SW_ARCH_BANNER = 8, SW_CENTRE_DASH = 9;
 
     /**
-     * The default: Kenney's road grey (the grey of the {@code track-straight} road; read from the palette's road block was not
-     * possible without the original uv, so the ticket's fallback {@code #5A5F66} is used), red and cream kerbs, pale barriers
-     * with orange stripes, a dark and cream start line, cream posts and an orange banner, no centre dashes.
+     * The default: Kenney's own road grey ({@code #7D829C}, the asphalt colour of the {@code track-straight} tile, read from
+     * {@code colormap.png} through the mesh's uvs), red and cream kerbs, pale barriers with orange stripes, a dark and cream
+     * start line, cream posts and an orange banner, no centre dashes.
      */
-    public static final RoadStyle MEADOW = new RoadStyle(0x5A5F66, 0xE8574A, 0xF3EBDD, 0xD7DCE0, 0xE89A4C, 0x2F3A45,
+    public static final RoadStyle MEADOW = new RoadStyle(0x7D829C, 0xE8574A, 0xF3EBDD, 0xD7DCE0, 0xE89A4C, 0x2F3A45,
             0xF3EBDD, 0xF3EBDD, 0xE89A4C, 0);
 
     public final int road, kerbA, kerbB, barrier, barrierStripe, startDark, startLight, archPost, archBanner;
