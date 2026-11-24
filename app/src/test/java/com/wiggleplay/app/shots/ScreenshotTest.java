@@ -629,6 +629,12 @@ public class ScreenshotTest {
                 Scene.SceneArgs.of("gameId", "race"), 1, 60, null));
     }
 
+    /** T-28 Part A: top views of the four spline track layouts (Desert, City, Rockies, Space). */
+    @Test
+    public void trackLayouts() throws Exception {
+        for (File f : TrackLayoutShots.shootAll()) check(f);
+    }
+
     /** T-23 Part C: the new coin and the golden star close up, turned 0, 35 and 75 degrees (a software drawing of the mesh). */
     @Test
     public void raceCoinCloseUp() throws Exception {
