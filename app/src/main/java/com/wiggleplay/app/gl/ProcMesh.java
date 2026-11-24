@@ -188,6 +188,148 @@ public final class ProcMesh {
         return b.mesh("ground");
     }
 
+    // ---- T-23 Part C: shiny toy coins and the golden star, coloured from swatches in the palette texture ----
+
+    /** Palette swatch of the coin face (mustard). */
+    public static final int SWATCH_COIN_FACE = 0;
+    /** Palette swatch of the raised rim (darker mustard). */
+    public static final int SWATCH_COIN_RIM = 1;
+    /** Palette swatch of the grooves and the bevel (dark mustard). */
+    public static final int SWATCH_COIN_GROOVE = 2;
+    /** Palette swatch of the embossed star on the coin (light). */
+    public static final int SWATCH_COIN_STAR = 3;
+    /** Palette swatch of the golden star's faces. */
+    public static final int SWATCH_STAR_FACE = 4;
+    /** Palette swatch of the golden star's lighter facets (the ridge). */
+    public static final int SWATCH_STAR_RIDGE = 5;
+    /** Palette swatch of the golden star's sides. */
+    public static final int SWATCH_STAR_SIDE = 6;
+    /** The swatch colours, 0xRRGGBB, in swatch order. {@code tools/add_coin_swatches.py} paints them into the palette. */
+    public static final int[] SWATCH_RGB = {0xF2C572, 0xD9A441, 0xC48E32, 0xFFE08A, 0xFFC933, 0xFFE680, 0xD9A21E};
+    /** Side of one swatch block in the 512 x 512 palette texture; swatch k sits at x = 16 k, y = 0 (an unused corner). */
+    public static final int SWATCH_BLOCK = 16;
+
+    private static final float ATLAS = 512f;
+    private static final int COIN_FACE_SIDES = 16, COIN_EDGE_STRIPS = 36, STAR_POINTS = 5;
+
+    /**
+     * A shiny toy coin standing upright facing +Z: radius 0.6, thickness 0.15, a raised rim, a sloped inner bevel, a dark
+     * groove band, an embossed five-point star on both faces and a reeded edge of 36 alternating light and dark strips.
+     * One part, one draw call (draw it with {@code flat = false}: every vertex takes its colour from a palette swatch).
+     * 356 triangles, 472 vertices.
+     * @return the mesh
+     */
+    public static MeshData coinReeded() {
+        final float r = 0.6f, h = 0.075f, fieldZ = h - 0.03f;
+        Buf b = new Buf(2 * (3 * 2 * COIN_FACE_SIDES + 1 + COIN_FACE_SIDES + 1 + 2 * STAR_POINTS + 4 * 2 * STAR_POINTS)
+                + 4 * COIN_EDGE_STRIPS, 3 * (2 * (3 * 2 * COIN_FACE_SIDES + COIN_FACE_SIDES + 2 * STAR_POINTS
+                + 4 * STAR_POINTS) + 2 * COIN_EDGE_STRIPS));
+        for (int s = 1; s >= -1; s -= 2) {
+            b.ring(s, COIN_FACE_SIDES, 0.54f, h, r, h, 0f, 1f, SWATCH_COIN_RIM);
+            b.ring(s, COIN_FACE_SIDES, 0.46f, fieldZ, 0.54f, h, -0.351f, 0.936f, SWATCH_COIN_GROOVE);
+            b.ring(s, COIN_FACE_SIDES, 0.38f, fieldZ, 0.46f, fieldZ, 0f, 1f, SWATCH_COIN_GROOVE);
+            // the face inside the groove band: a fan around the centre
+            int c = b.vu(0, 0, s * fieldZ, 0, 0, s, SWATCH_COIN_FACE);
+            int[] ring = new int[COIN_FACE_SIDES];
+            for (int i = 0; i < COIN_FACE_SIDES; i++) {
+                double a = 2.0 * Math.PI * i / COIN_FACE_SIDES;
+                ring[i] = b.vu((float) (Math.cos(a) * 0.38f), (float) (Math.sin(a) * 0.38f), s * fieldZ, 0, 0, s, SWATCH_COIN_FACE);
+            }
+            for (int i = 0; i < COIN_FACE_SIDES; i++) b.t2(s, c, ring[i], ring[(i + 1) % COIN_FACE_SIDES]);
+            // the embossed star, raised to the rim's height
+            final int n = 2 * STAR_POINTS;
+            float[] px = new float[n], py = new float[n];
+            for (int i = 0; i < n; i++) {
+                double a = Math.PI / 2.0 + 2.0 * Math.PI * i / n;
+                float rr = (i % 2 == 0) ? 0.30f : 0.13f;
+                px[i] = (float) (Math.cos(a) * rr);
+                py[i] = (float) (Math.sin(a) * rr);
+            }
+            int top = b.vu(0, 0, s * h, 0, 0, s, SWATCH_COIN_STAR);
+            int[] tp = new int[n];
+            for (int i = 0; i < n; i++) tp[i] = b.vu(px[i], py[i], s * h, 0, 0, s, SWATCH_COIN_STAR);
+            for (int i = 0; i < n; i++) b.t2(s, top, tp[i], tp[(i + 1) % n]);
+            for (int i = 0; i < n; i++) {
+                int j = (i + 1) % n;
+                float dx = px[j] - px[i], dy = py[j] - py[i];
+                float len = (float) Math.sqrt(dx * dx + dy * dy);
+                float nx = dy / len, ny = -dx / len;
+                int af = b.vu(px[i], py[i], s * h, nx, ny, 0, SWATCH_COIN_GROOVE);
+                int ab = b.vu(px[i], py[i], s * fieldZ, nx, ny, 0, SWATCH_COIN_GROOVE);
+                int bf = b.vu(px[j], py[j], s * h, nx, ny, 0, SWATCH_COIN_GROOVE);
+                int bb = b.vu(px[j], py[j], s * fieldZ, nx, ny, 0, SWATCH_COIN_GROOVE);
+                b.t2(s, af, bb, bf);
+                b.t2(s, af, ab, bb);
+            }
+        }
+        // the reeded edge: flat strips, light and dark in turn, each lit by its own normal
+        for (int i = 0; i < COIN_EDGE_STRIPS; i++) {
+            double a0 = 2.0 * Math.PI * i / COIN_EDGE_STRIPS, a1 = 2.0 * Math.PI * (i + 1) / COIN_EDGE_STRIPS;
+            double am = 0.5 * (a0 + a1);
+            float nx = (float) Math.cos(am), ny = (float) Math.sin(am);
+            int sw = (i % 2 == 0) ? SWATCH_COIN_FACE : SWATCH_COIN_GROOVE;
+            int f0 = b.vu((float) (Math.cos(a0) * r), (float) (Math.sin(a0) * r), h, nx, ny, 0, sw);
+            int k0 = b.vu((float) (Math.cos(a0) * r), (float) (Math.sin(a0) * r), -h, nx, ny, 0, sw);
+            int f1 = b.vu((float) (Math.cos(a1) * r), (float) (Math.sin(a1) * r), h, nx, ny, 0, sw);
+            int k1 = b.vu((float) (Math.cos(a1) * r), (float) (Math.sin(a1) * r), -h, nx, ny, 0, sw);
+            b.t(f0, k1, f1);
+            b.t(f0, k0, k1);
+        }
+        return b.mesh("coin");
+    }
+
+    /**
+     * The golden star pickup, polished: a faceted pyramid on both faces (the facets are lighter and darker in turn, so a
+     * ridge runs from every point to the centre) and dark sides. Same size as {@link #star()}. 40 triangles, 100 vertices.
+     * Drawn with {@code flat = false} (palette swatches); the glow behind it can use the same mesh drawn flat.
+     * @param outer distance of the points from the centre
+     * @param inner distance of the inner corners from the centre
+     * @param depth thickness along Z
+     * @return the mesh
+     */
+    public static MeshData starBevelled(float outer, float inner, float depth) {
+        final int n = 2 * STAR_POINTS;
+        float h = depth * 0.5f, e = h * 0.35f;
+        float[] px = new float[n], py = new float[n];
+        for (int i = 0; i < n; i++) {
+            double a = Math.PI / 2.0 + 2.0 * Math.PI * i / n;
+            float rr = (i % 2 == 0) ? outer : inner;
+            px[i] = (float) (Math.cos(a) * rr);
+            py[i] = (float) (Math.sin(a) * rr);
+        }
+        Buf b = new Buf(6 * n + 4 * n, 3 * (2 * n + 2 * n));
+        for (int s = 1; s >= -1; s -= 2) {
+            for (int i = 0; i < n; i++) {
+                int j = (i + 1) % n;
+                // facet normal from the geometry: apex at z = s h, the two points at z = s e
+                float ux = px[i], uy = py[i], uz = s * (e - h);
+                float vx = px[j], vy = py[j], vz = s * (e - h);
+                float nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx;
+                if (s < 0) { nx = -nx; ny = -ny; nz = -nz; }
+                float len = (float) Math.sqrt(nx * nx + ny * ny + nz * nz);
+                nx /= len; ny /= len; nz /= len;
+                int sw = (i % 2 == 0) ? SWATCH_STAR_RIDGE : SWATCH_STAR_FACE;
+                int a = b.vu(0, 0, s * h, nx, ny, nz, sw);
+                int p = b.vu(px[i], py[i], s * e, nx, ny, nz, sw);
+                int q = b.vu(px[j], py[j], s * e, nx, ny, nz, sw);
+                b.t2(s, a, p, q);
+            }
+        }
+        for (int i = 0; i < n; i++) {
+            int j = (i + 1) % n;
+            float dx = px[j] - px[i], dy = py[j] - py[i];
+            float len = (float) Math.sqrt(dx * dx + dy * dy);
+            float nx = dy / len, ny = -dx / len;
+            int af = b.vu(px[i], py[i], e, nx, ny, 0, SWATCH_STAR_SIDE);
+            int ab = b.vu(px[i], py[i], -e, nx, ny, 0, SWATCH_STAR_SIDE);
+            int bf = b.vu(px[j], py[j], e, nx, ny, 0, SWATCH_STAR_SIDE);
+            int bb = b.vu(px[j], py[j], -e, nx, ny, 0, SWATCH_STAR_SIDE);
+            b.t(af, bb, bf);
+            b.t(af, ab, bb);
+        }
+        return b.mesh("star");
+    }
+
     /** Collects vertices and triangles. */
     private static final class Buf {
         final float[] vertices;
@@ -209,6 +351,40 @@ public final class ProcMesh {
             vertices[o + 4] = ny;
             vertices[o + 5] = nz;
             return vc++;
+        }
+
+        /** A vertex whose colour is the middle of palette swatch {@code swatch} (u, v inside its 16 x 16 block). */
+        int vu(float x, float y, float z, float nx, float ny, float nz, int swatch) {
+            int i = v(x, y, z, nx, ny, nz);
+            int o = i * MeshData.FLOATS_PER_VERTEX;
+            vertices[o + 6] = (swatch * SWATCH_BLOCK + SWATCH_BLOCK / 2f) / ATLAS;
+            vertices[o + 7] = (SWATCH_BLOCK / 2f) / ATLAS;
+            return i;
+        }
+
+        /** A triangle that is counter-clockwise seen from +Z-side {@code side} (+1), or mirrored for the back (-1). */
+        void t2(int side, int a, int b, int c) {
+            if (side > 0) t(a, b, c);
+            else t(a, c, b);
+        }
+
+        /**
+         * An annulus from (r1, z1) to (r2, z2), {@code sides} quads, on the front (side +1) or back (-1) of the coin; the
+         * vertex normal is (nr cos, nr sin, side nz).
+         */
+        void ring(int side, int sides, float r1, float z1, float r2, float z2, float nr, float nz, int swatch) {
+            int[] in = new int[sides], out = new int[sides];
+            for (int i = 0; i < sides; i++) {
+                double a = 2.0 * Math.PI * i / sides;
+                float c = (float) Math.cos(a), s = (float) Math.sin(a);
+                in[i] = vu(c * r1, s * r1, side * z1, c * nr, s * nr, side * nz, swatch);
+                out[i] = vu(c * r2, s * r2, side * z2, c * nr, s * nr, side * nz, swatch);
+            }
+            for (int i = 0; i < sides; i++) {
+                int j = (i + 1) % sides;
+                t2(side, in[i], out[i], out[j]);
+                t2(side, in[i], out[j], in[j]);
+            }
         }
 
         void t(int a, int b, int c) {

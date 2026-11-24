@@ -141,4 +141,107 @@ public class ProcMeshTest {
         assertEquals(70f, maxX, 1e-4f);
         assertOutwardWinding(m);
     }
+
+    // ---- T-23 Part C ----
+
+    /** The palette block of a vertex's uv (swatch index), or -1 if the uv is outside the swatch row. */
+    private static int swatchOf(MeshData.Part p, int v) {
+        float u = p.vertices[v * 8 + 6], t = p.vertices[v * 8 + 7];
+        int px = (int) (u * 512f), py = (int) (t * 512f);
+        if (py < 0 || py >= ProcMesh.SWATCH_BLOCK || px < 0) return -1;
+        int k = px / ProcMesh.SWATCH_BLOCK;
+        return k < ProcMesh.SWATCH_RGB.length ? k : -1;
+    }
+
+    @Test
+    public void reededCoinIsOnePartUnder400TrianglesWithAReededRimAndAStar() {
+        MeshData m = ProcMesh.coinReeded();
+        MeshData.Part p = only(m);
+        assertEquals(356, m.triangleCount());
+        assertTrue("one draw call, at most 400 triangles", m.triangleCount() <= 400);
+        assertEquals(472, p.vertexCount);
+        assertIndicesInRange(m);
+        assertOutwardWinding(m);
+        float maxR = 0f, maxZ = 0f, starR = 0f;
+        boolean[] swatchUsed = new boolean[ProcMesh.SWATCH_RGB.length];
+        for (int v = 0; v < p.vertexCount; v++) {
+            float x = p.vertices[v * 8], y = p.vertices[v * 8 + 1], z = p.vertices[v * 8 + 2];
+            maxR = Math.max(maxR, (float) Math.hypot(x, y));
+            maxZ = Math.max(maxZ, Math.abs(z));
+            int k = swatchOf(p, v);
+            assertTrue("vertex " + v + " takes its colour from a swatch", k >= 0);
+            swatchUsed[k] = true;
+            if (k == ProcMesh.SWATCH_COIN_STAR) starR = Math.max(starR, (float) Math.hypot(x, y));
+        }
+        assertEquals(0.6f, maxR, 1e-5f);
+        assertEquals(0.075f, maxZ, 1e-5f);
+        assertTrue("the embossed star sits inside the groove band", starR > 0.25f && starR < 0.35f);
+        for (int k : new int[] {ProcMesh.SWATCH_COIN_FACE, ProcMesh.SWATCH_COIN_RIM, ProcMesh.SWATCH_COIN_GROOVE,
+                ProcMesh.SWATCH_COIN_STAR}) {
+            assertTrue("swatch " + k + " is used", swatchUsed[k]);
+        }
+        // 36 edge strips alternate between the light and the dark swatch
+        int edgeLight = 0, edgeDark = 0;
+        for (int v = 0; v < p.vertexCount; v++) {
+            float r = (float) Math.hypot(p.vertices[v * 8], p.vertices[v * 8 + 1]);
+            if (Math.abs(r - 0.6f) > 1e-4f || p.vertices[v * 8 + 5] != 0f) continue;   // edge vertices have normal z 0
+            if (swatchOf(p, v) == ProcMesh.SWATCH_COIN_FACE) edgeLight++;
+            else if (swatchOf(p, v) == ProcMesh.SWATCH_COIN_GROOVE) edgeDark++;
+        }
+        assertEquals(72, edgeLight);
+        assertEquals(72, edgeDark);
+    }
+
+    @Test
+    public void reededCoinIsTheSameOnBothFaces() {
+        MeshData.Part p = only(ProcMesh.coinReeded());
+        int front = 0, back = 0;
+        for (int v = 0; v < p.vertexCount; v++) {
+            float z = p.vertices[v * 8 + 2];
+            if (p.vertices[v * 8 + 5] != 0f || Math.abs(z) > 0.05f) {
+                if (p.vertices[v * 8 + 5] > 0.5f) front++;
+                if (p.vertices[v * 8 + 5] < -0.5f) back++;
+            }
+        }
+        assertEquals(front, back);
+        assertTrue(front > 50);
+    }
+
+    @Test
+    public void bevelledStarKeepsTheStarShapeAndUsesThreeSwatches() {
+        MeshData m = ProcMesh.starBevelled(0.9f, 0.4f, 0.2f);
+        MeshData.Part p = only(m);
+        assertEquals(40, m.triangleCount());
+        assertEquals(100, p.vertexCount);
+        assertIndicesInRange(m);
+        assertOutwardWinding(m);
+        float maxY = -1e9f, maxZ = 0f;
+        boolean ridge = false, face = false, side = false;
+        for (int v = 0; v < p.vertexCount; v++) {
+            maxY = Math.max(maxY, p.vertices[v * 8 + 1]);
+            maxZ = Math.max(maxZ, Math.abs(p.vertices[v * 8 + 2]));
+            int k = swatchOf(p, v);
+            assertTrue(k >= 0);
+            ridge |= k == ProcMesh.SWATCH_STAR_RIDGE;
+            face |= k == ProcMesh.SWATCH_STAR_FACE;
+            side |= k == ProcMesh.SWATCH_STAR_SIDE;
+        }
+        assertEquals("one point up", 0.9f, maxY, 1e-5f);
+        assertEquals("the centre ridge is as deep as the old star", 0.1f, maxZ, 1e-5f);
+        assertTrue(ridge && face && side);
+    }
+
+    /** The palette texture really holds the swatch colours (tools/glb_to_mesh.py would overwrite them with Kenney's copy). */
+    @Test
+    public void paletteHoldsTheCoinSwatches() throws Exception {
+        java.awt.image.BufferedImage im = javax.imageio.ImageIO.read(new java.io.File("src/main/assets/art/race/colormap.png"));
+        assertEquals(512, im.getWidth());
+        assertEquals(512, im.getHeight());
+        for (int k = 0; k < ProcMesh.SWATCH_RGB.length; k++) {
+            for (int d : new int[] {0, 8, 15}) {
+                int rgb = im.getRGB(k * ProcMesh.SWATCH_BLOCK + d, d) & 0xFFFFFF;
+                assertEquals("swatch " + k + " pixel " + d, ProcMesh.SWATCH_RGB[k], rgb);
+            }
+        }
+    }
 }

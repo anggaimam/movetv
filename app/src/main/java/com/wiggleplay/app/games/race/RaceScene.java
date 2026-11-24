@@ -141,8 +141,8 @@ public final class RaceScene implements Scene {
                     "decoration-empty", TRUCK_MESH[0], TRUCK_MESH[1], TRUCK_MESH[2], TRUCK_MESH[3]);
             groundId = gl.addMesh("ground", ProcMesh.groundGrid(GROUND_SIZE, GROUND_CELLS));
             shadowId = gl.addMesh("shadow", ProcMesh.disc(1.2f));
-            coinId = gl.addMesh("coin", ProcMesh.coin(0.6f, 0.15f, 16));
-            starId = gl.addMesh("star", ProcMesh.star(0.9f, 0.4f, 0.2f));
+            coinId = gl.addMesh("coin", ProcMesh.coinReeded());
+            starId = gl.addMesh("star", ProcMesh.starBevelled(0.9f, 0.4f, 0.2f));
             for (int t = 0; t < 4; t++) {
                 truckId[t] = gl.meshId(TRUCK_MESH[t]);
                 truckData[t] = gl.meshData(truckId[t]);
@@ -465,12 +465,12 @@ public final class RaceScene implements Scene {
             Mat4.rotY(mR, spin);
             Mat4.multiply(mA, mT, mR);
             if (logic.slotIsStar(0, i)) {
-                list.add(starId, 0, mA, STAR_COLOUR, true, 1);
+                list.add(starId, 0, mA, STAR_COLOUR, false, 1);   // T-23 Part C: palette swatches, not one flat colour
                 Mat4.scale(mB, 1.6f, 1.6f, 1.6f);
                 Mat4.multiply(mC, mA, mB);
                 list.add(starId, 0, mC, GLOW_COLOUR, true, 1);
             } else {
-                list.add(coinId, 0, mA, COIN_COLOUR, true, 1);
+                list.add(coinId, 0, mA, COIN_COLOUR, false, 1);   // T-23 Part C: one draw call, swatches from the palette
             }
         }
         // the player's truck, then the three friendly scenery trucks

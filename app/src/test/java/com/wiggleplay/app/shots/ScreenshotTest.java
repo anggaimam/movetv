@@ -629,6 +629,15 @@ public class ScreenshotTest {
                 Scene.SceneArgs.of("gameId", "race"), 1, 60, null));
     }
 
+    /** T-23 Part C: the new coin and the golden star close up, turned 0, 35 and 75 degrees (a software drawing of the mesh). */
+    @Test
+    public void raceCoinCloseUp() throws Exception {
+        check(MeshPreview.shootTurns("race_coin_closeup", com.wiggleplay.app.gl.ProcMesh.coinReeded().parts[0],
+                new float[] {0f, 35f, 75f}, 12f, 0.8f, 1280, 420));
+        check(MeshPreview.shootTurns("race_star_closeup", com.wiggleplay.app.gl.ProcMesh.starBevelled(0.9f, 0.4f, 0.2f).parts[0],
+                new float[] {0f, 35f, 75f}, 12f, 0.5f, 1280, 420));
+    }
+
     @Test
     public void raceRulesLean() throws Exception { race("race_rules_lean", 2, "lean", 75, true, null); }
 
