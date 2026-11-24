@@ -40,6 +40,8 @@ final class RaceHud {
     // set by the scene each frame
     int lap = 1;
     float meter, boostLeft;
+    /** Magnet time left, 0..1 of {@link RaceLogic#MAGNET_SECONDS}. */
+    float magnetK;
     boolean boosting, braking;
     /** Steering icon tilt in degrees (positive = the icon's left side lower). */
     float iconDeg;
@@ -198,6 +200,7 @@ final class RaceHud {
         drawPopups(c);
         drawSteerIcon(c);
         drawRocket(c);
+        drawMagnet(c);
         if (braking) drawBrake(c);
         if (lap >= 3 && finalLapSeconds < 2.6f) {
             Theme.drawBanner(c, "Final lap!", Stage.W / 2f, 260f, 84f, 0xE6F3EBDD, RaceArt.ORANGE);
@@ -282,6 +285,22 @@ final class RaceHud {
         c.drawBitmap(icon, null, rect, bmp);
         c.restore();
         if (hint) Theme.drawBanner(c, HINT[mode], cx, cy - 120f, 52f, 0xE6F3EBDD, INK);
+    }
+
+    /** The magnet icon with a bar that shrinks as its time runs out, above the rocket. */
+    private void drawMagnet(Canvas c) {
+        if (magnetK <= 0f) return;
+        float cx = 1760f, cy = 730f;
+        fill.setColor(0xCCF3EBDD);
+        rect.set(cx - 85f, cy - 60f, cx + 85f, cy + 52f);
+        c.drawRoundRect(rect, 30f, 30f, fill);
+        RaceArt.magnet(c, cx, cy - 14f, 64f);
+        fill.setColor(0x55000000);
+        rect.set(cx - 60f, cy + 22f, cx + 60f, cy + 36f);
+        c.drawRoundRect(rect, 7f, 7f, fill);
+        fill.setColor(magnetK < 0.25f && ((int) (time * 8f) & 1) == 0 ? 0xFFF3A19C : 0xFFE8504A);
+        rect.set(cx - 60f, cy + 22f, cx - 60f + 120f * magnetK, cy + 36f);
+        c.drawRoundRect(rect, 7f, 7f, fill);
     }
 
     private void drawRocket(Canvas c) {

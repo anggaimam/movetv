@@ -212,9 +212,11 @@ public final class ProcMesh {
     public static final int SWATCH_CAN_CAP = 9;
     /** T-26 nitro can: yellow lightning bolt. */
     public static final int SWATCH_CAN_BOLT = 10;
+    /** Magnet: red body, dark red sides, silver tips (T-23 magnet). */
+    public static final int SWATCH_MAGNET_RED = 11, SWATCH_MAGNET_DARK = 12, SWATCH_MAGNET_SILVER = 13;
     /** The swatch colours, 0xRRGGBB, in swatch order. {@code tools/add_coin_swatches.py} paints them into the palette. */
     public static final int[] SWATCH_RGB = {0xF2C572, 0xD9A441, 0xC48E32, 0xFFE08A, 0xFFC933, 0xFFE680, 0xD9A21E,
-            0x2E9BE8, 0xF5F5F5, 0xFF7E44, 0xFFE14D};
+            0x2E9BE8, 0xF5F5F5, 0xFF7E44, 0xFFE14D, 0xE8504A, 0x9C2F2A, 0xE3E8EE};
     /** Side of one swatch block in the 512 x 512 palette texture; swatch k sits at x = 16 k, y = 0 (an unused corner). */
     public static final int SWATCH_BLOCK = 16;
 
@@ -316,6 +318,45 @@ public final class ProcMesh {
     }
 
     /**
+     * The magnet pickup (like the Sky Glider's): a red horseshoe opening downward in the XY plane, silver tips, dark red
+     * sides, 0.26 thick. Centre of the arc at the origin, outer radius 0.46, tips at y = -0.38. 116 triangles.
+     * Drawn with {@code flat = false} (palette swatches).
+     * @return the mesh
+     */
+    public static MeshData magnet() {
+        final int m = 10;
+        final float ro = 0.46f, ri = 0.20f, h = 0.13f, yMid = -0.22f, yBot = -0.38f;
+        Buf b = new Buf(4 * (4 * m + 18), 6 * (4 * m + 18));
+        int red = SWATCH_MAGNET_RED, dark = SWATCH_MAGNET_DARK, silver = SWATCH_MAGNET_SILVER;
+        for (int i = 0; i < m; i++) {
+            double a0 = Math.PI * i / m, a1 = Math.PI * (i + 1) / m, am = 0.5 * (a0 + a1);
+            float c0 = (float) Math.cos(a0), s0 = (float) Math.sin(a0), c1 = (float) Math.cos(a1), s1 = (float) Math.sin(a1);
+            float cm = (float) Math.cos(am), sm = (float) Math.sin(am);
+            for (int side = 1; side >= -1; side -= 2) {
+                float z = side * h;
+                b.quad(new float[] {ro * c0, ro * s0, z, ri * c0, ri * s0, z, ri * c1, ri * s1, z, ro * c1, ro * s1, z}, 0, 0, side, red);
+            }
+            b.quad(new float[] {ro * c0, ro * s0, -h, ro * c0, ro * s0, h, ro * c1, ro * s1, h, ro * c1, ro * s1, -h}, cm, sm, 0, dark);
+            b.quad(new float[] {ri * c0, ri * s0, -h, ri * c0, ri * s0, h, ri * c1, ri * s1, h, ri * c1, ri * s1, -h}, -cm, -sm, 0, dark);
+        }
+        for (int sx = -1; sx <= 1; sx += 2) {
+            float xo = sx * ro, xi = sx * ri;
+            for (int part = 0; part < 2; part++) {
+                float y0 = part == 0 ? 0f : yMid, y1 = part == 0 ? yMid : yBot;
+                int face = part == 0 ? red : silver, wall = part == 0 ? dark : silver;
+                for (int side = 1; side >= -1; side -= 2) {
+                    float z = side * h;
+                    b.quad(new float[] {xi, y0, z, xo, y0, z, xo, y1, z, xi, y1, z}, 0, 0, side, face);
+                }
+                b.quad(new float[] {xo, y0, -h, xo, y0, h, xo, y1, h, xo, y1, -h}, sx, 0, 0, wall);
+                b.quad(new float[] {xi, y0, -h, xi, y0, h, xi, y1, h, xi, y1, -h}, -sx, 0, 0, wall);
+            }
+            b.quad(new float[] {xi, yBot, -h, xo, yBot, -h, xo, yBot, h, xi, yBot, h}, 0, -1, 0, silver);
+        }
+        return b.mesh("magnet");
+    }
+
+    /**
      * The golden star pickup, polished: a faceted pyramid on both faces (the facets are lighter and darker in turn, so a
      * ridge runs from every point to the centre) and dark sides. Same size as {@link #star()}. 40 triangles, 100 vertices.
      * Drawn with {@code flat = false} (palette swatches); the glow behind it can use the same mesh drawn flat.
@@ -397,6 +438,22 @@ public final class ProcMesh {
             vertices[o + 6] = (swatch * SWATCH_BLOCK + SWATCH_BLOCK / 2f) / ATLAS;
             vertices[o + 7] = (SWATCH_BLOCK / 2f) / ATLAS;
             return i;
+        }
+
+        /** A flat quad (four corners in order round it, 12 floats) with one normal; the winding is fixed to face along it. */
+        void quad(float[] p, float nx, float ny, float nz, int swatch) {
+            int[] k = new int[4];
+            for (int i = 0; i < 4; i++) k[i] = vu(p[3 * i], p[3 * i + 1], p[3 * i + 2], nx, ny, nz, swatch);
+            float ux = p[3] - p[0], uy = p[4] - p[1], uz = p[5] - p[2];
+            float vx = p[6] - p[0], vy = p[7] - p[1], vz = p[8] - p[2];
+            float dot = (uy * vz - uz * vy) * nx + (uz * vx - ux * vz) * ny + (ux * vy - uy * vx) * nz;
+            if (dot > 0f) {
+                t(k[0], k[1], k[2]);
+                t(k[0], k[2], k[3]);
+            } else {
+                t(k[0], k[2], k[1]);
+                t(k[0], k[3], k[2]);
+            }
         }
 
         /** A triangle that is counter-clockwise seen from +Z-side {@code side} (+1), or mirrored for the back (-1). */

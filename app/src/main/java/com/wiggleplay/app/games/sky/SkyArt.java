@@ -125,7 +125,7 @@ final class SkyArt {
     }
 
     /** A red horseshoe magnet with silver tips, opening downward. */
-    private static void paintMagnet(Canvas c, int w, int h) {
+    public static void paintMagnet(Canvas c, int w, int h) {
         float cx = w / 2f, cy = h * 0.5f, r = 48f;
         for (int pass = 0; pass < 2; pass++) {
             float o = pass == 0 ? 5f : 0f;

@@ -269,4 +269,28 @@ public class ProcMeshTest {
         assertTrue(used[ProcMesh.SWATCH_CAN_BODY] && used[ProcMesh.SWATCH_CAN_BAND] && used[ProcMesh.SWATCH_CAN_CAP]
                 && used[ProcMesh.SWATCH_CAN_BOLT]);
     }
+
+    @Test
+    public void magnetIsAHorseshoeWithSilverTips() {
+        MeshData m = ProcMesh.magnet();
+        MeshData.Part p = only(m);
+        assertEquals(116, m.triangleCount());
+        assertIndicesInRange(m);
+        assertOutwardWinding(m);
+        float minY = 1e9f, maxY = -1e9f, maxX = 0f, maxZ = 0f;
+        boolean[] used = new boolean[ProcMesh.SWATCH_RGB.length];
+        for (int v = 0; v < p.vertexCount; v++) {
+            minY = Math.min(minY, p.vertices[v * 8 + 1]);
+            maxY = Math.max(maxY, p.vertices[v * 8 + 1]);
+            maxX = Math.max(maxX, Math.abs(p.vertices[v * 8]));
+            maxZ = Math.max(maxZ, Math.abs(p.vertices[v * 8 + 2]));
+            int sw = (int) (p.vertices[v * 8 + 6] * 512f) / ProcMesh.SWATCH_BLOCK;
+            used[sw] = true;
+        }
+        assertEquals(-0.38f, minY, 1e-4f);
+        assertEquals(0.46f, maxY, 1e-3f);
+        assertEquals(0.46f, maxX, 1e-4f);
+        assertEquals(0.13f, maxZ, 1e-4f);
+        assertTrue(used[ProcMesh.SWATCH_MAGNET_RED] && used[ProcMesh.SWATCH_MAGNET_DARK] && used[ProcMesh.SWATCH_MAGNET_SILVER]);
+    }
 }

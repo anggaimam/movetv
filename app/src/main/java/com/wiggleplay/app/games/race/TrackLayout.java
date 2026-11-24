@@ -54,6 +54,8 @@ public final class TrackLayout {
         public final boolean[] corner;
         /** True where the "coin" is a nitro can instead (T-26; it is worth no points). */
         public final boolean[] nitro;
+        /** True where the "coin" is a magnet instead (it is worth 1 point like the coin it replaces). */
+        public final boolean[] magnet;
         /** Number of coins. */
         public final int count;
         /** Distance along the centre line of the golden star (one per lap, at a corner apex). */
@@ -61,7 +63,8 @@ public final class TrackLayout {
         /** Offset of the golden star. */
         public final float starOffset;
 
-        Slots(float[] s, float[] offset, boolean[] corner, boolean[] nitro, int count, float starS, float starOffset) {
+        Slots(float[] s, float[] offset, boolean[] corner, boolean[] nitro, boolean[] magnet, int count, float starS, float starOffset) {
+            this.magnet = magnet;
             this.s = s;
             this.offset = offset;
             this.corner = corner;
@@ -578,6 +581,19 @@ public final class TrackLayout {
      * @return the slots, sorted by distance along the lap
      */
     public Slots coinSlots(long seed, int nitroCans) {
+        return coinSlots(seed, nitroCans, 0);
+    }
+
+    /**
+     * Coin, star, nitro-can and magnet positions. With {@code magnets} = 1 the middle coin of one straight that has no
+     * nitro can becomes a magnet (the straight is chosen from the seed with its own random numbers, so lanes, cans and the
+     * slot count stay the same).
+     * @param seed layout seed
+     * @param nitroCans cans per lap (at most one per straight)
+     * @param magnets 0 or 1 magnet per lap
+     * @return the slots, sorted by distance along the lap
+     */
+    public Slots coinSlots(long seed, int nitroCans, int magnets) {
         Random rnd = new Random(seed);
         int n = tiles.size();
         int straights = 0, cornerTiles = 0;
@@ -593,6 +609,17 @@ public final class TrackLayout {
         float stride = cans > 0 ? (float) straights / cans : 0f;
         float first0 = cans > 0 ? new Random(seed ^ 0x9E3779B97F4A7C15L).nextFloat() * stride : 0f;
         int nextCan = 0, canStraight = cans > 0 ? (int) first0 : -1;
+        boolean[] canAt = new boolean[Math.max(1, straights)];
+        for (int q = 0; q < cans; q++) canAt[(int) (first0 + q * stride)] = true;
+        int magStraight = -1;
+        if (magnets > 0 && straights > 0) {
+            int start = new Random(seed ^ 0x2545F4914F6CDD1DL).nextInt(straights);
+            for (int q = 0; q < straights; q++) {
+                int cand = (start + q) % straights;
+                if (!canAt[cand]) { magStraight = cand; break; }
+            }
+        }
+        boolean[] mag = new boolean[cs.length];
         int count = 0;
         final float[] lanes = {-2.5f, 0f, 2.5f};
         int prev = -1, first = -1, seenStraights = 0;
@@ -618,6 +645,7 @@ public final class TrackLayout {
                     cs[count] = s0 + CELL / 2f + (k - 2) * 1.6f;
                     co[count] = lanes[pick];
                     nit[count] = can && k == 2;
+                    mag[count] = seenStraights - 1 == magStraight && k == 2;
                     count++;
                 }
             } else {
@@ -635,6 +663,6 @@ public final class TrackLayout {
         }
         float starS = 0f;
         if (!cornerIdx.isEmpty()) starS = tileS0[cornerIdx.get(rnd.nextInt(cornerIdx.size()))] + ARC_LEN / 2f;
-        return new Slots(cs, co, cor, nit, count, starS, 0f);
+        return new Slots(cs, co, cor, nit, mag, count, starS, 0f);
     }
 }

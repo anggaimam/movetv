@@ -276,6 +276,16 @@ public final class TileMenu {
             }
         }
 
+        /**
+         * Swaps the picture on this tile (the steering button cycles between a wheel and a body).
+         * @param key short name of the picture, part of the cache key
+         * @param painter paints the new picture
+         */
+        public void setIcon(String key, SpriteCache.Painter painter) {
+            int isz = (int) Theme.iconSize(w, h);
+            iconBmp = Theme.icon("tileicon_" + id + "_" + key + "_" + isz, isz, painter);
+        }
+
         boolean contains(float px, float py) {
             return px >= x && px <= x + w && py >= y && py <= y + h;
         }

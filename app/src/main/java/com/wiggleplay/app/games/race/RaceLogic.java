@@ -13,6 +13,8 @@ import com.wiggleplay.app.games.common.StarRules;
  *       first finisher in a two-player race, or after 150 s. There is never a game over.</li>
  *   <li><b>Coins</b>: each player has their own coins (from {@link TrackLayout#coinSlots}) and one golden star per lap
  *       at the same place. A coin is picked up within 2.0 units: +1 (the star +5). Coins come back every lap.
+ *       One coin per lap is a <b>magnet</b> (worth 1 like the coin it replaces): for {@link #MAGNET_SECONDS} s every plain coin
+ *       within {@link #MAGNET_RANGE} units of the truck slides to it and is picked up (like the Sky Glider magnet).
  *       "Offered" is the sum of every coin and star that was collected or that the player drove past.</li>
  *   <li><b>Boost</b>: a meter 0..1. On Easy it starts full, fills 0.2 per second and 0.15 per coin. On Medium and Hard
  *       (T-26, {@link RaceLevel#earnedBoost}) it starts empty and only nitro cans fill it, {@link RaceLevel#NITRO_FILL}
@@ -35,6 +37,8 @@ public final class RaceLogic {
     public static final float GRACE_SECONDS = 10f;
     /** Coin pickup distance. */
     public static final float PICKUP_RADIUS = 2.0f;
+    /** Seconds a magnet pulls coins in, and how far (world units) from the truck it reaches. Like the Sky Glider's magnet. */
+    public static final float MAGNET_SECONDS = 6f, MAGNET_RANGE = 9f;
     /** Value of a coin and of the golden star. */
     public static final int COIN_VALUE = 1, STAR_VALUE = 5;
 
@@ -60,6 +64,10 @@ public final class RaceLogic {
     private final boolean[] starEvent = new boolean[2], lapEvent = new boolean[2];
     private final int[] nitroEvents = new int[2];
     private final boolean[][] slotNitro = new boolean[2][];
+    private final boolean[][] slotMagnet = new boolean[2][];
+    private final float[] magnetLeft = new float[2];
+    private final int[] magnetEvents = new int[2];
+    private final float[][] baseX = new float[2][], baseZ = new float[2][];
 
     // coin slots per player (sorted by s), with their world positions
     private final float[][] slotS = new float[2][], slotX = new float[2][], slotZ = new float[2][];
@@ -96,11 +104,11 @@ public final class RaceLogic {
     }
 
     private void buildSlots(int p, long seed) {
-        TrackLayout.Slots sl = track.coinSlots(seed, level.nitroPerLap);
+        TrackLayout.Slots sl = track.coinSlots(seed, level.nitroPerLap, 1);
         int n = sl.count + 1;
         float[] s = new float[n], off = new float[n];
         int[] val = new int[n];
-        boolean[] cor = new boolean[n], nit = new boolean[n];
+        boolean[] cor = new boolean[n], nit = new boolean[n], mag = new boolean[n];
         int k = 0;
         boolean starIn = false;
         for (int i = 0; i <= sl.count; i++) {
@@ -116,6 +124,7 @@ public final class RaceLogic {
                 off[k] = sl.offset[i];
                 cor[k] = sl.corner[i];
                 nit[k] = sl.nitro[i];
+                mag[k] = sl.magnet[i];
                 val[k] = nit[k] ? 0 : COIN_VALUE;   // a nitro can is worth no points: stars do not depend on it
                 k++;
             }
@@ -124,6 +133,7 @@ public final class RaceLogic {
         slotValue[p] = val;
         slotCorner[p] = cor;
         slotNitro[p] = nit;
+        slotMagnet[p] = mag;
         slotX[p] = new float[n];
         slotZ[p] = new float[n];
         resolved[p] = new boolean[n];
@@ -133,6 +143,8 @@ public final class RaceLogic {
             slotX[p][i] = smp[0] - (float) Math.cos(smp[2]) * off[i];
             slotZ[p][i] = smp[1] + (float) Math.sin(smp[2]) * off[i];
         }
+        baseX[p] = slotX[p].clone();   // slotX / slotZ move while a magnet pulls coins; these stay
+        baseZ[p] = slotZ[p].clone();
     }
 
     /**
@@ -175,16 +187,17 @@ public final class RaceLogic {
             }
             if (!finished[p] && !level.earnedBoost) meter[p] = Math.min(1f, meter[p] + 0.2f * dt);
             car[p].update(dt, steer[p], boosting[p], braking[p] && !boosting[p], track);
+            if (magnetLeft[p] > 0f) magnetLeft[p] = Math.max(0f, magnetLeft[p] - dt);
         }
         if (players == 2) bump();
         if (wasOver) return;
         for (int p = 0; p < players; p++) {
             if (finished[p]) continue;
-            lapsAndCoins(p);
+            lapsAndCoins(p, dt);
         }
     }
 
-    private void lapsAndCoins(int p) {
+    private void lapsAndCoins(int p, float dt) {
         float s = car[p].s();
         float raw = s - lastS[p];
         float ds = raw;
@@ -199,6 +212,8 @@ public final class RaceLogic {
             for (int i = 0; i < slotS[p].length; i++) { // whatever was not collected counts as offered
                 if (!resolved[p][i]) offered[p] += slotValue[p][i];
                 resolved[p][i] = false;
+                slotX[p][i] = baseX[p][i];   // coins the magnet pulled go back to their place for the next lap
+                slotZ[p][i] = baseZ[p][i];
             }
             scan[p] = 0;
             sinceCount[p] = s;
@@ -217,15 +232,28 @@ public final class RaceLogic {
         int n = ss.length;
         float cx = car[p].x(), cz = car[p].z();
         float r2 = PICKUP_RADIUS * PICKUP_RADIUS;
-        for (int i = scan[p]; i < n && ss[i] <= s + LOOK_AHEAD; i++) {
+        boolean pulling = magnetLeft[p] > 0f;
+        float look = pulling ? MAGNET_RANGE + 1f : LOOK_AHEAD;
+        float pull = 1f - (float) Math.exp(-dt / 0.28f), rng2 = MAGNET_RANGE * MAGNET_RANGE;
+        for (int i = scan[p]; i < n && ss[i] <= s + look; i++) {
             if (done[i]) continue;
+            if (pulling && slotValue[p][i] == COIN_VALUE && !slotNitro[p][i] && !slotMagnet[p][i]) {
+                float px = slotX[p][i] - cx, pz = slotZ[p][i] - cz;
+                if (px * px + pz * pz <= rng2) {   // a plain coin within reach slides to the truck
+                    slotX[p][i] -= px * pull;
+                    slotZ[p][i] -= pz * pull;
+                }
+            }
             float dx = slotX[p][i] - cx, dz = slotZ[p][i] - cz;
             if (dx * dx + dz * dz <= r2) {
                 done[i] = true;
                 int v = slotValue[p][i];
                 score[p] += v;
                 offered[p] += v;
-                if (slotNitro[p][i]) {
+                if (slotMagnet[p][i]) {
+                    magnetLeft[p] = MAGNET_SECONDS;
+                    magnetEvents[p]++;
+                } else if (slotNitro[p][i]) {
                     nitroEvents[p]++;
                     meter[p] = Math.min(1f, meter[p] + RaceLevel.NITRO_FILL);
                 } else if (v == STAR_VALUE) {
@@ -412,6 +440,32 @@ public final class RaceLogic {
         nitroEvents[p] = 0;
         return c;
     }
+
+    /**
+     * Magnets picked up since the last call (for the sound).
+     * @param p player 0 or 1
+     * @return the number of magnets
+     */
+    public int consumeMagnet(int p) {
+        int c = magnetEvents[p];
+        magnetEvents[p] = 0;
+        return c;
+    }
+
+    /**
+     * Seconds the magnet still pulls coins.
+     * @param p player 0 or 1
+     * @return 0 to {@link #MAGNET_SECONDS}
+     */
+    public float magnetLeft(int p) { return magnetLeft[p]; }
+
+    /**
+     * Whether a slot is the magnet.
+     * @param p player 0 or 1
+     * @param i slot number
+     * @return true for the magnet
+     */
+    public boolean slotIsMagnet(int p, int i) { return slotMagnet[p][i]; }
 
     /**
      * Whether a slot is a nitro can.

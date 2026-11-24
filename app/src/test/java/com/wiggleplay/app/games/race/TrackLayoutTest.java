@@ -399,4 +399,27 @@ public class TrackLayoutTest {
         TrackLayout t = TrackMaps.forLevel(0);
         assertEquals(17, countNitro(t.coinSlots(3L, 99)));
     }
+
+    @Test
+    public void magnetReplacesTheMiddleCoinOfOneStraightWithoutACan() {
+        for (int lv = 0; lv < 3; lv++) {
+            TrackLayout t = TrackMaps.forLevel(lv);
+            int cans = lv == 0 ? 0 : lv == 1 ? 4 : 5;
+            TrackLayout.Slots with = t.coinSlots(42L, cans, 1), without = t.coinSlots(42L, cans, 0);
+            assertEquals(without.count, with.count);
+            int m = 0;
+            for (int i = 0; i < with.count; i++) {
+                assertEquals(without.s[i], with.s[i], 0f);
+                assertEquals(without.offset[i], with.offset[i], 0f);
+                assertEquals(without.nitro[i], with.nitro[i]);
+                assertFalse(without.magnet[i]);
+                if (with.magnet[i]) {
+                    m++;
+                    assertFalse("not on a corner", with.corner[i]);
+                    assertFalse("not a can", with.nitro[i]);
+                }
+            }
+            assertEquals("level " + lv, 1, m);
+        }
+    }
 }

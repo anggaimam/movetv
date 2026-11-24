@@ -342,6 +342,49 @@ public final class RaceArt {
         else kid(c, cx, foot, kh, 1f, 14f, 0f, 0xFF29B6F6);
     }
 
+    /** The Sky Glider's red horseshoe magnet, drawn centred at (cx, cy) with the given size. */
+    public static void magnet(Canvas c, float cx, float cy, float size) {
+        c.save();
+        c.translate(cx - size / 2f, cy - size / 2f);
+        c.scale(size / 192f, size / 192f);
+        com.wiggleplay.app.games.sky.SkyArt.paintMagnet(c, 192, 192);
+        c.restore();
+    }
+
+    private static final Path CAN_BOLT = new Path();
+
+    /** A nitro can (blue, white band, orange cap, yellow bolt), centred at (cx, cy), about size tall. */
+    public static void can(Canvas c, float cx, float cy, float size) {
+        float u = size / 100f;
+        FILL.setColor(0xFF2E9BE8);
+        R.set(cx - 30f * u, cy - 26f * u, cx + 30f * u, cy + 46f * u);
+        c.drawRoundRect(R, 9f * u, 9f * u, FILL);
+        FILL.setColor(0xFFF5F5F5);
+        c.drawRect(cx - 30f * u, cy - 6f * u, cx + 30f * u, cy + 14f * u, FILL);
+        FILL.setColor(0xFFFF7E44);
+        R.set(cx - 12f * u, cy - 44f * u, cx + 12f * u, cy - 22f * u);
+        c.drawRoundRect(R, 5f * u, 5f * u, FILL);
+        FILL.setColor(0xFF2E9BE8);
+        c.drawRect(cx - 18f * u, cy - 30f * u, cx + 18f * u, cy - 20f * u, FILL);
+        FILL.setColor(0xFFFFE14D);
+        Path p = CAN_BOLT;
+        p.rewind();
+        p.moveTo(cx + 8f * u, cy - 18f * u);
+        p.lineTo(cx - 14f * u, cy + 14f * u);
+        p.lineTo(cx + 2f * u, cy + 14f * u);
+        p.lineTo(cx - 8f * u, cy + 42f * u);
+        p.lineTo(cx + 16f * u, cy + 6f * u);
+        p.lineTo(cx, cy + 6f * u);
+        p.close();
+        c.drawPath(p, FILL);
+    }
+
+    /** Picture for the steering button on the level screen: a steering wheel (wheel mode) or the leaning body (lean mode). */
+    public static void paintSteerButton(Canvas c, int w, int h, int mode) {
+        if (mode == MODE_LEAN) paintSteerTile(c, w, h, MODE_LEAN);
+        else paintIcon(c, w, h, MODE_WHEEL, 0xFF2B3A4A);
+    }
+
     /** Size of the baked steering icons. */
     static final int ICON = 240;
 

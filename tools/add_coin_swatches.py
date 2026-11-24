@@ -13,7 +13,8 @@ import os
 from PIL import Image
 
 SWATCH_RGB = [0xF2C572, 0xD9A441, 0xC48E32, 0xFFE08A, 0xFFC933, 0xFFE680, 0xD9A21E,
-              0x2E9BE8, 0xF5F5F5, 0xFF7E44, 0xFFE14D]   # 7 to 10: the T-26 nitro can
+              0x2E9BE8, 0xF5F5F5, 0xFF7E44, 0xFFE14D,   # 7 to 10: the T-26 nitro can
+              0xE8504A, 0x9C2F2A, 0xE3E8EE]   # 11 to 13: the magnet
 BLOCK = 16
 
 path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "app", "src", "main", "assets", "art", "race",

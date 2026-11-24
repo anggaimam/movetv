@@ -6,7 +6,6 @@ import android.view.KeyEvent;
 
 import com.wiggleplay.app.core.ProfileLogic;
 import com.wiggleplay.app.core.Scene;
-import com.wiggleplay.app.core.SpriteCache;
 import com.wiggleplay.app.core.Stage;
 import com.wiggleplay.app.games.GameInfo;
 import com.wiggleplay.app.games.GameRegistry;
@@ -21,15 +20,13 @@ import java.util.List;
 /**
  * Picks the level of the chosen game: Easy (sprout), Medium (tree) or Hard (mountain), each showing the stars
  * earned so far. Selecting one starts the game's scene with {@code {gameId, level 1|2|3, players 1|2}}.
- * Turbo Trucks also shows a row with two small tiles under the levels, Wheel and Lean (T-23 Part B2): picking one
- * ticks it and saves it in the profile; the race starts with {@code steer} set to the ticked one.
+ * Turbo Trucks also shows one steering button at the top, beside the settings gear (T-23 Part B2): each press switches
+ * between a steering wheel and a body (lean), saves it in the profile, and the race starts with that {@code steer}.
  */
 public final class LevelSelectScene implements Scene {
 
     private static final String[] IDS = {"level1", "level2", "level3"};
     private static final String[] NAMES = {"Easy", "Medium", "Hard"};
-    private static final String[] STEER_IDS = {"steer_wheel", "steer_lean"};
-    private static final String[] STEER_NAMES = {"Steer: Wheel", "Steer: Lean"};
 
     private final TileMenu.Env env;
     private final TileMenu menu;
@@ -40,7 +37,8 @@ public final class LevelSelectScene implements Scene {
     private String title = "";
     private int players = 1;
     private boolean racing;
-    private final TileMenu.Tile[] steerTiles = new TileMenu.Tile[2];
+    private TileMenu.Tile steerTile;
+    private int steerMode = RaceArt.MODE_WHEEL;
 
     /**
      * Creates the screen.
@@ -64,7 +62,7 @@ public final class LevelSelectScene implements Scene {
         tiles.add(RoundButton.back());
         tiles.add(RoundButton.settings());
         racing = "race".equals(gameId);
-        float w = 480f, h = racing ? 460f : 560f, gap = 64f, x0 = (Stage.W - 3f * w - 2f * gap) / 2f;
+        float w = 480f, h = 560f, gap = 64f, x0 = (Stage.W - 3f * w - 2f * gap) / 2f;
         int[] colours = {Theme.MUSTARD, Theme.ORANGE, Theme.PINK};
         com.wiggleplay.app.core.SpriteCache.Painter[] icons = {Theme::paintSprout, Theme::paintTree, Theme::paintMountain};
         for (int i = 0; i < 3; i++) {
@@ -74,19 +72,14 @@ public final class LevelSelectScene implements Scene {
             tiles.add(t);
         }
         if (racing) {
-            String saved = env.profile != null ? env.profile.raceSteer() : ProfileLogic.DEFAULT_RACE_STEER;
-            float sw = 480f, sh = 190f, sgap = 64f, sx = (Stage.W - 2f * sw - sgap) / 2f;
-            for (int i = 0; i < 2; i++) {
-                final int mode = i == 0 ? RaceArt.MODE_WHEEL : RaceArt.MODE_LEAN;
-                SpriteCache.Painter icon = (c, bw, bh) -> RaceArt.paintSteerTile(c, bw, bh, mode);
-                TileMenu.Tile t = new TileMenu.Tile(STEER_IDS[i], STEER_NAMES[i], null,
-                        i == 0 ? Theme.ORANGE : Theme.SAGE, icon, sx + i * (sw + sgap), 830f, sw, sh);
-                steerTiles[i] = t;
-                tiles.add(t);
-            }
-            tickSteer(saved);
+            // T-23 B2 (second try): ONE button at the top, beside the settings gear, that cycles wheel -> body -> wheel
+            steerMode = ProfileLogic.STEER_LEAN.equals(env.profile != null ? env.profile.raceSteer() : ProfileLogic.DEFAULT_RACE_STEER)
+                    ? RaceArt.MODE_LEAN : RaceArt.MODE_WHEEL;
+            steerTile = new TileMenu.Tile("steer", "Steering", null, Theme.ORANGE, null, 1290f, 20f, 300f, 300f);
+            tiles.add(steerTile);
         }
         menu.setTiles(tiles, IDS[0]);
+        if (racing) showSteerIcon();
     }
 
     @Override
@@ -108,14 +101,12 @@ public final class LevelSelectScene implements Scene {
             return;
         }
         if (sel == null) return;
-        if (racing) {
-            for (int i = 0; i < 2; i++) {
-                if (!STEER_IDS[i].equals(sel)) continue;
-                String id = i == 0 ? ProfileLogic.STEER_WHEEL : ProfileLogic.STEER_LEAN;
-                if (env.profile != null) env.profile.setRaceSteer(id);
-                tickSteer(id);
-                return;
-            }
+        if (racing && "steer".equals(sel)) {
+            steerMode = steerMode == RaceArt.MODE_WHEEL ? RaceArt.MODE_LEAN : RaceArt.MODE_WHEEL;
+            if (env.profile != null) env.profile.setRaceSteer(steerMode == RaceArt.MODE_LEAN ? ProfileLogic.STEER_LEAN : ProfileLogic.STEER_WHEEL);
+            env.sfx("select");
+            showSteerIcon();
+            return;
         }
         for (int i = 0; i < 3; i++) {
             if (IDS[i].equals(sel) && game != null) {
@@ -131,10 +122,10 @@ public final class LevelSelectScene implements Scene {
         }
     }
 
-    /** Puts the tick on the chosen steering tile only. */
-    private void tickSteer(String chosen) {
-        steerTiles[0].cornerBadge = ProfileLogic.STEER_WHEEL.equals(chosen) ? Theme.checkBadge() : null;
-        steerTiles[1].cornerBadge = ProfileLogic.STEER_LEAN.equals(chosen) ? Theme.checkBadge() : null;
+    /** Shows the picture of the chosen steering mode on the button. */
+    private void showSteerIcon() {
+        final int mode = steerMode;
+        steerTile.setIcon(mode == RaceArt.MODE_LEAN ? "lean" : "wheel", (c, bw, bh) -> RaceArt.paintSteerButton(c, bw, bh, mode));
     }
 
     @Override

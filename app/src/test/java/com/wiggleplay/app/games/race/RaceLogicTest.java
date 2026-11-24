@@ -313,4 +313,58 @@ public class RaceLogicTest {
         assertEquals(coinsAndStar, r.offered(0));
         assertTrue(r.score(0) <= r.offered(0));
     }
+
+    // ---- the magnet ----
+
+    private static int magnets(RaceLogic r) {
+        int n = 0;
+        for (int k = 0; k < r.slotCount(0); k++) if (r.slotIsMagnet(0, k)) n++;
+        return n;
+    }
+
+    @Test public void oneMagnetPerLapOnEveryLevelAndItIsNotACanOrTheStar() {
+        for (int lv = 0; lv < 3; lv++) {
+            RaceLogic r = new RaceLogic(TrackMaps.forLevel(lv), RaceLevel.fromNumber(lv + 1), 1, 42L);
+            assertEquals("level " + lv, 1, magnets(r));
+            for (int k = 0; k < r.slotCount(0); k++) {
+                if (r.slotIsMagnet(0, k)) assertFalse(r.slotIsNitro(0, k) || r.slotIsStar(0, k));
+            }
+        }
+    }
+
+    /** The magnet is worth a coin; picking it up starts 6 s in which coins slide in; the coins go back for the next lap. */
+    @Test public void magnetPullsCoinsInAndTheyGoBackNextLap() {
+        TrackLayout t = TrackMaps.forLevel(0);
+        RaceLogic r = new RaceLogic(t, RaceLevel.EASY, 1, 42L);
+        int n = r.slotCount(0);
+        float[] x0 = new float[n], z0 = new float[n];
+        for (int k = 0; k < n; k++) { x0[k] = r.slotX(0, k); z0[k] = r.slotZ(0, k); }
+        boolean got = false, moved = false, wrapped = false;
+        float maxLeft = 0f;
+        int coinsWhile = 0;
+        for (int i = 0; i < 100 * 60 && !r.over(); i++) {
+            r.setControls(0, seekerSteer(r, t, 2.5f), false);
+            r.update(DT);
+            if (r.consumeMagnet(0) > 0) got = true;
+            maxLeft = Math.max(maxLeft, r.magnetLeft(0));
+            if (r.magnetLeft(0) > 0f) {
+                coinsWhile += r.consumeCoins(0);
+                for (int k = 0; k < n; k++) {
+                    if (!r.slotGone(0, k) && (r.slotX(0, k) != x0[k] || r.slotZ(0, k) != z0[k])) moved = true;
+                }
+            }
+            if (r.consumeLap(0) && r.lapsDone(0) == 1) {
+                wrapped = true;
+                for (int k = 0; k < n; k++) {
+                    assertEquals("slot " + k + " back in place", x0[k], r.slotX(0, k), 1e-6f);
+                    assertEquals(z0[k], r.slotZ(0, k), 1e-6f);
+                }
+            }
+        }
+        assertTrue("picked up the magnet", got);
+        assertEquals(RaceLogic.MAGNET_SECONDS, maxLeft, 0.1f);
+        assertTrue("coins slid towards the truck", moved);
+        assertTrue("coins collected while it pulled: " + coinsWhile, coinsWhile >= 2);
+        assertTrue("a lap was finished", wrapped);
+    }
 }
