@@ -640,6 +640,13 @@ public class ScreenshotTest {
                 new float[] {0f, 40f, 110f}, 10f, 0.55f, 1280, 420));
     }
 
+    /** T-27: the shared how-to-play figure in the eight poses of the pose sheet, and blends between them. */
+    @Test
+    public void howToFigurePoses() throws Exception {
+        check(FigureSheet.shoot("howto_poses"));
+        check(FigureSheet.shootBlends("howto_blends"));
+    }
+
     @Test
     public void raceRulesLean() throws Exception { race("race_rules_lean", 2, "lean", 75, true, null); }
 
