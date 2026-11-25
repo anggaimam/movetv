@@ -18,9 +18,18 @@ package com.wiggleplay.app.games.race;
  *       half the truck width 0.75). At the wall the truck is put back along the road's normal and its heading turns toward the
  *       road direction by half the difference; once per 0.5 s its speed is multiplied by 0.85 and
  *       {@link #consumeHitWall()} reports the hit. There is no off-road slowdown any more.</li>
+ *   <li>T-31: ramps. On a ramp the truck rises (y up to 0.8 m, pitch +9 degrees); at the lip it leaves the ground with a vertical
+ *       speed of {@code clamp(0.5 x speed, 4, 9)} under gravity {@link #GRAVITY}. In the air steering is 40 % of the ground rate, the
+ *       assist, the heading limit and the wall stay on, the speed is held, and the nose follows the climb and fall (at most -10 to +12
+ *       degrees). Landing keeps the speed and eases the nose with a small dip. The truck never flips.</li>
  * </ul>
  */
 public final class CarModel {
+
+    /** Gravity in the air (units per second squared), the share of the yaw rate kept in the air, and the pitch limits (radians). */
+    public static final float GRAVITY = 20f, AIR_STEER = 0.4f;
+    public static final float PITCH_MIN = (float) Math.toRadians(-10.0), PITCH_MAX = (float) Math.toRadians(12.0);
+    private static final float RAMP_PITCH = (float) Math.toRadians(9.0), LAND_DIP = (float) Math.toRadians(3.0), LAND_SECONDS = 0.25f;
 
     private static final float GRIP_MIN = 0.2f;
     private static final float MIN_SPEED_FRACTION = 0.35f;
@@ -38,6 +47,10 @@ public final class CarModel {
     private boolean hitWall;
     private float sinceWall = 10f;
     private int hint = -1;
+    // T-31: height, vertical speed, air state, ramp under the wheels, extra pitch from ramp and air, events
+    private float y, vy, airPitch, landT = LAND_SECONDS, landFrom, impact;
+    private boolean air, launched, landed;
+    private int onRamp = -1;
 
     /**
      * Largest |offset| the truck can reach on a road: the barrier's inner face (half-width + 0.6) minus half the truck
@@ -80,6 +93,14 @@ public final class CarModel {
         frontYaw = 0f;
         hitWall = false;
         sinceWall = 10f;
+        y = 0f;
+        vy = 0f;
+        airPitch = 0f;
+        landT = LAND_SECONDS;
+        air = false;
+        launched = false;
+        landed = false;
+        onRamp = -1;
         hint = t.project(x, z, -1, tp);
         s = tp.s;
         offset = tp.offset;
@@ -104,11 +125,11 @@ public final class CarModel {
         float target = base * (boosting ? 1.5f : 1f) * (braking && !boosting ? 0.4f : 1f);
         target = Math.max(target, MIN_SPEED_FRACTION * base);
         float before = speed;
-        speed += (target - speed) * Math.min(1f, dt * (target > speed ? 6f : 8f));
+        if (!air) speed += (target - speed) * Math.min(1f, dt * (target > speed ? 6f : 8f));   // in the air the speed is held
         float gripTarget = Math.max(GRIP_MIN, Math.min(1f, speed / base));
         grip += (gripTarget - grip) * Math.min(1f, dt * 4f);
 
-        float rate = -steer * maxYaw * grip
+        float rate = -steer * maxYaw * grip * (air ? AIR_STEER : 1f)
                 + assist * (2f * angleDiff(roadYaw, yaw) + 0.5f * tp.offset / half);
         yaw += rate * dt;
         float err = angleDiff(yaw, roadYaw);
@@ -137,6 +158,7 @@ public final class CarModel {
         }
         s = tp.s;
         offset = tp.offset;
+        vertical(dt, t.roadObjects());
 
         lean = -steer / 5f * Math.min(1f, speed / base);
         float accel = (speed - before) / dt;
@@ -145,6 +167,56 @@ public final class CarModel {
         spin += speed * dt / WHEEL_RADIUS;
         if (spin > TWO_PI) spin -= TWO_PI;
         frontYaw = -steer * 0.6f;
+    }
+
+    /** Ramp, flight and landing (T-31): runs after the new s and offset are known. */
+    private void vertical(float dt, RoadObjects ro) {
+        if (air) {
+            y += vy * dt;
+            vy -= GRAVITY * dt;
+            if (y <= 0f) {
+                impact = Math.abs(vy);
+                y = 0f;
+                vy = 0f;
+                air = false;
+                landed = true;
+                landT = 0f;
+                landFrom = airPitch;
+            } else {
+                float p = 0.6f * (float) Math.atan2(vy, speed);
+                airPitch = Math.max(PITCH_MIN, Math.min(PITCH_MAX, p));
+            }
+            return;
+        }
+        int r = ro.rampAt(s, offset);
+        if (r >= 0) {
+            onRamp = r;
+            y = RoadObjects.RAMP_HEIGHT * Math.max(0f, Math.min(1f, (s - (ro.s(r) - RoadObjects.RAMP_LENGTH)) / RoadObjects.RAMP_LENGTH));
+            airPitch = RAMP_PITCH;
+            return;
+        }
+        if (onRamp >= 0) {
+            // left the ramp: over the lip (a launch) or off its side (a drop from where it is)
+            boolean lip = s >= ro.s(onRamp) && Math.abs(offset - ro.lateral(onRamp)) <= RoadObjects.RAMP_HIT;
+            onRamp = -1;
+            air = true;
+            if (lip) {
+                y = RoadObjects.RAMP_HEIGHT;
+                vy = Math.max(4f, Math.min(9f, 0.5f * speed));
+                launched = true;
+            } else {
+                vy = 0f;
+            }
+            return;
+        }
+        y = 0f;
+        if (landT < LAND_SECONDS) {
+            landT += dt;
+            float u = Math.min(1f, landT / LAND_SECONDS);
+            airPitch = landFrom * (1f - u) - LAND_DIP * (float) Math.sin(Math.PI * u);
+        } else {
+            airPitch += (0f - airPitch) * Math.min(1f, dt * 8f);
+        }
     }
 
     /**
@@ -175,6 +247,41 @@ public final class CarModel {
         return h;
     }
 
+    /**
+     * Whether the truck left a ramp's lip since the last call.
+     * @return true once per jump
+     */
+    public boolean consumeLaunch() {
+        boolean e = launched;
+        launched = false;
+        return e;
+    }
+
+    /**
+     * Whether the truck touched down since the last call.
+     * @return true once per landing; {@link #landingImpact} says how hard
+     */
+    public boolean consumeLanding() {
+        boolean e = landed;
+        landed = false;
+        return e;
+    }
+
+    /** @return the vertical speed at the last touch-down, units per second */
+    public float landingImpact() { return impact; }
+
+    /** @return height above the road in metres (0 on the ground, up to 0.8 on a ramp, more in the air) */
+    public float y() { return y; }
+
+    /** @return vertical speed in units per second */
+    public float verticalSpeed() { return vy; }
+
+    /** @return true while the truck is in the air */
+    public boolean airborne() { return air; }
+
+    /** @return the pitch from ramp, flight and landing alone, radians (nose up positive) */
+    public float airPitch() { return airPitch; }
+
     private static float angleDiff(float to, float from) {
         float d = to - from;
         while (d > (float) Math.PI) d -= TWO_PI;
@@ -203,7 +310,7 @@ public final class CarModel {
     /** @return body lean in radians (roll; leans away from the turn) */
     public float bodyLean() { return lean; }
     /** @return body pitch in radians (positive = nose up while speeding up) */
-    public float bodyPitch() { return pitch; }
+    public float bodyPitch() { return pitch + airPitch; }
     /** @return how far the wheels have turned, radians (0 to 2 pi) */
     public float wheelSpin() { return spin; }
     /** @return front wheel angle in radians (same sign as yaw) */

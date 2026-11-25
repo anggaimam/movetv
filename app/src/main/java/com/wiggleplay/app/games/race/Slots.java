@@ -15,6 +15,8 @@ public final class Slots {
     public final boolean[] nitro;
     /** True where the "coin" is a magnet instead (it is worth 1 point like the coin it replaces). */
     public final boolean[] magnet;
+    /** Height above the road of each coin in metres (T-31 ramp coins), 0 for the usual hover height. */
+    public final float[] height;
     /** Number of coins. */
     public final int count;
     /** Distance along the centre line of the golden star (one per lap, at a corner apex). */
@@ -23,6 +25,12 @@ public final class Slots {
     public final float starOffset;
 
     Slots(float[] s, float[] offset, boolean[] corner, boolean[] nitro, boolean[] magnet, int count, float starS, float starOffset) {
+        this(s, offset, corner, nitro, magnet, new float[count], count, starS, starOffset);
+    }
+
+    Slots(float[] s, float[] offset, boolean[] corner, boolean[] nitro, boolean[] magnet, float[] height, int count, float starS,
+          float starOffset) {
+        this.height = height;
         this.magnet = magnet;
         this.s = s;
         this.offset = offset;

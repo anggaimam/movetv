@@ -27,6 +27,7 @@ public final class TrackSpline implements TrackPath {
     private final float[] x, z, yaw, radius, fwdX, fwdZ;
     private final float minRadius;
     private RaceLevel level;
+    private RoadObjects objects = RoadObjects.NONE;
 
     private TrackSpline(float halfWidth, float lapLength, int count, float[] x, float[] z) {
         this.halfWidth = halfWidth;
@@ -111,8 +112,21 @@ public final class TrackSpline implements TrackPath {
      * @return the spline
      */
     public static TrackSpline build(TrackDef def, boolean reversed, RaceLevel level) {
+        return build(def, reversed, level, RoadObjects.RAMPS_ONLY);
+    }
+
+    /**
+     * Builds the road for a level with a chosen set of road objects.
+     * @param def the track shape
+     * @param reversed true to drive the road the other way
+     * @param level the level
+     * @param kinds the object kinds to include: {@link RoadObjects#RAMPS_ONLY}, {@link RoadObjects#ALL}, or 0 for a road without objects
+     * @return the spline
+     */
+    public static TrackSpline build(TrackDef def, boolean reversed, RaceLevel level, int kinds) {
         TrackSpline t = build(def, reversed, level.halfWidth);
         t.level = level;
+        t.objects = RoadObjects.of(def, reversed, level, level.halfWidth, kinds);
         return t;
     }
 
@@ -124,6 +138,11 @@ public final class TrackSpline implements TrackPath {
      * @return the slots, sorted by distance along the lap
      * @throws IllegalStateException if the spline was built from a bare half-width and not from a level
      */
+    @Override
+    public RoadObjects roadObjects() {
+        return objects;
+    }
+
     @Override
     public Slots coinSlots(long seed, int nitroCans, int magnets) {
         if (level == null) throw new IllegalStateException("coinSlots needs a spline built with a RaceLevel");

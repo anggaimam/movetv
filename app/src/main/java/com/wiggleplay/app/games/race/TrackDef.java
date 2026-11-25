@@ -21,6 +21,8 @@ public final class TrackDef {
      * directions. Do not modify.
      */
     public final float[] lakes;
+    /** Road objects (T-31) for the forward direction and for the reversed one, sorted by s. Do not modify. */
+    public final RoadObject[] objects, objectsReversed;
 
     /**
      * Creates a track definition.
@@ -38,6 +40,18 @@ public final class TrackDef {
      * @param lakes cx, cz, rx, rz, rotation (degrees) per lake; copied
      */
     public TrackDef(String id, String name, String themeId, float[] control, float[] lakes) {
+        this(id, name, themeId, control, lakes, new RoadObject[0], new RoadObject[0]);
+    }
+
+    /**
+     * Creates a track definition with lakes and road objects.
+     * @param objects the objects when driven forward (copied)
+     * @param objectsReversed the objects when driven the other way, with s measured along the reversed track (copied)
+     */
+    public TrackDef(String id, String name, String themeId, float[] control, float[] lakes, RoadObject[] objects,
+                    RoadObject[] objectsReversed) {
+        this.objects = objects.clone();
+        this.objectsReversed = objectsReversed.clone();
         this.lakes = lakes.clone();
         this.id = id;
         this.name = name;

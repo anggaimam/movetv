@@ -19,7 +19,7 @@ public class CoinPlannerTest {
         for (RaceLevel lv : RaceLevel.values()) {
             for (TrackDef def : TrackDefs.ALL) {
                 for (boolean rev : new boolean[] {false, true}) {
-                    TrackSpline t = TrackSpline.build(def, rev, lv);
+                    TrackSpline t = TrackSpline.build(def, rev, lv, 0);   // run planning without road objects (T-31 has its own tests)
                     c.run(TrackSpline.key(def, rev) + " " + lv, t, lv, t.coinSlots(SEED, lv.nitroPerLap, 1));
                 }
             }
@@ -141,7 +141,7 @@ public class CoinPlannerTest {
         StringBuilder bad = new StringBuilder();
         for (TrackDef def : TrackDefs.ALL) {
             for (boolean rev : new boolean[] {false, true}) {
-                TrackSpline t = TrackSpline.build(def, rev, RaceLevel.MEDIUM);
+                TrackSpline t = TrackSpline.build(def, rev, RaceLevel.MEDIUM, 0);
                 Slots sl = t.coinSlots(SEED, RaceLevel.MEDIUM.nitroPerLap, 1);
                 float limit = RaceLevel.MEDIUM.bendFrac * t.roadHalfWidth() + 1e-4f;
                 for (int i = 0; i < sl.count; i++) {
@@ -156,7 +156,7 @@ public class CoinPlannerTest {
     public void hardHasTwoCansOnBendsAndThreeInSideLanes() {
         for (TrackDef def : TrackDefs.ALL) {
             for (boolean rev : new boolean[] {false, true}) {
-                TrackSpline t = TrackSpline.build(def, rev, RaceLevel.HARD);
+                TrackSpline t = TrackSpline.build(def, rev, RaceLevel.HARD, 0);
                 Slots sl = t.coinSlots(SEED, RaceLevel.HARD.nitroPerLap, 1);
                 int onBend = 0, side = 0;
                 for (int i = 0; i < sl.count; i++) {
@@ -212,7 +212,7 @@ public class CoinPlannerTest {
     public void cansAndMagnetNeverMoveALane() {
         for (TrackDef def : TrackDefs.ALL) {
             for (boolean rev : new boolean[] {false, true}) {
-                TrackSpline t = TrackSpline.build(def, rev, RaceLevel.HARD);
+                TrackSpline t = TrackSpline.build(def, rev, RaceLevel.HARD, 0);
                 Slots plain = t.coinSlots(SEED, 0, 0), full = t.coinSlots(SEED, 5, 1);
                 assertEquals(plain.count, full.count);
                 assertEquals(plain.starS, full.starS, 0f);
@@ -228,7 +228,7 @@ public class CoinPlannerTest {
     @Test
     public void plansDifferBetweenTheTwoDirectionsAndSeedsButNotBetweenCalls() {
         for (TrackDef def : TrackDefs.ALL) {
-            TrackSpline f = TrackSpline.build(def, false, RaceLevel.MEDIUM), r = TrackSpline.build(def, true, RaceLevel.MEDIUM);
+            TrackSpline f = TrackSpline.build(def, false, RaceLevel.MEDIUM, 0), r = TrackSpline.build(def, true, RaceLevel.MEDIUM, 0);
             Slots a = f.coinSlots(SEED, 4, 1), b = r.coinSlots(SEED, 4, 1), a2 = f.coinSlots(SEED, 4, 1), c = f.coinSlots(SEED + 7919, 4, 1);
             boolean differs = a.count != b.count || a.starS != b.starS, seedDiffers = false;
             for (int i = 0; i < Math.min(a.count, b.count) && !differs; i++) {

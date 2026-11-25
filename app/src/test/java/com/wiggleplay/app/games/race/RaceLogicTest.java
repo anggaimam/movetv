@@ -249,9 +249,17 @@ public class RaceLogicTest {
 
     // ---- T-26: earned nitro on Medium and Hard ----
 
+    /** The nitro cans of the lap's planned runs (not the ones on ramps, T-31). */
     private static int cans(RaceLogic r) {
         int n = 0;
-        for (int k = 0; k < r.slotCount(0); k++) if (r.slotIsNitro(0, k)) n++;
+        for (int k = 0; k < r.slotCount(0); k++) if (r.slotIsNitro(0, k) && r.slotHeight(0, k) == 0f) n++;
+        return n;
+    }
+
+    /** The nitro cans on ramps (Medium and Hard, T-31). */
+    private static int rampCans(RaceLogic r) {
+        int n = 0;
+        for (int k = 0; k < r.slotCount(0); k++) if (r.slotIsNitro(0, k) && r.slotHeight(0, k) > 0f) n++;
         return n;
     }
 
@@ -435,7 +443,7 @@ public class RaceLogicTest {
                         if (c == 0) assertTrue(id + ": the meter rose by " + rise + " with no can", rise <= 1e-6f);
                         else assertEquals(id + ": a can fills half", 0.5f * c, rise, 1e-4f);
                     }
-                    assertEquals(id + " the seeker gets every can", lv.nitroPerLap * lv.laps, canCount);
+                    assertEquals(id + " the seeker gets every can", (lv.nitroPerLap + rampCans(r)) * lv.laps, canCount);
                     assertEquals(id + ": two cans per rocket", canCount / 2, boosts);
                 }
             }
@@ -488,8 +496,8 @@ public class RaceLogicTest {
                                 lv, DRIVER_NAMES[kind], TrackSpline.key(def, rev), x[0], x[1], pc, stars, x[2] / lv.laps, x[4]);
                         String id = lv + " " + DRIVER_NAMES[kind] + " " + TrackSpline.key(def, rev) + " ";
                         if (x[3] != 1f) bad.append(id).append("did not finish; ");
-                        // a single race may be 3 points under the low edge or 5 over the high edge
-                        if (kind == CENTRE && (pc < lo[lvI] - 3f || pc > hi[lvI] + 5f)) bad.append(id).append("centre ").append(pc).append("%; ");
+                        // a single race may be 3 points under the low edge or 7 over the high edge (T-31: ramp coins lift a centre driver; was 5)
+                        if (kind == CENTRE && (pc < lo[lvI] - 3f || pc > hi[lvI] + 7f)) bad.append(id).append("centre ").append(pc).append("%; ");
                         if (kind == SEEKER && pc < 72f) bad.append(id).append("seeker ").append(pc).append("%; ");
                         if (kind == CUTTER && pc < 37f) bad.append(id).append("cutter ").append(pc).append("%; ");
                         if (kind == CENTRE && lvI == 1 && x[2] / lv.laps < 3f) bad.append(id).append("cans/lap ").append(x[2] / lv.laps).append("; ");

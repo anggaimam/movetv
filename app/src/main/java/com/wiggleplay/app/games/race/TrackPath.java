@@ -44,4 +44,12 @@ public interface TrackPath {
      * @return the slots, sorted by distance along the lap
      */
     Slots coinSlots(long seed, int nitroCans, int magnets);
+
+    /**
+     * The road objects of this track for the race (T-31).
+     * @return the objects; {@link RoadObjects#NONE} for a track without any
+     */
+    default RoadObjects roadObjects() {
+        return RoadObjects.NONE;
+    }
 }

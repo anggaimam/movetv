@@ -26,6 +26,9 @@ public final class CoinPlanner {
     /** Bends for the star: |radius| under this in a region that turns more than 20 degrees; apex under STAR_APEX. */
     static final float BEND_REGION_RADIUS = 40f, STAR_APEX = 25f;
     static final float CAN_SPACING = 50f, CAN_REACH = 45f, MAGNET_FROM_START = 60f, MAGNET_FROM_CAN = 25f;
+    /** T-31: coin runs this close to a road object are dropped; a ramp gets its own 4 coins. */
+    static final float OBJECT_MARGIN = 6f;
+    static final float[] RAMP_COIN_AFTER = {2f, 4f, 6f, 8f}, RAMP_COIN_Y = {1.4f, 1.8f, 1.8f, 1.4f};
     private static final long STAR_SEED = 0x51A7C0DE5EEDL, MAGNET_SEED = 0x2545F4914F6CDD1DL;
 
     private CoinPlanner() { }
@@ -109,7 +112,12 @@ public final class CoinPlanner {
             starS = apexS[pick];
         }
         boolean[] gone = new boolean[runs];
-        for (int r = 0; r < runs; r++) gone[r] = starS >= runS[r] && starS <= runS[r] + RUN_SPAN;
+        RoadObjects ro = t.roadObjects();
+        for (int r = 0; r < runs; r++) {
+            gone[r] = starS >= runS[r] && starS <= runS[r] + RUN_SPAN;
+            // T-31: no coin run within 6 m of a ramp, pothole or patch (the lane and star choices above stay as they were)
+            if (ro.overlaps(runS[r], runS[r] + RUN_SPAN, OBJECT_MARGIN)) gone[r] = true;
+        }
 
         // 3. nitro cans: targets spread over the lap; the first nitroBendCans (spread evenly) go to bend runs
         int cans = Math.max(0, nitroCans);
@@ -173,11 +181,14 @@ public final class CoinPlanner {
             }
         }
 
-        // 5. write the slots, sorted by s
+        // 5. write the slots, sorted by s; every ramp adds 4 coins in its lane after the lip (a nitro can in place of the third on
+        //    Medium and Hard)
         int kept = 0;
         for (int r = 0; r < runs; r++) if (!gone[r]) kept++;
-        int count = kept * RUN_COINS;
-        float[] cs = new float[count], co = new float[count];
+        int ramps = 0;
+        for (int i = 0; i < ro.count(); i++) if (ro.kind(i) == RoadObjects.RAMP) ramps++;
+        int count = kept * RUN_COINS + ramps * RAMP_COIN_AFTER.length;
+        float[] cs = new float[count], co = new float[count], ch = new float[count];
         boolean[] cor = new boolean[count], nit = new boolean[count], mag = new boolean[count];
         int k = 0;
         for (int r = 0; r < runs; r++) {
@@ -192,7 +203,28 @@ public final class CoinPlanner {
                 k++;
             }
         }
-        return new Slots(cs, co, cor, nit, mag, count, starS, 0f);
+        for (int i = 0; i < ro.count(); i++) {
+            if (ro.kind(i) != RoadObjects.RAMP) continue;
+            for (int j = 0; j < RAMP_COIN_AFTER.length; j++) {
+                cs[k] = ro.s(i) + RAMP_COIN_AFTER[j];
+                co[k] = ro.lateral(i);
+                ch[k] = RAMP_COIN_Y[j];
+                nit[k] = lv.earnedBoost && j == 2;
+                k++;
+            }
+        }
+        // sort by s (insertion; the arrays are short and nearly sorted)
+        for (int a = 1; a < count; a++) {
+            for (int b = a; b > 0 && cs[b] < cs[b - 1]; b--) {
+                float t1 = cs[b]; cs[b] = cs[b - 1]; cs[b - 1] = t1;
+                float t2 = co[b]; co[b] = co[b - 1]; co[b - 1] = t2;
+                float t3 = ch[b]; ch[b] = ch[b - 1]; ch[b - 1] = t3;
+                boolean b1 = cor[b]; cor[b] = cor[b - 1]; cor[b - 1] = b1;
+                boolean b2 = nit[b]; nit[b] = nit[b - 1]; nit[b - 1] = b2;
+                boolean b3 = mag[b]; mag[b] = mag[b - 1]; mag[b - 1] = b3;
+            }
+        }
+        return new Slots(cs, co, cor, nit, mag, ch, count, starS, 0f);
     }
 
     private static boolean hasCan(int[] canRun, int r) {

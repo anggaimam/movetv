@@ -115,6 +115,10 @@ public final class RaceScene implements Scene {
 
     private RaceLogic logic;
     private TrackSpline layout;
+    /** T-31: pooled dust discs (x, z, age, unused) at a launch or landing, and the mesh. */
+    private final float[] dustPool = new float[8 * 4];
+    private int dustId = -1, dustNext;
+    private static final float DUST_SECONDS = 0.5f;
     private int buildMs;
     private float buildNoteT;
     private RaceLevel raceLevel = RaceLevel.EASY;
@@ -168,6 +172,8 @@ public final class RaceScene implements Scene {
             gl.loadMeshes(TRUCK_MESH[0], TRUCK_MESH[1], TRUCK_MESH[2], TRUCK_MESH[3]);
             groundId = -1;
             shadowId = gl.addMesh("shadow", ProcMesh.disc(1.2f));
+            dustId = gl.addMesh("dust", ProcMesh.disc(1f));
+            for (int i = 0; i < 8; i++) dustPool[i * 4 + 2] = DUST_SECONDS;
             coinId = gl.addMesh("coin", ProcMesh.coinReeded());
             starId = gl.addMesh("star", ProcMesh.starBevelled(0.9f, 0.4f, 0.2f));
             nitroId = gl.addMesh("nitro", ProcMesh.nitroCan());
@@ -421,6 +427,15 @@ public final class RaceScene implements Scene {
             if (logic.lapsDone(0) < logic.lapsTotal()) env.sfx("go");
             if (logic.currentLap(0) == logic.lapsTotal() && !logic.finished(0)) finalT = 0f;
         }
+        if (logic.consumeLaunch(0) > 0) {   // T-31: off the lip of a ramp
+            env.sfx("whoosh", 1.2f);
+            spawnDust(car.x(), car.z());
+        }
+        if (logic.consumeLanding(0) > 0) {
+            if (env.sfx != null) env.sfx.play("impact", 1.3f, Math.min(0.7f, 0.3f + 0.05f * logic.landingImpact(0)));
+            spawnDust(car.x(), car.z());
+            camera.onLanding();
+        }
         if (car.consumeHitWall() && env.sfx != null) {
             env.sfx.play("impact", 1f, Math.max(0.25f, Math.min(1f, car.speed() / (raceLevel.baseSpeed * 1.2f))));
         }
@@ -498,6 +513,22 @@ public final class RaceScene implements Scene {
         boolean low;
     }
 
+    /** Adds a world-space mesh to the library and puts it in the chunk of the middle of its bounds. */
+    private static void addStatic(WorldBuild w, String name, MeshData mesh, float[] ident) {
+        w.library.put(name, mesh);
+        MeshData.Part part = mesh.parts[0];
+        float minX = Float.MAX_VALUE, maxX = -Float.MAX_VALUE, minZ = Float.MAX_VALUE, maxZ = -Float.MAX_VALUE;
+        for (int v = 0; v < part.vertexCount; v++) {
+            float x = part.vertices[v * 8], z = part.vertices[v * 8 + 2];
+            minX = Math.min(minX, x);
+            maxX = Math.max(maxX, x);
+            minZ = Math.min(minZ, z);
+            maxZ = Math.max(maxZ, z);
+        }
+        w.placements.add(new StaticBatcher.Placement(name, ident, (int) Math.floor((minX + maxX) / 2f / CELL),
+                (int) Math.floor((minZ + maxZ) / 2f / CELL)));
+    }
+
     /** Builds the road, patches, props, rings, sky dome, detail texture and the merged chunks (worker thread, no GL, no view). */
     private static WorldBuild buildWorld(com.wiggleplay.app.games.race.Theme theme, TrackSpline layout, TrackDef def,
             boolean reversed, RaceLevel raceLevel, boolean low, boolean split, long t0) {
@@ -556,6 +587,15 @@ public final class RaceScene implements Scene {
                 w.library.put(name, GroundPatches.mesh(pt, pal));
                 w.placements.add(new StaticBatcher.Placement(name, ident, (int) Math.floor(pt.x / CELL), (int) Math.floor(pt.z / CELL)));
             }
+        }
+        // T-31: the ramps, the chevrons painted before them and the warning signs (static, in the chunks)
+        RoadObjects ro = layout.roadObjects();
+        for (int i = 0; i < ro.count(); i++) {
+            if (ro.kind(i) == RoadObjects.RAMP) {
+                addStatic(w, "ramp_" + i, ObjectMeshes.ramp(ro, i, layout, pal), ident);
+                addStatic(w, "marks_" + i, ObjectMeshes.rampMarks(ro, i, layout, pal), ident);
+            }
+            addStatic(w, "sign_" + i, ObjectMeshes.sign(ro, i, layout, pal), ident);
         }
         // T-29 Part B: props scattered by fixed rules on the forward track (same layout in both directions); the filler tier is
         // left out on LOW (and, with T-24, in 2P)
@@ -654,7 +694,20 @@ public final class RaceScene implements Scene {
 
     private void followCamera(float dt) {
         CarModel car = logic.car(0);
-        camera.update(dt, car.x(), car.z(), car.yaw(), logic.boosting(0));
+        camera.update(dt, car.x(), car.z(), car.yaw(), logic.boosting(0), car.y());
+        for (int i = 0; i < 8; i++) dustPool[i * 4 + 2] += dt;
+    }
+
+    /** Puts 4 dust discs round a place (a launch or a landing); the pool holds 8. */
+    private void spawnDust(float x, float z) {
+        for (int q = 0; q < 4; q++) {
+            int i = dustNext;
+            dustNext = (dustNext + 1) % 8;
+            double a = q * Math.PI / 2.0 + i;
+            dustPool[i * 4] = x + (float) Math.cos(a) * 0.6f;
+            dustPool[i * 4 + 1] = z + (float) Math.sin(a) * 0.6f;
+            dustPool[i * 4 + 2] = 0f;
+        }
     }
 
     private void submitWorld() {
@@ -694,7 +747,7 @@ public final class RaceScene implements Scene {
             if (logic.slotGone(0, i)) continue;
             float dx = logic.slotX(0, i) - car.x(), dz = logic.slotZ(0, i) - car.z();
             if (dx * dx + dz * dz > 55f * 55f || dx * fx + dz * fz < -8f) continue;
-            float y = 1.0f + 0.15f * (float) Math.sin(time * 4f + i);
+            float y = (logic.slotHeight(0, i) > 0f ? logic.slotHeight(0, i) : 1.0f) + 0.15f * (float) Math.sin(time * 4f + i);
             Mat4.translate(mT, logic.slotX(0, i), y, logic.slotZ(0, i));
             Mat4.rotY(mR, spin);
             Mat4.multiply(mA, mT, mR);
@@ -718,18 +771,29 @@ public final class RaceScene implements Scene {
             }
         }
         // the player's truck, then the three friendly scenery trucks
-        addTruck(0, car.x(), car.z(), car.yaw(), car.bodyLean(), car.bodyPitch(), car.wheelSpin(), car.frontWheelYaw());
+        addTruck(0, car.x(), car.y(), car.z(), car.yaw(), car.bodyLean(), car.bodyPitch(), car.wheelSpin(), car.frontWheelYaw());
+        // T-31: dust at the launch and the landing (alpha 0.6 to 0, radius 0.3 to 1.0 over 0.5 s)
+        for (int i = 0; dustId >= 0 && i < 8; i++) {
+            float age = dustPool[i * 4 + 2];
+            if (age >= DUST_SECONDS) continue;
+            float k = age / DUST_SECONDS, rad = 0.3f + 0.7f * k;
+            Mat4.translate(mT, dustPool[i * 4], 0.05f, dustPool[i * 4 + 1]);
+            Mat4.scale(mB, rad, 1f, rad);
+            Mat4.multiply(mA, mT, mB);
+            int rgb = theme.dust != 0 ? theme.dust : 0xCCCCCC;
+            list.add(dustId, 0, mA, (Math.round(0.6f * (1f - k) * 255f) << 24) | (rgb & 0xFFFFFF), true, 1);
+        }
         for (int i = 0; i < 3; i++) {
             layout.sample(scS[i], smp);
             float off = SCENERY_LANE[i] * raceLevel.laneFrac * layout.roadHalfWidth();
             float x = smp[0] - (float) Math.cos(smp[2]) * off, z = smp[1] + (float) Math.sin(smp[2]) * off;
-            addTruck(i + 1, x, z, smp[2], 0f, 0f, scSpin[i], scWheelYaw[i]);
+            addTruck(i + 1, x, 0f, z, smp[2], 0f, 0f, scSpin[i], scWheelYaw[i]);
         }
     }
 
     /** One truck: parts as {@code truck x T(part) [x rotY(front wheel)] x rotX(spin)}, plus its shadow. */
-    private void addTruck(int t, float x, float z, float yaw, float lean, float pitch, float spin, float frontYaw) {
-        Mat4.translate(mT, x, 0f, z);
+    private void addTruck(int t, float x, float y, float z, float yaw, float lean, float pitch, float spin, float frontYaw) {
+        Mat4.translate(mT, x, y, z);
         Mat4.rotY(mR, yaw);
         Mat4.multiply(mA, mT, mR);
         Mat4.rotZ(mR, lean);

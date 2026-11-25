@@ -5,6 +5,9 @@ package com.wiggleplay.app.games.race;
  * ahead of it at height 0.8. The position eases after the truck (rate 5 per second) and the camera heading eases
  * after the truck heading (rate 4 per second), so a sharp turn swings the picture round instead of jumping. The
  * field of view grows from 60 to 68 degrees during a boost, in 0.3 s. No shake, no allocation.
+ *
+ * <p>T-31: with the truck above the road the eye rises by 0.6 x the truck's height and the look-at point by 0.5 x it (both eased like
+ * everything else); a landing dips the eye by 0.2 m, easing back over 0.3 s.
  */
 public final class ChaseCamera {
 
@@ -23,8 +26,12 @@ public final class ChaseCamera {
 
     private final float[] eye = new float[3];
     private final float[] target = new float[3];
+    /** Share of the truck's height the eye and the look-at point follow, and the landing dip (m) and its length (s). */
+    public static final float EYE_RISE = 0.6f, TARGET_RISE = 0.5f, LAND_DIP = 0.2f, LAND_SECONDS = 0.3f;
+
     private float yaw;
     private float fov = FOV;
+    private float truckY, dipLeft;
 
     /**
      * Puts the camera right behind the truck at once (at the start of a round).
@@ -35,6 +42,8 @@ public final class ChaseCamera {
     public void snap(float x, float z, float truckYaw) {
         yaw = truckYaw;
         fov = FOV;
+        truckY = 0f;
+        dipLeft = 0f;
         place(x, z, 1f);
     }
 
@@ -47,6 +56,16 @@ public final class ChaseCamera {
      * @param boosting true during a boost
      */
     public void update(float dt, float x, float z, float truckYaw, boolean boosting) {
+        update(dt, x, z, truckYaw, boosting, 0f);
+    }
+
+    /**
+     * Follows the truck, which may be above the road (T-31).
+     * @param truckHeight the truck's height above the road in metres
+     */
+    public void update(float dt, float x, float z, float truckYaw, boolean boosting, float truckHeight) {
+        truckY = truckHeight;
+        dipLeft = Math.max(0f, dipLeft - dt);
         yaw += angleDiff(truckYaw, yaw) * Math.min(1f, dt * 4f);
         place(x, z, Math.min(1f, dt * 5f));
         float goal = boosting ? FOV_BOOST : FOV;
@@ -55,13 +74,19 @@ public final class ChaseCamera {
         else if (fov > goal) fov = Math.max(goal, fov - step);
     }
 
+    /** The truck has landed: the eye dips by {@link #LAND_DIP} and eases back over {@link #LAND_SECONDS}. */
+    public void onLanding() {
+        dipLeft = LAND_SECONDS;
+    }
+
     private void place(float x, float z, float k) {
         float fx = (float) Math.sin(yaw), fz = (float) Math.cos(yaw);
         eye[0] += (x - fx * BEHIND - eye[0]) * k;
-        eye[1] += (HEIGHT - eye[1]) * k;
+        float dip = LAND_DIP * dipLeft / LAND_SECONDS;
+        eye[1] += (HEIGHT + EYE_RISE * truckY - dip - eye[1]) * k;
         eye[2] += (z - fz * BEHIND - eye[2]) * k;
         target[0] += (x + fx * AHEAD - target[0]) * k;
-        target[1] += (LOOK_HEIGHT - target[1]) * k;
+        target[1] += (LOOK_HEIGHT + TARGET_RISE * truckY - target[1]) * k;
         target[2] += (z + fz * AHEAD - target[2]) * k;
     }
 

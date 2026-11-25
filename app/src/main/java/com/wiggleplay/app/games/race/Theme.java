@@ -308,6 +308,7 @@ public final class Theme {
         count += extraCount();
         if (count > PaletteSwatches.MAX) throw new IllegalStateException("theme " + id + " needs " + count + " swatches");
         road.paint(p);
+        ObjectMeshes.paint(p);   // T-31: swatches 10 to 15 for ramps, signs and road paint
         p.set(SW_GROUND, ground);
         p.set(SW_PATCH_A, patchA);
         p.set(SW_PATCH_B, patchB);

@@ -63,7 +63,7 @@ public final class RaceLogic {
     private final boolean[] finished = new boolean[2];
     private final int[] coinEvents = new int[2];
     private final boolean[] starEvent = new boolean[2], lapEvent = new boolean[2];
-    private final int[] nitroEvents = new int[2];
+    private final int[] nitroEvents = new int[2], launchEvents = new int[2], landEvents = new int[2];
     private final boolean[][] slotNitro = new boolean[2][];
     private final boolean[][] slotMagnet = new boolean[2][];
     private final float[] magnetLeft = new float[2];
@@ -73,6 +73,7 @@ public final class RaceLogic {
     // coin slots per player (sorted by s), with their world positions
     private final float[][] slotS = new float[2][], slotX = new float[2][], slotZ = new float[2][];
     private final int[][] slotValue = new int[2][];
+    private final float[][] slotHeight = new float[2][];
     private final boolean[][] resolved = new boolean[2][];
     private final boolean[][] slotCorner = new boolean[2][];
     private final int[] scan = new int[2];
@@ -111,6 +112,7 @@ public final class RaceLogic {
         float[] s = new float[n], off = new float[n];
         int[] val = new int[n];
         boolean[] cor = new boolean[n], nit = new boolean[n], mag = new boolean[n];
+        float[] hgt = new float[n];
         int k = 0;
         boolean starIn = false;
         for (int i = 0; i <= sl.count; i++) {
@@ -127,12 +129,14 @@ public final class RaceLogic {
                 cor[k] = sl.corner[i];
                 nit[k] = sl.nitro[i];
                 mag[k] = sl.magnet[i];
+                hgt[k] = sl.height[i];
                 val[k] = nit[k] ? 0 : COIN_VALUE;   // a nitro can is worth no points: stars do not depend on it
                 k++;
             }
         }
         slotS[p] = s;
         slotValue[p] = val;
+        slotHeight[p] = hgt;
         slotCorner[p] = cor;
         slotNitro[p] = nit;
         slotMagnet[p] = mag;
@@ -192,6 +196,10 @@ public final class RaceLogic {
             if (magnetLeft[p] > 0f) magnetLeft[p] = Math.max(0f, magnetLeft[p] - dt);
         }
         if (players == 2) bump();
+        for (int p = 0; p < players; p++) {
+            if (car[p].consumeLaunch()) launchEvents[p]++;
+            if (car[p].consumeLanding()) landEvents[p]++;
+        }
         if (wasOver) return;
         for (int p = 0; p < players; p++) {
             if (finished[p]) continue;
@@ -280,6 +288,10 @@ public final class RaceLogic {
         float dx = b.x() - a.x(), dz = b.z() - a.z();
         float d2 = dx * dx + dz * dz;
         float min = 2f * TRUCK_RADIUS;
+        if (a.y() > 0.3f || b.y() > 0.3f) {   // T-31: no pushing while one truck is in the air
+            touching = false;
+            return;
+        }
         if (d2 >= min * min) {
             touching = false;
             return;
@@ -504,6 +516,60 @@ public final class RaceLogic {
         lapEvent[p] = false;
         return e;
     }
+
+    /**
+     * Jumps (ramp lips) since the last call, for the whoosh and the dust.
+     * @param p player 0 or 1
+     * @return the number of launches
+     */
+    public int consumeLaunch(int p) {
+        int c = launchEvents[p];
+        launchEvents[p] = 0;
+        return c;
+    }
+
+    /**
+     * Landings since the last call; {@link #landingImpact} says how hard the last one was.
+     * @param p player 0 or 1
+     * @return the number of landings
+     */
+    public int consumeLanding(int p) {
+        int c = landEvents[p];
+        landEvents[p] = 0;
+        return c;
+    }
+
+    /**
+     * @param p player 0 or 1
+     * @return the vertical speed at the player's last landing
+     */
+    public float landingImpact(int p) { return car[p].landingImpact(); }
+
+    /**
+     * @param p player 0 or 1
+     * @return the truck's height above the road in metres
+     */
+    public float truckY(int p) { return car[p].y(); }
+
+    /**
+     * @param p player 0 or 1
+     * @return the truck's body pitch in radians
+     */
+    public float truckPitch(int p) { return car[p].bodyPitch(); }
+
+    /**
+     * @param p player 0 or 1
+     * @return true while the truck is in the air
+     */
+    public boolean airborne(int p) { return car[p].airborne(); }
+
+    /**
+     * Height of a slot above the road.
+     * @param p player 0 or 1
+     * @param i slot index
+     * @return metres; 0 for the usual hover height (ramp coins are 1.4 to 1.8)
+     */
+    public float slotHeight(int p, int i) { return slotHeight[p][i]; }
 
     /**
      * Number of coin and star slots one player has per lap.

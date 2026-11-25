@@ -8,9 +8,9 @@ public enum RaceLevel {
     /** 2 laps, road 11 m wide. The rocket meter starts full, fills by itself (0.2 per second) and with coins. */
     EASY(11f, 1.6f, 0.5f, false, 0, 5.5f, 2, 0.55f, 0.34f, 0.2f, 0),
     /** 3 laps, road 10 m wide. T-26: the rocket is earned with 4 nitro cans per lap (all on bends). */
-    MEDIUM(13f, 1.9f, 0.25f, true, 4, 5.0f, 3, 0.55f, 0.30f, 0.2f, 4),
+    MEDIUM(13f, 1.9f, 0.25f, true, 4, 5.0f, 3, 0.55f, 0.27f, 0.2f, 4),
     /** 3 laps, road 9 m wide. T-26: the rocket is earned with 5 nitro cans per lap (2 on bends, 3 in side lanes). */
-    HARD(15f, 2.2f, 0.1f, true, 5, 4.5f, 3, 0.55f, 0.25f, 0.2f, 2);
+    HARD(15f, 2.2f, 0.1f, true, 5, 4.5f, 3, 0.55f, 0.18f, 0.2f, 2);
 
     /** Extra road assist in two-player races. */
     public static final float TWO_PLAYER_ASSIST = 0.15f;
