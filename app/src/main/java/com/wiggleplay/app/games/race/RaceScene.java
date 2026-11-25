@@ -523,7 +523,9 @@ public final class RaceScene implements Scene {
         }
         if (terrain != null) {
             // R2: the ground is a height field cut into 60 m tiles
-            List<Terrain.Tile> tiles = terrain.build(pal, theme.terrainSwatch(0), theme.terrainSwatch(1));
+            List<Terrain.Tile> tiles = terrain.build(pal, theme.terrainSwatch(0), theme.terrainSwatch(1),
+                    theme.look.terrain.parkDark != 0 ? theme.terrainSwatch(2) : -1);
+            tiles.addAll(terrain.sidewalk(pal, theme.terrainSwatch(1)));
             for (int i = 0; i < tiles.size(); i++) {
                 String name = "terrain_" + i;
                 w.library.put(name, tiles.get(i).mesh);

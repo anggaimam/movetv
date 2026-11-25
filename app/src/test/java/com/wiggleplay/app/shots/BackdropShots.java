@@ -28,7 +28,7 @@ final class BackdropShots {
         return shoot(Themes.DESERT, "t29_desert_backdrop");
     }
 
-    private static File shoot(Theme th, String name) throws IOException {
+    static File shoot(Theme th, String name) throws IOException {
         float maxH = 0f;
         for (Theme.Ring r : th.rings) maxH = Math.max(maxH, r.maxH);
         maxH = (float) Math.ceil(maxH) + 1f;

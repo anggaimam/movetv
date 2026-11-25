@@ -45,12 +45,58 @@ public final class Themes {
                     new Terrain.Profile(20f, 4.5f, 36f, 0.3f, 0xCDA66B, 0xF2D9A6, 0xA88A63, 0xC7A97E)));
 
     /**
+     * City Lights (T-30a): hazy blue sky, light grey pavement, a raised sidewalk, park grass in patches, row buildings, towers and street
+     * furniture, two skyline rings. The ground is flat within 30 m of the road.
+     */
+    public static final Theme CITY = new Theme("city", 0x5F9ED1, 0xDCE6EE, 22f, 52f, new float[] {-0.45f, -0.80f, -0.40f},
+            0x9EA3A6, 0x9EA3A6, 0x4F8A45, 0, 0f, 0f,
+            new RoadStyle(0x4E535B, 0xC9453C, 0xF3EBDD, 0x8E959B, 0xE2E6E8, 0x2F3A45, 0xF3EBDD, 0xF3EBDD, 0x5B8DB8, 0xC9A44A,
+                    0x8E959B, 0xE2E6E8, 0xC9A44A, 0xF2D27A),
+            new Theme.Ring[] {
+                    new Theme.Ring(54f, 0x7F93A8, Theme.SKYLINE, 8f, 22f, 192, 21L, true, 0xA7B8C9),
+                    new Theme.Ring(57f, 0xA9B9C9, Theme.SKYLINE, 12f, 34f, 192, 22L, true, 0xC9D5E0)},
+            0xD9D6CF, Theme.SLICK_WATER,
+            new Theme.PropRule[] {
+                    new Theme.PropRule(PropMeshes.BUILDING, 6f, 13f, 24f, 6f, 0.85f, 1.1f, false,
+                            new int[] {0x8E4E3B, 0xC7795D, 0x6F8796, 0xB3C6D1, 0xC9B79C, 0xEFE2CB, 0x2E4A63, 0x8FB8D8, 0xC9A75A,
+                                    0xF7E3A6, 0x5E6266, 0x9AA0A6, 0xB5473D, 0xE8726A}, Theme.ORIENT_FACE_ROAD, 18f, 18f),
+                    new Theme.PropRule(PropMeshes.TOWER, 5f, 26f, 45f, 5.7f, 0.9f, 1.1f, true,
+                            new int[] {0x6F8796, 0xB3C6D1, 0x2E4A63, 0x8FB8D8, 0x5E6266, 0x9AA0A6}, Theme.ORIENT_FACE_ROAD, 18f, 18f),
+                    new Theme.PropRule(PropMeshes.LAMP, 8f, 8f, 8f, 1f, 1f, 1f, false,
+                            new int[] {0x3A4148, 0x7C858E, 0xE8D9A0, 0xFFF4D0}, Theme.ORIENT_FACE_ROAD, 0f, 0f),
+                    new Theme.PropRule(PropMeshes.STREET_TREE, 4f, 8.5f, 11f, 1.2f, 0.9f, 1.1f, true,
+                            new int[] {0x3F7A3A, 0x8CC070, 0x5A4030, 0x8E6A4E, 0x9A968E, 0xCFCBC2}),
+                    new Theme.PropRule(PropMeshes.PARKED_CAR, 3f, 9.5f, 12f, 2.4f, 0.97f, 1.03f, true,
+                            new int[] {0x8E2E2A, 0xE06A5E, 0x2C4F7A, 0x6C98C8, 0xB8BCC0, 0xF2F4F5, 0x26323C, 0x6E8494, 0x1E2024,
+                                    0x4A4D52}, Theme.ORIENT_PARALLEL, 0f, 0f),
+                    new Theme.PropRule(PropMeshes.BUS_STOP, 0.5f, 9f, 11f, 2f, 1f, 1f, false,
+                            new int[] {0x3A4148, 0x7C858E, 0x5E7A8C, 0xB9D2DE}, Theme.ORIENT_FACE_ROAD, 0f, 0f),
+                    new Theme.PropRule(PropMeshes.BENCH, 3f, 8.5f, 11f, 1f, 1f, 1f, true,
+                            new int[] {0x7A5236, 0xB3825C, 0x2F3439, 0x5E656C}, Theme.ORIENT_FACE_ROAD, 0f, 0f),
+                    new Theme.PropRule(PropMeshes.HYDRANT, 2f, 8.5f, 10f, 0.3f, 1f, 1f, true, new int[] {0xA8322C, 0xE5574D}),
+                    new Theme.PropRule(PropMeshes.BIN, 3f, 8.5f, 11f, 0.4f, 1f, 1f, true, new int[] {0x3D5A3F, 0x6E9470}),
+                    new Theme.PropRule(PropMeshes.SIGN, 2f, 8.2f, 9f, 0.5f, 1f, 1f, true,
+                            new int[] {0x7C858E, 0xC9CED2, 0xB5473D, 0xE8726A, 0x2C4F7A, 0x6C98C8}, Theme.ORIENT_FACE_ROAD, 0f, 0f),
+                    new Theme.PropRule(PropMeshes.CONE, 3f, 7.8f, 9f, 0.5f, 1f, 1f, true,
+                            new int[] {0xC9672C, 0xF29A4C, 0xD8D8D2, 0xF4F4EE}),
+                    new Theme.PropRule(PropMeshes.FLOWER_PLANTER, 2f, 8.5f, 11f, 0.8f, 1f, 1f, true,
+                            new int[] {0x9A968E, 0xCFCBC2, 0xB5473D, 0xF2A0A0})},
+            // warm sun, cool sky light, concrete bounce; sky dome; grain: concrete ground, asphalt road, gravel (rings, brick), concrete
+            new Theme.Look(Theme.Look.scaled(0xA9BFD0, 0.62f), Theme.Look.scaled(0xB9B4AA, 0.48f),
+                    Theme.Look.scaled(0xFFF3E0, 0.60f), 0x5F9ED1, 0xFFF6E6,
+                    new int[] {DetailTexture.CONCRETE, DetailTexture.ASPHALT, DetailTexture.GRAVEL, DetailTexture.CONCRETE},
+                    // flat blocks to 30 m, then up to 0.6 m; sidewalk 6.4 to 9 m; park grass where the slow noise is above 0.62
+                    new Terrain.Profile(20f, 0.6f, 60f, 0.05f, 0x9EA3A6, 0xCDD0CD, 0xB5B2AA, 0xDCD8CE, 30f, 45f, true, 0x4F8A45,
+                            0x8CC070, 0.62f)));
+
+    /**
      * The theme of a track.
      * @param id {@code TrackDef.themeId}
      * @return the theme; {@link #MEADOW} for an id that is unknown or not built yet
      */
     public static Theme byId(String id) {
         if ("desert".equals(id)) return DESERT;
+        if ("city".equals(id)) return CITY;
         return MEADOW;
     }
 }

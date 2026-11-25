@@ -8,30 +8,38 @@ import com.wiggleplay.app.gl.PaletteSwatches;
 import org.junit.Test;
 
 public class PropMeshesTest {
-    private static final Theme T = Themes.DESERT;
+    /** The theme that uses a kind: Desert Dunes for the first 8 kinds, City Lights for the rest. */
+    private static Theme themeOf(int kind) {
+        return kind >= PropMeshes.BUILDING ? Themes.CITY : Themes.DESERT;
+    }
 
     private static int ruleOf(int kind) {
-        for (int r = 0; r < T.props.length; r++) if (T.props[r].kind == kind) return r;
+        Theme t = themeOf(kind);
+        for (int r = 0; r < t.props.length; r++) if (t.props[r].kind == kind) return r;
         throw new IllegalStateException("kind " + kind);
     }
 
     private static MeshData build(int kind, int v, PaletteSwatches pal) {
-        return PropMeshes.build(kind, v, pal, T.propSwatches(ruleOf(kind)));
+        return PropMeshes.build(kind, v, pal, themeOf(kind).propSwatches(ruleOf(kind)));
     }
 
+    /** One palette holding the swatches of both themes' kinds is not possible, so each kind gets its own theme's palette. */
     private static PaletteSwatches pal() {
+        return new PaletteSwatches();
+    }
+
+    private static PaletteSwatches pal(int kind) {
         PaletteSwatches p = new PaletteSwatches();
-        T.fillPalette(p);
+        themeOf(kind).fillPalette(p);
         return p;
     }
 
     @Test
     public void everyKindStaysUnderItsTriangleLimit() {
-        PaletteSwatches pal = pal();
         for (int k = 0; k < PropMeshes.COUNT; k++) {
             assertTrue(PropMeshes.variants(k) >= 1);
             for (int v = 0; v < PropMeshes.variants(k); v++) {
-                MeshData m = build(k, v, pal);
+                MeshData m = build(k, v, pal(k));
                 assertEquals(1, m.parts.length);
                 assertTrue("kind " + k + " variant " + v + " has " + m.triangleCount(), m.triangleCount() <= PropMeshes.MAX_TRIANGLES[k]);
                 assertTrue(m.triangleCount() > 0);
@@ -42,10 +50,9 @@ public class PropMeshesTest {
 
     @Test
     public void baseIsAtGroundLevelAndNothingIsBelowIt() {
-        PaletteSwatches pal = pal();
         for (int k = 0; k < PropMeshes.COUNT; k++) {
             for (int v = 0; v < PropMeshes.variants(k); v++) {
-                MeshData.Part p = build(k, v, pal).parts[0];
+                MeshData.Part p = build(k, v, pal(k)).parts[0];
                 float min = Float.MAX_VALUE, max = -Float.MAX_VALUE;
                 for (int i = 0; i < p.vertexCount; i++) {
                     min = Math.min(min, p.vertices[i * 8 + 1]);
@@ -59,10 +66,9 @@ public class PropMeshesTest {
 
     @Test
     public void normalsAreUnitLength() {
-        PaletteSwatches pal = pal();
         for (int k = 0; k < PropMeshes.COUNT; k++) {
             for (int v = 0; v < PropMeshes.variants(k); v++) {
-                MeshData.Part p = build(k, v, pal).parts[0];
+                MeshData.Part p = build(k, v, pal(k)).parts[0];
                 for (int i = 0; i < p.vertexCount; i++) {
                     float x = p.vertices[i * 8 + 3], y = p.vertices[i * 8 + 4], z = p.vertices[i * 8 + 5];
                     assertEquals("kind " + k + " normal", 1f, (float) Math.sqrt(x * x + y * y + z * z), 0.01f);
@@ -73,11 +79,10 @@ public class PropMeshesTest {
 
     @Test
     public void everyUvIsInsideItsRulesSwatchesAndOneBlockPerTriangle() {
-        PaletteSwatches pal = pal();
         for (int k = 0; k < PropMeshes.COUNT; k++) {
-            int[] sw = T.propSwatches(ruleOf(k));
+            int[] sw = themeOf(k).propSwatches(ruleOf(k));
             for (int v = 0; v < PropMeshes.variants(k); v++) {
-                MeshData.Part p = build(k, v, pal).parts[0];
+                MeshData.Part p = build(k, v, pal(k)).parts[0];
                 for (int i = 0; i < p.indices.length; i += 3) {
                     int block = -1;
                     for (int c = 0; c < 3; c++) {
@@ -100,11 +105,10 @@ public class PropMeshesTest {
 
     @Test
     public void reachCoversTheFootprintOfTheMesh() {
-        PaletteSwatches pal = pal();
         for (int k = 0; k < PropMeshes.COUNT; k++) {
             float r = PropMeshes.reach(k);
             for (int v = 0; v < PropMeshes.variants(k); v++) {
-                MeshData.Part p = build(k, v, pal).parts[0];
+                MeshData.Part p = build(k, v, pal(k)).parts[0];
                 for (int i = 0; i < p.vertexCount; i++) {
                     float d = (float) Math.hypot(p.vertices[i * 8], p.vertices[i * 8 + 2]);
                     assertTrue("kind " + k + " reach " + d + " > " + r, d <= r + 1e-3f);
@@ -115,9 +119,8 @@ public class PropMeshesTest {
 
     @Test
     public void sameInputsGiveTheSameMesh() {
-        PaletteSwatches pal = pal();
         for (int k = 0; k < PropMeshes.COUNT; k++) {
-            MeshData a = build(k, 0, pal), b = build(k, 0, pal);
+            MeshData a = build(k, 0, pal(k)), b = build(k, 0, pal(k));
             assertTrue(java.util.Arrays.equals(a.parts[0].vertices, b.parts[0].vertices));
             assertTrue(java.util.Arrays.equals(a.parts[0].indices, b.parts[0].indices));
         }

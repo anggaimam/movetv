@@ -20,14 +20,18 @@ public final class PropMeshes {
     /** Prop kinds. */
     public static final int SAGUARO = 0, BUTTE = 1, BARREL_CACTI = 2, ROCKS = 3, JOSHUA_TREE = 4, SCRUB = 5, DRY_GRASS = 6,
             PEBBLES = 7;
+    /** City Lights kinds (T-30a), built by {@link CityProps}. */
+    public static final int BUILDING = 8, TOWER = 9, LAMP = 10, STREET_TREE = 11, PARKED_CAR = 12, BUS_STOP = 13, BENCH = 14,
+            HYDRANT = 15, BIN = 16, SIGN = 17, CONE = 18, FLOWER_PLANTER = 19;
     /** Number of kinds. */
-    public static final int COUNT = 8;
+    public static final int COUNT = 20;
     /** Triangle limits of the ticket, per kind. */
-    public static final int[] MAX_TRIANGLES = {450, 900, 300, 400, 400, 120, 14, 48};
+    public static final int[] MAX_TRIANGLES = {450, 900, 300, 400, 400, 120, 14, 48,
+            1000, 600, 120, 300, 500, 300, 120, 80, 80, 60, 40, 150};
     /** Number of ramps each kind needs in its rule. */
-    public static final int[] RAMPS = {1, 2, 2, 1, 2, 1, 1, 1};
+    public static final int[] RAMPS = {1, 2, 2, 1, 2, 1, 1, 1, 7, 3, 2, 3, 5, 2, 2, 1, 1, 3, 2, 2};
 
-    private static final int[] VARIANTS = {3, 2, 3, 3, 2, 1, 2, 2};
+    private static final int[] VARIANTS = {3, 2, 3, 3, 2, 1, 2, 2, 3, 3, 2, 2, 3, 2, 2, 1, 2, 3, 2, 1};
     private static final float[] REACH = new float[COUNT];
 
     private PropMeshes() { }
@@ -59,7 +63,8 @@ public final class PropMeshes {
     public static synchronized float reach(int kind) {
         if (REACH[kind] == 0f) {
             PaletteSwatches pal = new PaletteSwatches();
-            int[] sw = {0, 1};
+            int[] sw = new int[RAMPS[kind]];
+            for (int i = 0; i < sw.length; i++) sw[i] = i;
             float r = 0f;
             for (int v = 0; v < variants(kind); v++) {
                 MeshData.Part p = build(kind, v, pal, sw).parts[0];
@@ -70,6 +75,30 @@ public final class PropMeshes {
             REACH[kind] = r;
         }
         return REACH[kind];
+    }
+
+    private static int[] ramps(int kind) {
+        int[] sw = new int[RAMPS[kind]];
+        for (int i = 0; i < sw.length; i++) sw[i] = i;
+        return sw;
+    }
+
+    private static final float[][] VARIANT_HEIGHT = new float[COUNT][4];
+
+    /**
+     * The height of one variant at scale 1.
+     * @param kind a kind
+     * @param variant 0 to {@code variants(kind) - 1}
+     * @return metres
+     */
+    public static synchronized float height(int kind, int variant) {
+        if (VARIANT_HEIGHT[kind][variant] == 0f) {
+            MeshData.Part p = build(kind, variant, new PaletteSwatches(), ramps(kind)).parts[0];
+            float h = 0f;
+            for (int i = 0; i < p.vertexCount; i++) h = Math.max(h, p.vertices[i * 8 + 1]);
+            VARIANT_HEIGHT[kind][variant] = h;
+        }
+        return VARIANT_HEIGHT[kind][variant];
     }
 
     private static final float[] HEIGHT = new float[COUNT];
@@ -84,7 +113,7 @@ public final class PropMeshes {
             PaletteSwatches pal = new PaletteSwatches();
             float h = 0f;
             for (int v = 0; v < variants(kind); v++) {
-                MeshData.Part p = build(kind, v, pal, new int[] {0, 1}).parts[0];
+                MeshData.Part p = build(kind, v, pal, ramps(kind)).parts[0];
                 for (int i = 0; i < p.vertexCount; i++) h = Math.max(h, p.vertices[i * 8 + 1]);
             }
             HEIGHT[kind] = h;
@@ -127,6 +156,42 @@ public final class PropMeshes {
                 break;
             case PEBBLES:
                 pebbles(k, variant, sw[0], rnd);
+                break;
+            case BUILDING:
+                CityProps.building(k, variant, sw, rnd);
+                break;
+            case TOWER:
+                CityProps.tower(k, variant, sw, rnd);
+                break;
+            case LAMP:
+                CityProps.lamp(k, variant, sw);
+                break;
+            case STREET_TREE:
+                CityProps.streetTree(k, variant, sw, rnd);
+                break;
+            case PARKED_CAR:
+                CityProps.car(k, variant, sw);
+                break;
+            case BUS_STOP:
+                CityProps.busStop(k, variant, sw);
+                break;
+            case BENCH:
+                CityProps.bench(k, variant, sw);
+                break;
+            case HYDRANT:
+                CityProps.hydrant(k, sw);
+                break;
+            case BIN:
+                CityProps.bin(k, variant, sw);
+                break;
+            case SIGN:
+                CityProps.sign(k, variant, sw);
+                break;
+            case CONE:
+                CityProps.cone(k, variant, sw);
+                break;
+            case FLOWER_PLANTER:
+                CityProps.planter(k, sw, rnd);
                 break;
             default:
                 throw new IllegalArgumentException("unknown prop kind " + kind);

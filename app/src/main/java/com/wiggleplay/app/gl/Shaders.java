@@ -50,7 +50,7 @@ final class Shaders {
             + "  float q = 3.0;\n"
             + "  float strength = 0.4;\n"
             + "  float scale = 0.5;\n"
-            + "  if (blk < 10.0 || (blk > 99.5 && blk < 103.5)) { q = 1.0; strength = 0.7; scale = 1.0; }\n"
+            + "  if (blk < 10.0 || ((blk > 99.5 && blk < 103.5) || (blk > 105.5 && blk < 106.5))) { q = 1.0; strength = 0.7; scale = 1.0; }\n"
             + "  else if (blk > 15.5 && blk < 18.5) { q = 0.0; strength = 1.2; scale = 0.25; }\n"
             + "  else if (blk > 20.5 && blk < 26.5) { q = 2.0; strength = 0.8; scale = 0.25; }\n"
             + "  if (uDetailOn > 1.5) { q = 0.0; strength = 1.2; scale = 0.25; }\n"

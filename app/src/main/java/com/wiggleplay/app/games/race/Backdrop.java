@@ -181,16 +181,36 @@ public final class Backdrop {
         return new Profile(l, rr);
     }
 
-    /** Blocks 1 to 3 columns wide, heights stepped in 1.5 m units between minH and maxH, no gaps. */
+    /**
+     * SKYLINE v2 (T-30a): blocks 1 to 4 columns wide whose heights step in 1.5 m units between minH and maxH, each with an uneven top
+     * (a lower outer column, now and then a second setback) and, in some blocks, a thin spire up to 1.1 times the block height (never
+     * above maxH). No column goes below minH.
+     */
     private static Profile skyline(Theme.Ring r, Random rnd) {
         int n = r.segments;
         int steps = (int) Math.floor((r.maxH - r.minH) / 1.5f) + 1;
         float[] l = new float[n], rr = new float[n];
         int pos = 0;
         while (pos < n) {
-            int w = 1 + rnd.nextInt(3);
+            int w = 1 + rnd.nextInt(4);
             float h = r.minH + 1.5f * rnd.nextInt(steps);
-            for (int i = 0; i < w && pos < n; i++, pos++) l[pos] = rr[pos] = h;
+            float[] f = new float[w];
+            java.util.Arrays.fill(f, 1f);
+            if (w == 2) {
+                f[rnd.nextBoolean() ? 0 : 1] = 0.86f;
+            } else if (w == 3) {
+                f[0] = 0.82f;
+                if (rnd.nextBoolean()) f[2] = 0.82f;
+            } else if (w == 4) {
+                f[0] = 0.8f;
+                f[3] = rnd.nextBoolean() ? 0.8f : 0.9f;
+                if (rnd.nextBoolean()) f[1] = 0.9f;
+            }
+            if (w >= 2 && rnd.nextInt(8) == 0) f[w / 2] = 1.1f;   // a spire
+            for (int i = 0; i < w && pos < n; i++, pos++) {
+                float hh = Math.max(r.minH, Math.min(r.maxH, h * f[i]));
+                l[pos] = rr[pos] = hh;
+            }
         }
         return new Profile(l, rr);
     }
@@ -254,6 +274,15 @@ public final class Backdrop {
         }
         float u0 = pal.u(th.ringSwatch(ringIndex)), v0 = pal.v(th.ringSwatch(ringIndex));
         float u1 = pal.u(th.ringAccentSwatch(ringIndex)), v1 = pal.v(th.ringAccentSwatch(ringIndex));
+        if (r.profile == Theme.SKYLINE && r.accent != 0) {
+            // vertical window streaks: every second column of some groups of four takes the light colour
+            for (int c = 0; c < n; c++) {
+                float a0 = (float) (2 * Math.PI * c / n), a1 = (float) (2 * Math.PI * (c + 1) / n);
+                boolean light = skylineStreak(r, c);
+                quad(b, r.radius, a0, a1, BASE_Y, BASE_Y, p.left[c], p.right[c], light ? u1 : u0, light ? v1 : v0);
+            }
+            return;
+        }
         for (int c = 0; c < n; c++) {
             float a0 = (float) (2 * Math.PI * c / n), a1 = (float) (2 * Math.PI * (c + 1) / n);
             float hl = p.left[c], hr = p.right[c];
@@ -264,6 +293,11 @@ public final class Backdrop {
                 quad(b, r.radius, a0, a1, BASE_Y, BASE_Y, hl, hr, u0, v0);
             }
         }
+    }
+
+    /** Whether column c of a SKYLINE ring with an accent takes the light colour (groups of 4 columns, every second one). */
+    static boolean skylineStreak(Theme.Ring r, int c) {
+        return (c & 1) == 0 && Noise.hash(c / 4, 11, r.seed) < (r.radius > 55.5f ? 0.3f : 0.6f);
     }
 
     /** The boundaries between the strata of a ring, from BASE_Y up: uneven thicknesses (0.6 to 1.7 shares), seeded by the ring. */

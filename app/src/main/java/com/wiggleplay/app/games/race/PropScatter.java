@@ -98,6 +98,14 @@ public final class PropScatter {
                     float z = sm[1] - (float) Math.sin(sm[2]) * side;
                     float fp = reach * scale;
                     if (!accept(t, x, z, fp, startSamples, px, pz, pr, placed)) continue;
+                    if (rule.tallAbove > 0f && PropMeshes.height(rule.kind, variant) * scale > rule.tallAbove
+                            && nearestRoad(t, x, z) < rule.tallMinDist) continue;
+                    float yaw = angle;
+                    if (rule.orient == Theme.ORIENT_FACE_ROAD) {
+                        yaw = left ? sm[2] + 1.5707964f : sm[2] - 1.5707964f;
+                    } else if (rule.orient == Theme.ORIENT_PARALLEL) {
+                        yaw = sm[2] + (rnd.nextBoolean() ? 0f : 3.1415927f) + (rnd.nextFloat() - 0.5f) * 0.1f;
+                    }
                     float y = 0f;
                     if (terrain != null) {
                         y = terrain.surface(x, z);
@@ -119,7 +127,7 @@ public final class PropScatter {
                     pz[placed] = z;
                     pr[placed] = fp;
                     placed++;
-                    Mat4.rotY(rot, angle);
+                    Mat4.rotY(rot, yaw);
                     Mat4.scale(sc, scale, scale, scale);
                     Mat4.multiply(rs, rot, sc);
                     Mat4.translate(tr, x, y, z);
@@ -127,12 +135,22 @@ public final class PropScatter {
                     Mat4.multiply(m, tr, rs);
                     out.add(new StaticBatcher.Placement(PropMeshes.name(rule.kind, variant), m, (int) Math.floor(x / 10f),
                             (int) Math.floor(z / 10f)));
-                    if (instances != null) instances.add(new Instance(rule.kind, variant, x, y + SINK, z, angle, scale, fp));
+                    if (instances != null) instances.add(new Instance(rule.kind, variant, x, y + SINK, z, yaw, scale, fp));
                     break;
                 }
             }
         }
         return placed;
+    }
+
+    /** Distance from a point to the nearest centre line sample. */
+    static float nearestRoad(TrackSpline t, float x, float z) {
+        float best = Float.MAX_VALUE;
+        for (int i = 0; i < t.sampleCount(); i++) {
+            float dx = t.sampleX(i) - x, dz = t.sampleZ(i) - z;
+            best = Math.min(best, dx * dx + dz * dz);
+        }
+        return (float) Math.sqrt(best);
     }
 
     private static boolean accept(TrackSpline t, float x, float z, float fp, int startSamples, float[] px, float[] pz,

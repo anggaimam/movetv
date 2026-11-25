@@ -131,7 +131,7 @@ public final class TrackMeshBuilder {
                     }
                 }
                 if (style.centreDash != 0 && ((int) Math.floor(sMid / 3f) & 1) == 0) {
-                    row(k, cx, cz, rx, rz, j, -0.125f, Y_PAINT, 0.125f, Y_PAINT, RoadStyle.RAMP_PAINT, 0.7f, 0.75f, 0f, 1f, 0f, a, b, c, d);
+                    row(k, cx, cz, rx, rz, j, -0.125f, Y_PAINT, 0.125f, Y_PAINT, RoadStyle.RAMP_DASH, 0.7f, 0.75f, 0f, 1f, 0f, a, b, c, d);
                 }
             }
 

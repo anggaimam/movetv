@@ -14,6 +14,8 @@ public final class Theme {
 
     /** Ring profiles. */
     public static final int MESAS = 0, ROLLING = 1, SKYLINE = 2, PEAKS = 3, CRATERS = 4, STARS = 5;
+    /** Prop orientations: any yaw; the local +z (the front) turned to the road; the local z parallel to the road. */
+    public static final int ORIENT_RANDOM = 0, ORIENT_FACE_ROAD = 1, ORIENT_PARALLEL = 2;
     /** Slippery patch kinds (T-31). */
     public static final int SLICK_NONE = 0, SLICK_ICE = 1, SLICK_WATER = 2;
 
@@ -113,9 +115,21 @@ public final class Theme {
         public final boolean tierB;
         /** Colour ramps of the prop as pairs {@code dark, light} ({@code 0xRRGGBB}); the meaning of each pair is set by the kind. */
         public final int[] colors;
+        /** How the prop is turned: {@link #ORIENT_RANDOM}, facing the road, or parallel to it (T-30a). */
+        public final int orient;
+        /** A prop taller than {@code tallAbove} (m, after scaling; 0 = no rule) stands at least {@code tallMinDist} from the road. */
+        public final float tallAbove, tallMinDist;
 
         public PropRule(int kind, float per100m, float minDist, float maxDist, float footprint, float minScale,
                         float maxScale, boolean tierB, int[] colors) {
+            this(kind, per100m, minDist, maxDist, footprint, minScale, maxScale, tierB, colors, ORIENT_RANDOM, 0f, 0f);
+        }
+
+        public PropRule(int kind, float per100m, float minDist, float maxDist, float footprint, float minScale,
+                        float maxScale, boolean tierB, int[] colors, int orient, float tallAbove, float tallMinDist) {
+            this.orient = orient;
+            this.tallAbove = tallAbove;
+            this.tallMinDist = tallMinDist;
             this.kind = kind;
             this.per100m = per100m;
             this.minDist = minDist;
@@ -312,6 +326,7 @@ public final class Theme {
         if (look.terrain != null) {
             p.setRamp(terrainSwatch(0), look.terrain.groundDark, look.terrain.groundLight);
             p.setRamp(terrainSwatch(1), look.terrain.shoulderDark, look.terrain.shoulderLight);
+            if (look.terrain.parkDark != 0) p.setRamp(terrainSwatch(2), look.terrain.parkDark, look.terrain.parkLight);
         }
         return count;
     }
@@ -319,7 +334,7 @@ public final class Theme {
     /**
      * The terrain swatches (only with a terrain profile): 0 = the ground ramp, 1 = the packed shoulder ramp. They take the places of the
      * flat ground and the first patch colour (16 and 17), which a terrain theme does not use; the shader gives blocks 16 to 18 the sand grain.
-     * @param k 0 or 1
+     * @param k 0 or 1, or 2 for the park grass ramp (a terrain with parks only; the grain of the ground)
      * @return the swatch index
      */
     public int terrainSwatch(int k) {

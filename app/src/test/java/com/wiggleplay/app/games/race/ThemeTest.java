@@ -17,7 +17,9 @@ public class ThemeTest {
     public void unknownAndUnbuiltThemesAreMeadow() {
         assertSame(Themes.MEADOW, Themes.byId("nope"));
         assertSame(Themes.MEADOW, Themes.byId(null));
-        assertSame(Themes.MEADOW, Themes.byId("city"));
+        assertSame(Themes.MEADOW, Themes.byId("rockies"));
+        assertSame(Themes.MEADOW, Themes.byId("space"));
+        assertSame(Themes.CITY, Themes.byId("city"));
         assertSame(Themes.DESERT, Themes.byId("desert"));
     }
 

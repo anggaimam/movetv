@@ -10,7 +10,7 @@ public final class RoadStyle {
 
     /** Ramp swatches of the detailed road (T-29R R3): asphalt, paint, the two kerb colours, galvanised rail, dark post. */
     public static final int RAMP_ASPHALT = 100, RAMP_PAINT = 101, RAMP_KERB_A = 102, RAMP_KERB_B = 103, RAMP_RAIL = 104,
-            RAMP_POST = 105;
+            RAMP_POST = 105, RAMP_DASH = 106;
 
     /** A colour times a brightness, clamped. */
     static int shade(int rgb, float k) {
@@ -35,9 +35,20 @@ public final class RoadStyle {
     public final int road, kerbA, kerbB, barrier, barrierStripe, startDark, startLight, archPost, archBanner;
     /** Colour of the centre dashes, 0 for no dashes. */
     public final int centreDash;
+    /** Optional ramps (dark, light) of the guard rail and the centre dashes; 0 keeps the galvanised rail and the white paint (T-30a). */
+    public final int railDark, railLight, dashDark, dashLight;
 
     public RoadStyle(int road, int kerbA, int kerbB, int barrier, int barrierStripe, int startDark, int startLight,
                      int archPost, int archBanner, int centreDash) {
+        this(road, kerbA, kerbB, barrier, barrierStripe, startDark, startLight, archPost, archBanner, centreDash, 0, 0, 0, 0);
+    }
+
+    public RoadStyle(int road, int kerbA, int kerbB, int barrier, int barrierStripe, int startDark, int startLight,
+                     int archPost, int archBanner, int centreDash, int railDark, int railLight, int dashDark, int dashLight) {
+        this.railDark = railDark;
+        this.railLight = railLight;
+        this.dashDark = dashDark;
+        this.dashLight = dashLight;
         this.road = road;
         this.kerbA = kerbA;
         this.kerbB = kerbB;
@@ -70,7 +81,8 @@ public final class RoadStyle {
         pal.setRamp(RAMP_PAINT, 0xD8D8D2, 0xF4F4EE);
         pal.setRamp(RAMP_KERB_A, shade(kerbA, 0.7f), shade(kerbA, 1.15f));
         pal.setRamp(RAMP_KERB_B, shade(kerbB, 0.75f), shade(kerbB, 1.05f));
-        pal.setRamp(RAMP_RAIL, 0x9CA3A8, 0xE6EAEC);
+        pal.setRamp(RAMP_RAIL, railDark != 0 ? railDark : 0x9CA3A8, railLight != 0 ? railLight : 0xE6EAEC);
+        pal.setRamp(RAMP_DASH, dashDark != 0 ? dashDark : 0xD8D8D2, dashLight != 0 ? dashLight : 0xF4F4EE);
         pal.setRamp(RAMP_POST, 0x5E656B, 0x7E858B);
     }
 }

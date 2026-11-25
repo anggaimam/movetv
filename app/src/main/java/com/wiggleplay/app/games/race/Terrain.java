@@ -28,9 +28,29 @@ public final class Terrain {
         public final int groundDark, groundLight;
         /** Packed shoulder ramp next to the road, dark and light end. */
         public final int shoulderDark, shoulderLight;
+        /** Distances from the road where the ground starts to rise and is fully shaped (8 and 22 for dunes). */
+        public final float riseFrom, riseTo;
+        /** True for a raised sidewalk beside the road ({@link #SIDEWALK_Y}, d from 6.4 to 9 m; T-30a). */
+        public final boolean sidewalk;
+        /** Park grass ramp (0 = no parks) and the noise level above which a cell is park. */
+        public final int parkDark, parkLight;
+        public final float parkLevel;
 
         public Profile(float windDeg, float amplitude, float wavelength, float bump, int groundDark, int groundLight,
                        int shoulderDark, int shoulderLight) {
+            this(windDeg, amplitude, wavelength, bump, groundDark, groundLight, shoulderDark, shoulderLight, FLAT_D, FULL_D, false, 0,
+                    0, 0f);
+        }
+
+        public Profile(float windDeg, float amplitude, float wavelength, float bump, int groundDark, int groundLight,
+                       int shoulderDark, int shoulderLight, float riseFrom, float riseTo, boolean sidewalk, int parkDark,
+                       int parkLight, float parkLevel) {
+            this.riseFrom = riseFrom;
+            this.riseTo = riseTo;
+            this.sidewalk = sidewalk;
+            this.parkDark = parkDark;
+            this.parkLight = parkLight;
+            this.parkLevel = parkLevel;
             this.windDeg = windDeg;
             this.amplitude = amplitude;
             this.wavelength = wavelength;
@@ -58,6 +78,8 @@ public final class Terrain {
 
     /** Height of the ground under the road, and the distances where the ground starts to rise and is fully shaped. */
     public static final float ROAD_Y = -0.02f, FLAT_D = 8f, FULL_D = 22f, TILE = 60f, MARGIN = 55f;
+    /** The raised sidewalk (T-30a): its top height, and the distances from the centre line it spans. */
+    public static final float SIDEWALK_Y = 0.15f, SIDEWALK_FROM = 6.4f, SIDEWALK_TO = 9f;
     /** Distances beyond this are not told apart (the shape has long since saturated). */
     private static final float D_MAX = 24f, HASH = 12f;
 
@@ -175,7 +197,7 @@ public final class Terrain {
     }
 
     private float heightAt(float x, float z, float d) {
-        float ramp = Noise.smoothstep(FLAT_D, FULL_D, d);
+        float ramp = Noise.smoothstep(pr.riseFrom, pr.riseTo, d);
         if (ramp <= 0f) return ROAD_Y;
         float p = (x * windX + z * windZ) / pr.wavelength + 0.5f * (Noise.fbm(x / 90f, z / 90f, 2, seed + 5L) - 0.5f);
         float q = (-x * windZ + z * windX) / (pr.wavelength * 2.5f);
@@ -222,6 +244,10 @@ public final class Terrain {
      * @return y in metres
      */
     public float surface(float x, float z) {
+        if (pr.sidewalk) {
+            float d = distance(x, z);
+            if (d >= SIDEWALK_FROM && d <= SIDEWALK_TO) return SIDEWALK_Y;
+        }
         float fx = (x - x0) / cell, fz = (z - z0) / cell;
         int i = (int) Math.floor(fx), j = (int) Math.floor(fz);
         if (i < 0 || j < 0 || i >= gw - 1 || j >= gh - 1) return height(x, z);
@@ -260,6 +286,15 @@ public final class Terrain {
      * @return the tiles that are near enough to the road to be seen
      */
     public List<Tile> build(PaletteSwatches pal, int groundSwatch, int shoulderSwatch) {
+        return build(pal, groundSwatch, shoulderSwatch, -1);
+    }
+
+    /**
+     * Builds the tiles, with park cells (T-30a) when the profile has a park ramp.
+     * @param parkSwatch swatch of the park grass ramp, or -1 for no parks
+     * @return the tiles
+     */
+    public List<Tile> build(PaletteSwatches pal, int groundSwatch, int shoulderSwatch, int parkSwatch) {
         if (!ready) throw new IllegalStateException("not filled");
         List<Tile> out = new ArrayList<>();
         float gv = pal.v(groundSwatch), sv = pal.v(shoulderSwatch);
@@ -276,6 +311,7 @@ public final class Terrain {
                         int gi = ti * cpt + i, gj = tj * cpt + j;
                         // (a, c, b) and (b, c, d) face up
                         int[][] cells = {{gi, gj, gi, gj + 1, gi + 1, gj}, {gi + 1, gj, gi, gj + 1, gi + 1, gj + 1}};
+                        boolean park = parkSwatch >= 0 && pr.parkDark != 0 && isPark(gi, gj);
                         for (int k = 0; k < 2; k++) {
                             float dsum = 0f, dmax = 0f;
                             for (int m = 0; m < 3; m++) {
@@ -285,8 +321,9 @@ public final class Terrain {
                             }
                             if (dmax < cut) continue;   // under the road
                             boolean shoulder = dsum / 3f < FLAT_D + 0.5f;
-                            int sw = shoulder ? shoulderSwatch : groundSwatch;
-                            float tv = shoulder ? sv : gv;
+                            boolean grass = park && !shoulder;
+                            int sw = shoulder ? shoulderSwatch : (grass ? parkSwatch : groundSwatch);
+                            float tv = shoulder ? sv : (grass ? pal.v(parkSwatch) : gv);
                             for (int m = 0; m < 3; m++) {
                                 int ci = cells[k][m * 2], cj = cells[k][m * 2 + 1];
                                 normalAt(ci, cj, nrm);
@@ -313,6 +350,81 @@ public final class Terrain {
                 out.add(new Tile(new MeshData(false, new MeshData.Part[] {part}), (int) Math.floor(cx / 10f),
                         (int) Math.floor(cz / 10f), ic / 3));
             }
+        }
+        return out;
+    }
+
+    /** Whether the cell with corner (gi, gj) is park: far enough from the sidewalk and in a high patch of slow noise (one answer per cell). */
+    private boolean isPark(int gi, int gj) {
+        float dmin = Math.min(Math.min(dists[gi + gw * gj], dists[gi + 1 + gw * gj]),
+                Math.min(dists[gi + gw * (gj + 1)], dists[gi + 1 + gw * (gj + 1)]));
+        if (dmin < SIDEWALK_TO + 1f) return false;
+        float cx = x0 + (gi + 0.5f) * cell, cz = z0 + (gj + 0.5f) * cell;
+        return Noise.fbm(cx / 60f, cz / 60f, 2, seed + 41L) > pr.parkLevel;
+    }
+
+    /**
+     * The sidewalk (T-30a): a strip along each side of the centre line from 6.4 to 9 m, its top at {@link #SIDEWALK_Y} with slab
+     * joints, a vertical curb face towards the road and an outer face. Segments that would run over another stretch of the track are
+     * left out. Cut into 60 m tiles like the ground.
+     * @param pal the palette
+     * @param swatch the sidewalk ramp swatch
+     * @return the tiles (empty for a profile without a sidewalk)
+     */
+    public List<Tile> sidewalk(PaletteSwatches pal, int swatch) {
+        List<Tile> out = new ArrayList<>();
+        if (!pr.sidewalk) return out;
+        int n = px.length;
+        float[] lx = new float[n], lz = new float[n];
+        for (int i = 0; i < n; i++) {
+            int ia = (i + n - 1) % n, ib = (i + 1) % n;
+            float tx = px[ib] - px[ia], tz = pz[ib] - pz[ia];
+            float len = (float) Math.sqrt(tx * tx + tz * tz);
+            if (len < 1e-6f) len = 1f;
+            lx[i] = tz / len;
+            lz[i] = -tx / len;
+        }
+        boolean[][] ok = new boolean[n][2];
+        for (int i = 0; i < n; i++) {
+            for (int s = 0; s < 2; s++) {
+                float sd = s == 0 ? -1f : 1f;
+                ok[i][s] = distance(px[i] + sd * SIDEWALK_FROM * lx[i], pz[i] + sd * SIDEWALK_FROM * lz[i]) >= SIDEWALK_FROM - 0.3f
+                        && distance(px[i] + sd * SIDEWALK_TO * lx[i], pz[i] + sd * SIDEWALK_TO * lz[i]) >= SIDEWALK_TO - 0.3f;
+            }
+        }
+        java.util.Map<Integer, MeshKit> kits = new java.util.TreeMap<>();
+        float[] a0 = new float[3], b0 = new float[3], a1 = new float[3], b1 = new float[3];
+        for (int i = 0; i < n; i++) {
+            int j = (i + 1) % n;
+            for (int s = 0; s < 2; s++) {
+                if (!ok[i][s] || !ok[j][s]) continue;
+                float sd = s == 0 ? -1f : 1f;
+                float mx = (px[i] + px[j]) / 2f, mz = (pz[i] + pz[j]) / 2f;
+                int ti = (int) Math.floor((mx - x0) / TILE), tj = (int) Math.floor((mz - z0) / TILE);
+                MeshKit k = kits.get(ti * 10000 + tj);
+                if (k == null) {
+                    k = new MeshKit(pal);
+                    kits.put(ti * 10000 + tj, k);
+                }
+                float ix = px[i] + sd * SIDEWALK_FROM * lx[i], iz = pz[i] + sd * SIDEWALK_FROM * lz[i];
+                float jx = px[j] + sd * SIDEWALK_FROM * lx[j], jz = pz[j] + sd * SIDEWALK_FROM * lz[j];
+                float ox = px[i] + sd * SIDEWALK_TO * lx[i], oz = pz[i] + sd * SIDEWALK_TO * lz[i];
+                float qx = px[j] + sd * SIDEWALK_TO * lx[j], qz = pz[j] + sd * SIDEWALK_TO * lz[j];
+                float tt = 0.55f + 0.2f * ((i >> 1) & 1) + 0.1f * Noise.hash(i >> 1, s, seed + 5L);
+                float y = SIDEWALK_Y, lo = ROAD_Y;
+                k.flatQuad(new float[] {ix, y, iz}, new float[] {jx, y, jz}, new float[] {qx, y, qz}, new float[] {ox, y, oz},
+                        tt, tt, tt, tt, swatch, 0f, 1f, 0f);
+                k.flatQuad(new float[] {ix, lo, iz}, new float[] {jx, lo, jz}, new float[] {jx, y, jz}, new float[] {ix, y, iz},
+                        0.25f, 0.25f, 0.4f, 0.4f, swatch, -sd * lx[i], 0f, -sd * lz[i]);
+                k.flatQuad(new float[] {ox, lo, oz}, new float[] {qx, lo, qz}, new float[] {qx, y, qz}, new float[] {ox, y, oz},
+                        0.2f, 0.2f, 0.35f, 0.35f, swatch, sd * lx[i], 0f, sd * lz[i]);
+            }
+        }
+        for (java.util.Map.Entry<Integer, MeshKit> e : kits.entrySet()) {
+            int ti = e.getKey() / 10000, tj = e.getKey() - ti * 10000;
+            MeshKit k = e.getValue();
+            float cx = x0 + (ti + 0.5f) * TILE, cz = z0 + (tj + 0.5f) * TILE;
+            out.add(new Tile(k.mesh("sidewalk"), (int) Math.floor(cx / 10f), (int) Math.floor(cz / 10f), k.triangles()));
         }
         return out;
     }

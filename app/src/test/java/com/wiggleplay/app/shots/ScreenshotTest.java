@@ -670,6 +670,19 @@ public class ScreenshotTest {
         check(PropShots.shootDesert());
     }
 
+    /** T-30a: the City Lights props on a top view of the track, and every prop close up. */
+    @Test
+    public void cityPropsMapAndCloseups() throws Exception {
+        check(PropShots.shootCity());
+        check(CityShots.shootCloseups());
+    }
+
+    /** T-30a: the City Lights backdrop rings unrolled. */
+    @Test
+    public void cityBackdrop() throws Exception {
+        check(BackdropShots.shoot(com.wiggleplay.app.games.race.Themes.CITY, "t30_city_backdrop"));
+    }
+
     /** T-23 Part C: the new coin and the golden star close up, turned 0, 35 and 75 degrees (a software drawing of the mesh). */
     @Test
     public void raceCoinCloseUp() throws Exception {

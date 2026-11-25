@@ -33,8 +33,23 @@ final class PropShots {
 
     /** Draws and saves {@code t29_desert_props_map.png}. */
     static File shootDesert() throws IOException {
-        Theme th = Themes.DESERT;
-        TrackDef def = TrackDefs.ALL[0];
+        return shootTheme(Themes.DESERT, TrackDefs.ALL[0], "t29_desert_props_map", 0xFFE9C98B, "Desert Dunes", false);
+    }
+
+    /** Draws and saves {@code t30_city_props_map.png} (the sidewalk is the light band beside the road). */
+    static File shootCity() throws IOException {
+        return shootTheme(Themes.CITY, TrackDefs.byId("city"), "t30_city_props_map", 0xFF9EA3A6, "City Lights", true);
+    }
+
+    private static final int[] KIND_COLOURS = {0xFF2E7D32, 0xFFB5541C, 0xFFD81B60, 0xFF5D4037, 0xFF6A1B9A, 0xFF8D6E63, 0xFFC0A060,
+            0xFF9E9E9E, 0xFFA0522D, 0xFF455A64, 0xFFFFC107, 0xFF43A047, 0xFFD32F2F, 0xFF1E88E5, 0xFF795548, 0xFFFF5252, 0xFF37474F,
+            0xFF8E24AA, 0xFFFF6F00, 0xFFEC407A};
+    private static final String[] KIND_NAMES = {"saguaro", "butte", "barrel cacti", "rocks", "joshua tree", "scrub", "dry grass",
+            "pebbles", "building", "tower", "lamp", "street tree", "parked car", "bus stop", "bench", "hydrant", "bin", "sign", "cone",
+            "flower planter"};
+
+    private static File shootTheme(Theme th, TrackDef def, String file, int background, String title, boolean sidewalk)
+            throws IOException {
         TrackSpline t = TrackSpline.build(def, false, HALF);
         List<StaticBatcher.Placement> props = new ArrayList<>();
         PropScatter.scatter(t, th, def.id.hashCode(), true, props);
@@ -52,7 +67,7 @@ final class PropShots {
 
         Bitmap bmp = Bitmap.createBitmap(W, H, Bitmap.Config.ARGB_8888);
         Canvas c = new Canvas(bmp);
-        c.drawColor(0xFFE9C98B);
+        c.drawColor(background);
         Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
         Path centre = new Path();
         for (int i = 0; i < t.sampleCount(); i++) {
@@ -63,6 +78,11 @@ final class PropShots {
         centre.close();
         p.setStyle(Paint.Style.STROKE);
         p.setStrokeJoin(Paint.Join.ROUND);
+        if (sidewalk) {
+            p.setColor(0xFFC9C5BB);
+            p.setStrokeWidth(2f * 9f * scale);
+            c.drawPath(centre, p);
+        }
         p.setColor(0xFFCFC6BA);
         p.setStrokeWidth(2f * (HALF + BARRIER) * scale);
         c.drawPath(centre, p);
@@ -70,8 +90,7 @@ final class PropShots {
         p.setStrokeWidth(2f * HALF * scale);
         c.drawPath(centre, p);
 
-        int[] colours = {0xFF2E7D32, 0xFFB5541C, 0xFFD81B60, 0xFF5D4037, 0xFF6A1B9A};
-        String[] names = {"saguaro", "butte", "barrel cacti*", "rocks*", "joshua tree*"};
+        int[] colours = KIND_COLOURS;
         int[] counts = new int[PropMeshes.COUNT];
         for (StaticBatcher.Placement pl : props) {
             int kind = Integer.parseInt(pl.meshName.split("_")[1]);
@@ -98,20 +117,23 @@ final class PropShots {
         Paint head = new Paint(Paint.ANTI_ALIAS_FLAG);
         head.setColor(0xFF1B1B1B);
         head.setTextSize(44f);
-        c.drawText("Desert Dunes props: " + props.size() + " on a " + Math.round(t.lapLength()) + " m lap", 40f, 58f, head);
+        c.drawText(title + " props: " + props.size() + " on a " + Math.round(t.lapLength()) + " m lap", 40f, 58f, head);
         head.setTextSize(26f);
         StringBuilder legend = new StringBuilder();
-        for (int k = 0; k < PropMeshes.COUNT; k++) legend.append(names[k]).append(' ').append(counts[k]).append("   ");
+        for (Theme.PropRule r : th.props) {
+            legend.append(KIND_NAMES[r.kind]).append(r.tierB ? "*" : "").append(' ').append(counts[r.kind]).append("   ");
+        }
         c.drawText(legend + "(* = filler tier, ringed, off on LOW)   circle size = footprint", 40f, 86f, head);
-        for (int k = 0; k < PropMeshes.COUNT; k++) {
+        int li = 0;
+        for (Theme.PropRule r : th.props) {
             p.setStyle(Paint.Style.FILL);
-            p.setColor(colours[k]);
-            c.drawCircle(60f + k * 40f, H - 30f, 12f, p);
+            p.setColor(colours[r.kind]);
+            c.drawCircle(60f + li++ * 40f, H - 30f, 12f, p);
         }
 
         File dir = new File("build/screenshots");
         if (!dir.isDirectory() && !dir.mkdirs()) throw new IOException("cannot create " + dir);
-        File f = new File(dir, "t29_desert_props_map.png");
+        File f = new File(dir, file + ".png");
         try (FileOutputStream os = new FileOutputStream(f)) {
             bmp.compress(Bitmap.CompressFormat.PNG, 100, os);
         }
