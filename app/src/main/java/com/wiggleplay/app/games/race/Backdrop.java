@@ -139,7 +139,10 @@ public final class Backdrop {
         return hv;
     }
 
-    /** Flat-topped plateaus 3 to 8 columns wide between minH and maxH, one steep column on each side, low gaps 2 to 6 wide. */
+    /**
+     * Flat-topped plateaus 3 to 12 columns wide between minH and maxH, with stepped tops (an outer column one step lower), now and
+     * then a narrow spire, a lower shoulder before the cliff, one steep column on each side and low gaps 2 to 6 wide.
+     */
     private static Profile mesas(Theme.Ring r, Random rnd) {
         int n = r.segments;
         float low = MESA_GAP * r.minH;
@@ -147,10 +150,21 @@ public final class Backdrop {
         int pos = 0;
         float h = r.minH + rnd.nextFloat() * (r.maxH - r.minH);
         while (pos < n) {
-            int w = 3 + rnd.nextInt(6);
-            for (int i = 0; i < w && pos < n; i++, pos++) l[pos] = rr[pos] = h;
+            int w = 3 + rnd.nextInt(10);
+            int spire = rnd.nextInt(10) < 4 && w >= 4 ? 1 + rnd.nextInt(w - 2) : -1;
+            boolean stepL = rnd.nextBoolean(), stepR = rnd.nextBoolean();
+            for (int i = 0; i < w && pos < n; i++, pos++) {
+                float hh = h;
+                if (i == spire || (i == spire + 1 && w >= 8 && spire >= 0 && rnd.nextBoolean())) hh = Math.min(r.maxH, h * 1.22f);
+                else if ((i == 0 && stepL) || (i == w - 1 && stepR)) hh = h * 0.84f;
+                l[pos] = rr[pos] = hh;
+            }
+            if (pos < n) {   // a lower shoulder, then the cliff
+                l[pos] = rr[pos] = Math.max(low, h * 0.7f);
+                pos++;
+            }
             if (pos < n) {
-                l[pos] = h;
+                l[pos] = Math.max(low, h * 0.7f);
                 rr[pos] = low;
                 pos++;
             }
@@ -232,7 +246,8 @@ public final class Backdrop {
                 for (int k = 0; k < STRATA; k++) {
                     float[] q = strataQuad(r, p, c, k);
                     if (q == null) continue;
-                    quad(b, r.radius, a0, a1, q[0], q[1], q[2], q[3], (k & 1) == 0 ? uA : uB, (k & 1) == 0 ? vA : vB);
+                    boolean body = ((k & 1) == 0) != streak(r, c, k);
+                    quad(b, r.radius, a0, a1, q[0], q[1], q[2], q[3], body ? uA : uB, body ? vA : vB);
                 }
             }
             return;
@@ -251,14 +266,45 @@ public final class Backdrop {
         }
     }
 
+    /** The boundaries between the strata of a ring, from BASE_Y up: uneven thicknesses (0.6 to 1.7 shares), seeded by the ring. */
+    private static float[] bounds(Theme.Ring r) {
+        Random rnd = new Random(r.seed * 31L + 7L);
+        float[] w = new float[STRATA];
+        float sum = 0f;
+        for (int k = 0; k < STRATA; k++) {
+            w[k] = 0.6f + 1.1f * rnd.nextFloat();
+            sum += w[k];
+        }
+        float total = r.maxH - BASE_Y;
+        float[] bd = new float[STRATA + 1];
+        for (int k = 0; k < STRATA; k++) bd[k + 1] = bd[k] + total * w[k] / sum;
+        for (int k = 0; k <= STRATA; k++) bd[k] += BASE_Y;
+        bd[STRATA] = r.maxH + 50f;   // the top stratum has no ceiling: the column height clips it
+        return bd;
+    }
+
+    /** Boundary k at ring vertex i: its level plus a slow wobble that never crosses the neighbouring boundaries. */
+    private static float boundary(Theme.Ring r, float[] bd, int k, int i) {
+        if (k == 0 || k == STRATA) return bd[k];
+        float room = 0.35f * Math.min(bd[k] - bd[k - 1], k + 1 == STRATA ? 1e9f : bd[k + 1] - bd[k]);
+        float t = Noise.fbm(i * 0.17f + 31f * k, 5.3f * k, 2, r.seed);
+        return bd[k] + (t - 0.5f) * 2f * room;
+    }
+
     /** The clipped heights {bottom0, bottom1, top0, top1} of stratum k of column c, or null when the column does not reach it. */
     private static float[] strataQuad(Theme.Ring r, Profile p, int c, int k) {
-        float unit = (r.maxH - BASE_Y) / STRATA;
-        float lo = BASE_Y + unit * k, hi = lo + unit;
-        float hl = p.left[c], hr = p.right[c];
-        float bl = Math.min(lo, hl), tl = Math.min(hi, hl), br = Math.min(lo, hr), tr = Math.min(hi, hr);
-        if (tl <= bl + 1e-4f && tr <= br + 1e-4f) return null;
-        return new float[] {bl, br, tl, tr};
+        float[] bd = bounds(r);
+        int n = r.segments, c1 = (c + 1) % n;
+        float h0 = p.left[c], h1 = p.right[c];
+        float b0 = Math.min(boundary(r, bd, k, c), h0), t0 = Math.min(boundary(r, bd, k + 1, c), h0);
+        float b1 = Math.min(boundary(r, bd, k, c1), h1), t1 = Math.min(boundary(r, bd, k + 1, c1), h1);
+        if (t0 <= b0 + 1e-4f && t1 <= b1 + 1e-4f) return null;
+        return new float[] {b0, b1, t0, t1};
+    }
+
+    /** Whether stratum k of column c takes the other colour: short vertical streaks (1 to 2 columns) of weathering. */
+    private static boolean streak(Theme.Ring r, int c, int k) {
+        return Noise.hash(c / 2, k, r.seed) < 0.16f;
     }
 
     /**

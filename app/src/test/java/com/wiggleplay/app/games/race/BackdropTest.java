@@ -187,7 +187,7 @@ public class BackdropTest {
             assertTrue("ring radius " + r.radius, r.radius < 60f);
             tris += Backdrop.triangleCount(r);
         }
-        assertTrue("ring triangles " + tris, tris <= 3600);   // 192 segments each, with strata on the mesas
+        assertTrue("ring triangles " + tris, tris <= 4000);   // 192 segments each, with strata on the mesas
         assertTrue(d.rings.length <= 4);
         PaletteSwatches pal = new PaletteSwatches();
         d.fillPalette(pal);
@@ -195,6 +195,30 @@ public class BackdropTest {
             MeshData m = Backdrop.build(d, i, pal);
             assertTrue(m.parts[0].vertexCount < 65535);
             assertEquals(Backdrop.triangleCount(d.rings[i]), m.parts[0].indices.length / 3);
+        }
+    }
+
+    @Test
+    public void mesaStrataAreUnevenAndTheTopsAreStepped() {
+        Theme d = Themes.DESERT;
+        PaletteSwatches pal = new PaletteSwatches();
+        d.fillPalette(pal);
+        for (int i = 1; i <= 2; i++) {
+            Backdrop.Profile p = Backdrop.profile(d.rings[i]);
+            java.util.Set<Float> heights = new java.util.HashSet<>();
+            float max = 0f;
+            for (int c = 0; c < d.rings[i].segments; c++) {
+                heights.add(p.left[c]);
+                max = Math.max(max, p.left[c]);
+            }
+            assertTrue("ring " + i + " has " + heights.size() + " different heights", heights.size() >= 12);
+            assertTrue(max <= d.rings[i].maxH + 1e-4f);
+            MeshData m = Backdrop.build(d, i, pal);
+            // heights of the vertices at one column differ between strata boundaries: collect the distinct levels at column 0..3
+            java.util.Set<Integer> levels = new java.util.HashSet<>();
+            float[] v = m.parts[0].vertices;
+            for (int k = 0; k < m.parts[0].vertexCount; k++) levels.add(Math.round(v[k * 8 + 1] * 20f));
+            assertTrue("ring " + i + " levels " + levels.size(), levels.size() > 60);
         }
     }
 
