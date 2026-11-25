@@ -53,6 +53,43 @@ public final class Theme {
         }
     }
 
+    /**
+     * The light, the sky and the surface grain of a theme (T-29R Part R1).
+     */
+    public static final class Look {
+        /** The old fixed look: a 0.62 grey ambient everywhere, a 0.38 grey sun, no sky dome, no surface grain. */
+        public static final Look PLAIN = new Look(new float[] {0.62f, 0.62f, 0.62f}, new float[] {0.62f, 0.62f, 0.62f},
+                new float[] {0.38f, 0.38f, 0.38f}, 0, 0, null);
+
+        /** Ambient light from above (a surface facing up gets all of it), from below, and the sun's colour; each r, g, b 0 to 1. */
+        public final float[] skyAmb, groundAmb, sunColor;
+        /** Colour at the top of the sky dome ({@code 0xRRGGBB}); 0 means no sky dome. */
+        public final int zenith;
+        /** Colour of the sun disc; used only with a sky dome. */
+        public final int sunDisc;
+        /** Grain kinds ({@code DetailTexture.SAND} and so on) of the four tiles: ground, road, rock or aux, kerb and barrier; null = no grain. */
+        public final int[] detail;
+
+        public Look(float[] skyAmb, float[] groundAmb, float[] sunColor, int zenith, int sunDisc, int[] detail) {
+            this.skyAmb = skyAmb.clone();
+            this.groundAmb = groundAmb.clone();
+            this.sunColor = sunColor.clone();
+            this.zenith = zenith;
+            this.sunDisc = sunDisc;
+            this.detail = detail == null ? null : detail.clone();
+        }
+
+        /**
+         * A colour times a brightness.
+         * @param rgb {@code 0xRRGGBB}
+         * @param k brightness
+         * @return r, g, b in 0..1 (not clamped)
+         */
+        public static float[] scaled(int rgb, float k) {
+            return new float[] {((rgb >> 16) & 0xFF) / 255f * k, ((rgb >> 8) & 0xFF) / 255f * k, (rgb & 0xFF) / 255f * k};
+        }
+    }
+
     /** One scatter rule of a theme (T-29 Part B): which prop, how many, how far from the road, how big. */
     public static final class PropRule {
         /** A {@link PropMeshes} kind. */
@@ -103,6 +140,8 @@ public final class Theme {
     public final int slick;
     /** The props scattered along the track (empty for none). */
     public final PropRule[] props;
+    /** Light, sky dome and surface grain ({@link Look#PLAIN} for the old look). */
+    public final Look look;
 
     public Theme(String id, int sky, int horizon, float fogNear, float fogFar, float[] sunDir, int ground, int patchA,
                  int patchB, int patchCount, float patchMinR, float patchMaxR, RoadStyle road, Ring[] rings, int dust,
@@ -114,6 +153,13 @@ public final class Theme {
     public Theme(String id, int sky, int horizon, float fogNear, float fogFar, float[] sunDir, int ground, int patchA,
                  int patchB, int patchCount, float patchMinR, float patchMaxR, RoadStyle road, Ring[] rings, int dust,
                  int slick, PropRule[] props) {
+        this(id, sky, horizon, fogNear, fogFar, sunDir, ground, patchA, patchB, patchCount, patchMinR, patchMaxR, road,
+                rings, dust, slick, props, Look.PLAIN);
+    }
+
+    public Theme(String id, int sky, int horizon, float fogNear, float fogFar, float[] sunDir, int ground, int patchA,
+                 int patchB, int patchCount, float patchMinR, float patchMaxR, RoadStyle road, Ring[] rings, int dust,
+                 int slick, PropRule[] props, Look look) {
         this.id = id;
         this.sky = sky;
         this.horizon = horizon;
@@ -131,6 +177,52 @@ public final class Theme {
         this.dust = dust;
         this.slick = slick;
         this.props = props.clone();
+        this.look = look;
+    }
+
+    /** Whether the theme has a sky dome (a zenith colour). */
+    public boolean hasSky() {
+        return look.zenith != 0;
+    }
+
+    /** First swatch of the sky: the three swatches follow the prop colours. */
+    private int skyBase() {
+        int n = SW_FIRST_RING + 2 * rings.length;
+        for (PropRule r : props) n += r.colors.length;
+        return n;
+    }
+
+    /**
+     * The sky swatches (only with a sky dome): 0 = ramp from the horizon colour to the zenith colour, 1 = the sun disc,
+     * 2 = the glow ramp from the sun disc colour to the sky colour at the sun's height.
+     * @param k 0, 1 or 2
+     * @return the swatch index
+     */
+    public int skySwatch(int k) {
+        return skyBase() + k;
+    }
+
+    /**
+     * The sky colour at a height on the dome.
+     * @param t 0 at the horizon, 1 at the zenith
+     * @return {@code 0xRRGGBB}
+     */
+    public int skyColorAt(float t) {
+        float c = Math.max(0f, Math.min(1f, t));
+        int a = horizon, b = look.zenith;
+        int r = Math.round(((a >> 16) & 0xFF) + (((b >> 16) & 0xFF) - ((a >> 16) & 0xFF)) * c);
+        int g = Math.round(((a >> 8) & 0xFF) + (((b >> 8) & 0xFF) - ((a >> 8) & 0xFF)) * c);
+        int bl = Math.round((a & 0xFF) + ((b & 0xFF) - (a & 0xFF)) * c);
+        return (r << 16) | (g << 8) | bl;
+    }
+
+    /**
+     * The sun's height above the horizon.
+     * @return degrees, from the sun direction (the light travels along {@code sunDir}, so the sun is opposite)
+     */
+    public float sunElevationDeg() {
+        float len = (float) Math.sqrt(sunDir[0] * sunDir[0] + sunDir[1] * sunDir[1] + sunDir[2] * sunDir[2]);
+        return (float) Math.toDegrees(Math.asin(Math.max(-1f, Math.min(1f, -sunDir[1] / len))));
     }
 
     /**
@@ -184,6 +276,7 @@ public final class Theme {
     public int fillPalette(PaletteSwatches p) {
         int count = SW_FIRST_RING + 2 * rings.length;
         for (PropRule r : props) count += r.colors.length;
+        if (hasSky()) count += 3;
         if (count > PaletteSwatches.MAX) throw new IllegalStateException("theme " + id + " needs " + count + " swatches");
         road.paint(p);
         p.set(SW_GROUND, ground);
@@ -197,6 +290,11 @@ public final class Theme {
         }
         for (int r = 0; r < props.length; r++) {
             for (int c = 0; c < props[r].colors.length; c++) p.set(propSwatch(r, c), props[r].colors[c]);
+        }
+        if (hasSky()) {
+            p.setRamp(skySwatch(0), horizon, look.zenith);
+            p.set(skySwatch(1), look.sunDisc);
+            p.setRamp(skySwatch(2), look.sunDisc, skyColorAt(sunElevationDeg() / 90f));
         }
         return count;
     }

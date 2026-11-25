@@ -156,6 +156,8 @@ public final class GlRenderer implements GLSurfaceView.Renderer {
     private int fogRgb = -1;   // -1: the fog colour is the sky colour
     private final float[] sun = {Shaders.SUN_X / SUN_LEN, Shaders.SUN_Y / SUN_LEN, Shaders.SUN_Z / SUN_LEN};
     private float fogNear = 25f, fogFar = 55f;
+    /** Hemisphere light: sky ambient, ground ambient, sun colour (the PLAIN look equals the old 0.62 + 0.38 * sun). */
+    private final float[] skyAmb = {0.62f, 0.62f, 0.62f}, groundAmb = {0.62f, 0.62f, 0.62f}, sunColor = {0.38f, 0.38f, 0.38f};
     /** Chunks entirely farther than this from a viewport's eye are skipped; 0 = off. */
     private float chunkCull;
     private int viewports = 1;
@@ -168,7 +170,11 @@ public final class GlRenderer implements GLSurfaceView.Renderer {
     private final float[][] snapTarget = new float[2][3];
     private final float[] snapFov = new float[2];
     private int surfaceW, surfaceH;
-    private int program, texture;
+    private int program, texture, detailTex;
+    /** The 512x512 luminance detail atlas (GL thread; null = no detail), and the sky dome mesh (null = none). */
+    private byte[] detailData;
+    private GlMesh skyMesh;
+    private int uSkyAmb, uGroundAmb, uSunColor, uUnlit, uDetailOn, uDetail;
     /** Swatches painted into the decoded colormap before it is uploaded; null = Kenney's colormap as it is. */
     private PaletteSwatches palette;
     private boolean programFailed;
@@ -215,6 +221,26 @@ public final class GlRenderer implements GLSurfaceView.Renderer {
             sun[0] = x;
             sun[1] = y;
             sun[2] = z;
+        }
+    }
+
+    /** Sets the hemisphere light colours (each 0..1 rgb): the sky ambient, the ground ambient and the sun colour. */
+    void setLight(float[] sky, float[] ground, float[] sun) {
+        synchronized (lock) {
+            System.arraycopy(sky, 0, skyAmb, 0, 3);
+            System.arraycopy(ground, 0, groundAmb, 0, 3);
+            System.arraycopy(sun, 0, sunColor, 0, 3);
+        }
+    }
+
+    /** Back to the plain light of the old look (0.62 ambient, 0.38 sun) and no detail texture. */
+    void resetLook() {
+        synchronized (lock) {
+            for (int i = 0; i < 3; i++) {
+                skyAmb[i] = 0.62f;
+                groundAmb[i] = 0.62f;
+                sunColor[i] = 0.38f;
+            }
         }
     }
 
@@ -277,6 +303,21 @@ public final class GlRenderer implements GLSurfaceView.Renderer {
         }
     }
 
+    /** Sets the detail atlas (GL thread; 512x512 luminance bytes, or null for none). Uploaded at the next frame. */
+    void setDetail(byte[] atlas) {
+        detailData = atlas;
+        if (detailTex != 0) {
+            GLES20.glDeleteTextures(1, new int[] {detailTex}, 0);
+            detailTex = 0;
+        }
+    }
+
+    /** Sets the sky dome mesh (GL thread; null removes it). */
+    void setSkyMesh(GlMesh mesh) {
+        if (skyMesh != null && skyMesh.isUploaded()) skyMesh.release();
+        skyMesh = mesh;
+    }
+
     /** Frees every GPU object (buffers, texture, shader) and forgets all meshes. */
     void releaseGl() {
         for (GlMesh m : meshes) if (m != null) m.release();
@@ -286,6 +327,13 @@ public final class GlRenderer implements GLSurfaceView.Renderer {
         spheres = new float[0];
         order = new int[0];
         dist = new float[0];
+        if (skyMesh != null) skyMesh.release();
+        skyMesh = null;
+        detailData = null;
+        if (detailTex != 0) {
+            GLES20.glDeleteTextures(1, new int[] {detailTex}, 0);
+            detailTex = 0;
+        }
         if (texture != 0) {
             GLES20.glDeleteTextures(1, new int[] {texture}, 0);
             texture = 0;
@@ -304,7 +352,9 @@ public final class GlRenderer implements GLSurfaceView.Renderer {
         // A new context: every GPU object of the old one is gone. Everything is rebuilt lazily.
         program = 0;
         texture = 0;
+        detailTex = 0;
         programFailed = false;
+        if (skyMesh != null) skyMesh.invalidate();
         for (GlMesh m : meshes) if (m != null) m.invalidate();
         for (GlMesh m : chunks) if (m != null) m.invalidate();
     }
@@ -326,12 +376,15 @@ public final class GlRenderer implements GLSurfaceView.Renderer {
             return;
         }
         ensureTexture();
+        ensureDetail();
+        if (skyMesh != null && !skyMesh.isUploaded()) skyMesh.upload();
         for (GlMesh m : meshes) if (m != null && !m.isUploaded()) m.upload();
         for (GlMesh m : chunks) if (m != null && !m.isUploaded()) m.upload();
 
         int sky, fog, nv;
         float fn, ff, cullDist;
         float sx, sy, sz;
+        float lsr, lsg, lsb, lgr, lgg, lgb, lur, lug, lub;
         RenderList list;
         synchronized (lock) {
             sky = skyRgb;
@@ -339,6 +392,9 @@ public final class GlRenderer implements GLSurfaceView.Renderer {
             sx = sun[0];
             sy = sun[1];
             sz = sun[2];
+            lsr = skyAmb[0]; lsg = skyAmb[1]; lsb = skyAmb[2];
+            lgr = groundAmb[0]; lgg = groundAmb[1]; lgb = groundAmb[2];
+            lur = sunColor[0]; lug = sunColor[1]; lub = sunColor[2];
             fn = fogNear;
             ff = fogFar;
             cullDist = chunkCull;
@@ -357,7 +413,17 @@ public final class GlRenderer implements GLSurfaceView.Renderer {
         GLES20.glActiveTexture(GLES20.GL_TEXTURE0);
         GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, texture);
         GLES20.glUniform1i(uTex, 0);
+        GLES20.glActiveTexture(GLES20.GL_TEXTURE1);
+        GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, detailTex);
+        GLES20.glActiveTexture(GLES20.GL_TEXTURE0);
+        GLES20.glUniform1i(uDetail, 1);
+        boolean detail = detailTex != 0;
         GLES20.glUniform3f(uSunDir, sx, sy, sz);
+        GLES20.glUniform3f(uSkyAmb, lsr, lsg, lsb);
+        GLES20.glUniform3f(uGroundAmb, lgr, lgg, lgb);
+        GLES20.glUniform3f(uSunColor, lur, lug, lub);
+        GLES20.glUniform1f(uUnlit, 0f);
+        GLES20.glUniform1f(uDetailOn, 0f);
         GLES20.glUniform3f(uFogColor, fr, fgr, fb);
         GLES20.glUniform1f(uFogNear, fn);
         GLES20.glUniform1f(uFogFar, ff);
@@ -388,9 +454,34 @@ public final class GlRenderer implements GLSurfaceView.Renderer {
             frustum.set(vp);
             GLES20.glUniform3f(uEye, eye[0], eye[1], eye[2]);
 
+            // the sky dome: unlit, no fog, no depth, centred on the eye, drawn before everything else
+            if (skyMesh != null && skyMesh.isUploaded()) {
+                Mat4.translate(model, eye[0], eye[1], eye[2]);
+                Mat4.multiply(mvp, vp, model);
+                GLES20.glDisable(GLES20.GL_DEPTH_TEST);
+                GLES20.glDepthMask(false);
+                setCull(false);
+                GLES20.glUniform1f(uUnlit, 1f);
+                GLES20.glUniform1f(uFogNear, NO_FOG);
+                GLES20.glUniform1f(uFogFar, NO_FOG * 2f);
+                GLES20.glUniform1f(uFlat, 0f);
+                GLES20.glUniform1f(uAlpha, 1f);
+                GLES20.glUniformMatrix4fv(uMvp, 1, false, mvp, 0);
+                GLES20.glUniformMatrix4fv(uModel, 1, false, model, 0);
+                tris += skyMesh.draw(0, aPos, aNormal, aUv);
+                draws++;
+                GLES20.glUniform1f(uUnlit, 0f);
+                GLES20.glUniform1f(uFogNear, fn);
+                GLES20.glUniform1f(uFogFar, ff);
+                GLES20.glEnable(GLES20.GL_DEPTH_TEST);
+                GLES20.glDepthMask(true);
+            }
+
             // static chunks: visible ones, nearest first
             GLES20.glUniform1f(uFlat, 0f);
             GLES20.glUniform1f(uAlpha, 1f);
+            int detailNow = detail ? 1 : 0;
+            GLES20.glUniform1f(uDetailOn, detailNow);
             GLES20.glUniformMatrix4fv(uModel, 1, false, IDENTITY, 0);
             GLES20.glUniformMatrix4fv(uMvp, 1, false, vp, 0);
             int visible = 0;
@@ -450,6 +541,11 @@ public final class GlRenderer implements GLSurfaceView.Renderer {
                     Mat4.multiply(mvp, vp, model);
                     GLES20.glUniformMatrix4fv(uMvp, 1, false, mvp, 0);
                     GLES20.glUniformMatrix4fv(uModel, 1, false, model, 0);
+                    int wantDetail = detail && flat && !alphaPass ? 2 : 0;
+                    if (wantDetail != detailNow) {
+                        detailNow = wantDetail;
+                        GLES20.glUniform1f(uDetailOn, detailNow);
+                    }
                     if (flat) {
                         GLES20.glUniform1f(uFlat, 1f);
                         GLES20.glUniform3f(uColor, ((color >> 16) & 0xFF) / 255f, ((color >> 8) & 0xFF) / 255f, (color & 0xFF) / 255f);
@@ -464,6 +560,7 @@ public final class GlRenderer implements GLSurfaceView.Renderer {
             }
             GLES20.glDisable(GLES20.GL_BLEND);
             GLES20.glDepthMask(true);
+            GLES20.glUniform1f(uDetailOn, 0f);
             if (fogOff) { // the next viewport draws its static chunks with the normal fog
                 GLES20.glUniform1f(uFogNear, fn);
                 GLES20.glUniform1f(uFogFar, ff);
@@ -519,6 +616,12 @@ public final class GlRenderer implements GLSurfaceView.Renderer {
         uColor = GLES20.glGetUniformLocation(p, "uColor");
         uFogColor = GLES20.glGetUniformLocation(p, "uFogColor");
         uAlpha = GLES20.glGetUniformLocation(p, "uAlpha");
+        uSkyAmb = GLES20.glGetUniformLocation(p, "uSkyAmb");
+        uGroundAmb = GLES20.glGetUniformLocation(p, "uGroundAmb");
+        uSunColor = GLES20.glGetUniformLocation(p, "uSunColor");
+        uUnlit = GLES20.glGetUniformLocation(p, "uUnlit");
+        uDetailOn = GLES20.glGetUniformLocation(p, "uDetailOn");
+        uDetail = GLES20.glGetUniformLocation(p, "uDetail");
         GLES20.glUseProgram(p);
         GLES20.glEnableVertexAttribArray(aPos);
         GLES20.glEnableVertexAttribArray(aNormal);
@@ -572,5 +675,27 @@ public final class GlRenderer implements GLSurfaceView.Renderer {
         } catch (IOException e) {
             Log.e(TAG, "colormap.png could not be read: " + e.getMessage());
         }
+    }
+
+    /** The detail atlas: 512x512 luminance with mipmaps, trilinear. Uploaded when set; texture unit 1. */
+    private void ensureDetail() {
+        if (detailTex != 0 || detailData == null) return;
+        int n = DetailTexture.ATLAS;
+        if (detailData.length != n * n) return;
+        int[] t = new int[1];
+        GLES20.glGenTextures(1, t, 0);
+        detailTex = t[0];
+        GLES20.glActiveTexture(GLES20.GL_TEXTURE1);
+        GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, detailTex);
+        GLES20.glPixelStorei(GLES20.GL_UNPACK_ALIGNMENT, 1);
+        java.nio.ByteBuffer bb = java.nio.ByteBuffer.allocateDirect(detailData.length);
+        bb.put(detailData).position(0);
+        GLES20.glTexImage2D(GLES20.GL_TEXTURE_2D, 0, GLES20.GL_LUMINANCE, n, n, 0, GLES20.GL_LUMINANCE, GLES20.GL_UNSIGNED_BYTE, bb);
+        GLES20.glGenerateMipmap(GLES20.GL_TEXTURE_2D);
+        GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MIN_FILTER, GLES20.GL_LINEAR_MIPMAP_LINEAR);
+        GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MAG_FILTER, GLES20.GL_LINEAR);
+        GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_S, GLES20.GL_CLAMP_TO_EDGE);
+        GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_T, GLES20.GL_CLAMP_TO_EDGE);
+        GLES20.glActiveTexture(GLES20.GL_TEXTURE0);
     }
 }

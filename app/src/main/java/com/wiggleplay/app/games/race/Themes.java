@@ -1,5 +1,7 @@
 package com.wiggleplay.app.games.race;
 
+import com.wiggleplay.app.gl.DetailTexture;
+
 /** The themes (T-29). {@code MEADOW} is today's look (and the answer for a theme that is not built yet); T-30 adds the others. */
 public final class Themes {
 
@@ -28,7 +30,11 @@ public final class Themes {
                     new Theme.PropRule(PropMeshes.ROCKS, 5f, 8.1f, 30f, 1.2f, 0.7f, 1.4f, true,
                             new int[] {0xC98B5E, 0xB07450}),
                     new Theme.PropRule(PropMeshes.JOSHUA_TREE, 1.5f, 10f, 30f, 1f, 0.8f, 1.2f, true,
-                            new int[] {0x8A7356, 0x7FA15A})});
+                            new int[] {0x8A7356, 0x7FA15A})},
+            // T-29R R1: warm sun, bluish sky light from above, sandy bounce light from below; sky dome, grain tiles
+            new Theme.Look(Theme.Look.scaled(0x9DB8C6, 0.62f), Theme.Look.scaled(0xD9B98A, 0.50f),
+                    Theme.Look.scaled(0xFFE9C4, 0.62f), 0x6FAFD6, 0xFFF6DD,
+                    new int[] {DetailTexture.SAND, DetailTexture.ASPHALT, DetailTexture.GRAVEL, DetailTexture.CONCRETE}));
 
     /**
      * The theme of a track.

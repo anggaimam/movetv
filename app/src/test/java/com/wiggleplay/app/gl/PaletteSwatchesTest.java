@@ -91,4 +91,33 @@ public class PaletteSwatchesTest {
             // fine
         }
     }
+
+    @Test
+    public void rampBlocksGoFromDarkToLightAndUCentresOnTheColumn() {
+        PaletteSwatches pal = new PaletteSwatches();
+        pal.setRamp(5, 0x102030, 0xF0E0D0);
+        assertTrue(pal.isRamp(5));
+        assertEquals(0x102030, pal.columnRgb(5, 0));
+        assertEquals(0xF0E0D0, pal.columnRgb(5, 15));
+        int mid = pal.columnRgb(5, 8);
+        assertTrue(((mid >> 16) & 0xFF) > 0x10 && ((mid >> 16) & 0xFF) < 0xF0);
+        int[] px = new int[PaletteSwatches.SIZE * PaletteSwatches.SIZE];
+        pal.paintInto(px);
+        int x0 = 16 * 5, y0 = 16;
+        for (int y = 0; y < 16; y++) {
+            for (int x = 0; x < 16; x++) assertEquals(0xFF000000 | pal.columnRgb(5, x), px[(y0 + y) * 512 + x0 + x]);
+        }
+        // u of a ramp position lands in the centre of that column
+        for (int c = 0; c < 16; c++) {
+            float u = pal.uRamp(5, c / 15f);
+            assertEquals(x0 + c, (int) Math.floor(u * 512f));
+            assertEquals(x0 + c + 0.5f, u * 512f, 1e-3f);
+        }
+        assertEquals(pal.uRamp(5, 0f), pal.uRamp(5, -3f), 0f);
+        assertEquals(pal.uRamp(5, 1f), pal.uRamp(5, 9f), 0f);
+        // a solid set() turns a ramp back into a solid block
+        pal.set(5, 0x445566);
+        assertTrue(!pal.isRamp(5));
+        assertEquals(0x445566, pal.columnRgb(5, 12));
+    }
 }

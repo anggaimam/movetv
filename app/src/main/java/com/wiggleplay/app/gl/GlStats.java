@@ -43,8 +43,8 @@ public final class GlStats {
     public int draws() { return draws; }
 
     /**
-     * The EGL surface configuration in use, for example {@code r5g6b5 d16}; when the wanted RGB565 plus
-     * 16-bit depth configuration was not offered, it starts with {@code FALLBACK} and lists what was offered.
+     * The EGL surface configuration in use, for example {@code 888 d24 msaa4} (HIGH) or {@code r5g6b5 d16}; when no wanted
+     * configuration was offered, it contains {@code FALLBACK} and lists what was offered.
      * @return a short text, or "" before the surface exists
      */
     public String config() { return config; }

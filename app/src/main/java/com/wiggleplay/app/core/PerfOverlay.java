@@ -261,7 +261,7 @@ public final class PerfOverlay {
                         .append((int) (glStats.ms() + 0.5f)).append(" ms, tris ")
                         .append((glStats.triangles() + 500) / 1000).append("k, draws ").append(glStats.draws());
                 String cfg = glStats.config();
-                if (cfg.startsWith("FALLBACK")) sb.append("  ").append(cfg);
+                if (cfg.length() > 0) sb.append("  egl ").append(cfg);
                 glText = sb.toString();
             }
             boolean fresh = dbgNs != 0 && System.nanoTime() - dbgNs < 300_000_000L;

@@ -172,7 +172,7 @@ public class MainActivity extends Activity {
         gameView.setProfile(profile);
         // The 3D view sits under the game screen (hidden until a 3D scene is current); the root is black, which
         // makes the letterbox bars.
-        raceGl = new RaceGlView(this);
+        raceGl = new RaceGlView(this, !"low".equals(profile.quality()));
         perf.setGlStats(raceGl.stats());
         gameView.setGlView(raceGl);
         // the race needs the GL view, which is made after the other scenes

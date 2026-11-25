@@ -83,7 +83,8 @@ public class PropMeshesTest {
                 next++;
             }
         }
-        assertEquals(next, count);
+        assertEquals(next + 3, count);   // the three sky swatches follow the props
+        assertEquals(next, T.skySwatch(0));
     }
 
     @Test

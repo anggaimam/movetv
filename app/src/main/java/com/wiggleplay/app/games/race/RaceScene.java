@@ -8,6 +8,7 @@ import android.view.KeyEvent;
 import com.wiggleplay.app.core.GameView;
 import com.wiggleplay.app.core.Scene;
 import com.wiggleplay.app.core.Stage;
+import com.wiggleplay.app.gl.DetailTexture;
 import com.wiggleplay.app.gl.Mat4;
 import com.wiggleplay.app.gl.MeshData;
 import com.wiggleplay.app.gl.PaletteSwatches;
@@ -29,6 +30,7 @@ import com.wiggleplay.app.ui.Theme;
 import com.wiggleplay.app.ui.TileMenu;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 
 /**
@@ -98,6 +100,12 @@ public final class RaceScene implements Scene {
     private com.wiggleplay.app.games.race.Theme theme = Themes.MEADOW;
     private final int[] ringId = new int[4];
     private int ringCount;
+    /** The world is built on a worker thread; {@link #update} takes the result over, and the intro waits for it (R1). */
+    private volatile WorldBuild pendingWorld;
+    private volatile boolean buildFailed;
+    private volatile int buildGen;
+    private boolean worldReady = true;
+    private float loadingT;
 
     // scenery trucks
     private final float[] scS = new float[3], scSpin = new float[3], scWheelYaw = new float[3];
@@ -149,6 +157,9 @@ public final class RaceScene implements Scene {
         level = Math.max(1, Math.min(3, args.getInt("level", 1)));
         raceLevel = RaceLevel.fromNumber(level);
         long built0 = SystemClock.uptimeMillis();
+        worldReady = false;
+        pendingWorld = null;
+        final int gen = ++buildGen;
         layout = TrackSpline.build(TrackChoice.def(), TrackChoice.reversed(), raceLevel);
         if (gl != null) {
             gl.loadMeshes(TRUCK_MESH[0], TRUCK_MESH[1], TRUCK_MESH[2], TRUCK_MESH[3]);
@@ -165,64 +176,36 @@ public final class RaceScene implements Scene {
             }
             // T-29: the theme decides sky, fog, sun, ground, road colours, ground patches and the backdrop rings
             theme = Themes.byId(TrackChoice.def().themeId);
-            boolean low = GameView.quality == GameView.LOW;
-            gl.setSky(theme.sky);
+            final boolean low = GameView.quality == GameView.LOW;
+            gl.setSky(theme.sky);   // also puts the plain light back
             gl.setFogColor(theme.horizon);
             gl.setFog(theme.fogNear, theme.fogFar);
             gl.setSunDir(theme.sunDir[0], theme.sunDir[1], theme.sunDir[2]);
             gl.setViewports(1);
-            // T-28 Part D: the road is built once from the spline, coloured through swatches painted into the colormap
-            PaletteSwatches pal = new PaletteSwatches();
-            theme.fillPalette(pal);
-            List<MeshData> pieces = TrackMeshBuilder.build(layout, theme.road, pal);
-            gl.setColormapSwatches(pal);
-            List<StaticBatcher.Placement> all = new ArrayList<>(pieces.size() + theme.patchCount);
-            float[] ident = new float[16];
-            Mat4.identity(ident);
-            for (int i = 0; i < pieces.size(); i++) {
-                String name = "trk_road_" + i;
-                gl.addMesh(name, pieces.get(i));
-                MeshData.Part part = pieces.get(i).parts[0];
-                float minX = Float.MAX_VALUE, maxX = -Float.MAX_VALUE, minZ = Float.MAX_VALUE, maxZ = -Float.MAX_VALUE;
-                for (int v = 0; v < part.vertexCount; v++) {
-                    float x = part.vertices[v * 8], z = part.vertices[v * 8 + 2];
-                    minX = Math.min(minX, x);
-                    maxX = Math.max(maxX, x);
-                    minZ = Math.min(minZ, z);
-                    maxZ = Math.max(maxZ, z);
+            // R1: the rest of the world (road, patches, props, rings, sky dome, detail texture) is built on a worker thread
+            // while the rules / loading screen shows; update() commits it, and the intro waits for it
+            final com.wiggleplay.app.games.race.Theme th = theme;
+            final TrackSpline lay = layout;
+            final TrackDef def = TrackChoice.def();
+            final boolean reversed = TrackChoice.reversed();
+            final RaceLevel lvl = raceLevel;
+            Thread worker = new Thread(new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        WorldBuild w = buildWorld(th, lay, def, reversed, lvl, low, built0);
+                        if (gen == buildGen) pendingWorld = w;
+                    } catch (Throwable t) {
+                        android.util.Log.e("WigglePlayRace", "World build failed: " + t, t);
+                        if (gen == buildGen) buildFailed = true;
+                    }
                 }
-                all.add(new StaticBatcher.Placement(name, ident, (int) Math.floor((minX + maxX) / 2f / CELL),
-                        (int) Math.floor((minZ + maxZ) / 2f / CELL)));
-            }
-            List<GroundPatches.Patch> patches = GroundPatches.generate(layout, theme, TrackChoice.def().id.hashCode(), low);
-            for (int i = 0; i < patches.size(); i++) {
-                GroundPatches.Patch pt = patches.get(i);
-                String name = "patch_" + i;
-                gl.addMesh(name, GroundPatches.mesh(pt, pal));
-                all.add(new StaticBatcher.Placement(name, ident, (int) Math.floor(pt.x / CELL), (int) Math.floor(pt.z / CELL)));
-            }
-            // T-29 Part B: props scattered by fixed rules on the forward track (same layout in both directions); the filler
-            // tier is left out on LOW (and, with T-24, in 2P)
-            boolean tierB = !low;
-            for (int r = 0; r < theme.props.length; r++) {
-                com.wiggleplay.app.games.race.Theme.PropRule rule = theme.props[r];
-                if (rule.tierB && !tierB) continue;
-                for (int v = 0; v < PropMeshes.variants(rule.kind); v++) {
-                    gl.addMesh(PropMeshes.name(rule.kind, v), PropMeshes.build(rule.kind, v, pal, theme.propSwatches(r)));
-                }
-            }
-            TrackSpline forward = TrackChoice.reversed()
-                    ? TrackSpline.build(TrackChoice.def(), false, raceLevel) : layout;
-            PropScatter.scatter(forward, theme, TrackChoice.def().id.hashCode(), tierB, all);
-            ringCount = 0;
-            for (int i = 0; i < theme.rings.length && ringCount < ringId.length; i++) {
-                if (low && !theme.rings[i].low) continue;
-                ringId[ringCount++] = gl.addMesh("ring_" + i, Backdrop.build(theme, i, pal));
-            }
-            gl.setStatic(all, CHUNK_CELLS);
+            }, "WorldBuild");
+            buildFailed = false;
+            worker.start();
+        } else {
+            worldReady = true;
         }
-        buildMs = (int) (SystemClock.uptimeMillis() - built0);
-        buildNoteT = BUILD_NOTE_SECONDS;
         if (env.sfx != null) {
             env.sfx.loadAsset("engine", "audio/race/engine.ogg");
             env.sfx.loadAsset("skid", "audio/race/skid.ogg");
@@ -254,6 +237,8 @@ public final class RaceScene implements Scene {
 
     @Override
     public void exit() {
+        buildGen++;
+        pendingWorld = null;
         stopLoops();
         if (env.perf != null) env.perf.setNote("");
         if (gl != null) gl.release();
@@ -302,6 +287,10 @@ public final class RaceScene implements Scene {
         time += dt;
         PlayerPose pose = f.pose.players[0];
         camBitmap = f.camera;
+        if (!worldReady) {
+            loadingT += dt;
+            commitWorld();
+        }
         if (f.input.pressed(KeyEvent.KEYCODE_BACK) && intro) {
             env.sfx("back");
             env.go("levelselect", SceneArgs.of("gameId", GAME_ID));
@@ -459,6 +448,11 @@ public final class RaceScene implements Scene {
     }
 
     private void updateIntro(float dt, Frame f, PlayerPose pose) {
+        if (!worldReady) {
+            introT = 0f;   // the countdown starts when the track is ready
+            introPose = pose;
+            return;
+        }
         introT += dt;
         introPose = pose;
         steerIn.update(pose, f.nowMs, dt);
@@ -476,6 +470,103 @@ public final class RaceScene implements Scene {
             intro = false;
             beginRound();
         }
+    }
+
+    // ---- the background build (R1) ----
+
+    /** Everything the worker thread makes; the main thread takes it over in {@link #commitWorld}. */
+    private static final class WorldBuild {
+        PaletteSwatches pal;
+        final LinkedHashMap<String, MeshData> library = new LinkedHashMap<>();
+        final List<StaticBatcher.Placement> placements = new ArrayList<>();
+        final List<String> ringNames = new ArrayList<>();
+        final List<MeshData> rings = new ArrayList<>();
+        MeshData sky;
+        byte[] detail;
+        RaceGlView.PreparedStatic chunks;
+        int ms;
+    }
+
+    /** Builds the road, patches, props, rings, sky dome, detail texture and the merged chunks (worker thread, no GL, no view). */
+    private static WorldBuild buildWorld(com.wiggleplay.app.games.race.Theme theme, TrackSpline layout, TrackDef def,
+            boolean reversed, RaceLevel raceLevel, boolean low, long t0) {
+        WorldBuild w = new WorldBuild();
+        PaletteSwatches pal = new PaletteSwatches();
+        w.pal = pal;
+        theme.fillPalette(pal);
+        List<MeshData> pieces = TrackMeshBuilder.build(layout, theme.road, pal);
+        float[] ident = new float[16];
+        Mat4.identity(ident);
+        for (int i = 0; i < pieces.size(); i++) {
+            String name = "trk_road_" + i;
+            w.library.put(name, pieces.get(i));
+            MeshData.Part part = pieces.get(i).parts[0];
+            float minX = Float.MAX_VALUE, maxX = -Float.MAX_VALUE, minZ = Float.MAX_VALUE, maxZ = -Float.MAX_VALUE;
+            for (int v = 0; v < part.vertexCount; v++) {
+                float x = part.vertices[v * 8], z = part.vertices[v * 8 + 2];
+                minX = Math.min(minX, x);
+                maxX = Math.max(maxX, x);
+                minZ = Math.min(minZ, z);
+                maxZ = Math.max(maxZ, z);
+            }
+            w.placements.add(new StaticBatcher.Placement(name, ident, (int) Math.floor((minX + maxX) / 2f / CELL),
+                    (int) Math.floor((minZ + maxZ) / 2f / CELL)));
+        }
+        List<GroundPatches.Patch> patches = GroundPatches.generate(layout, theme, def.id.hashCode(), low);
+        for (int i = 0; i < patches.size(); i++) {
+            GroundPatches.Patch pt = patches.get(i);
+            String name = "patch_" + i;
+            w.library.put(name, GroundPatches.mesh(pt, pal));
+            w.placements.add(new StaticBatcher.Placement(name, ident, (int) Math.floor(pt.x / CELL), (int) Math.floor(pt.z / CELL)));
+        }
+        // T-29 Part B: props scattered by fixed rules on the forward track (same layout in both directions); the filler tier is
+        // left out on LOW (and, with T-24, in 2P)
+        boolean tierB = !low;
+        for (int r = 0; r < theme.props.length; r++) {
+            com.wiggleplay.app.games.race.Theme.PropRule rule = theme.props[r];
+            if (rule.tierB && !tierB) continue;
+            for (int v = 0; v < PropMeshes.variants(rule.kind); v++) {
+                w.library.put(PropMeshes.name(rule.kind, v), PropMeshes.build(rule.kind, v, pal, theme.propSwatches(r)));
+            }
+        }
+        TrackSpline forward = reversed ? TrackSpline.build(def, false, raceLevel) : layout;
+        PropScatter.scatter(forward, theme, def.id.hashCode(), tierB, w.placements);
+        int n = 0;
+        for (int i = 0; i < theme.rings.length && n < 4; i++) {
+            if (low && !theme.rings[i].low) continue;
+            w.ringNames.add("ring_" + i);
+            w.rings.add(Backdrop.build(theme, i, pal));
+            n++;
+        }
+        if (theme.hasSky()) w.sky = SkyDome.build(theme, pal);
+        if (theme.look.detail != null) w.detail = DetailTexture.atlas(theme.look.detail, def.id.hashCode());
+        w.chunks = RaceGlView.prepareStatic(w.placements, w.library, CHUNK_CELLS);
+        w.ms = (int) (SystemClock.uptimeMillis() - t0);
+        return w;
+    }
+
+    /** Takes the finished world over (main thread): palette, rings, sky, detail, light and chunks; the intro starts after this. */
+    private void commitWorld() {
+        WorldBuild w = pendingWorld;
+        if (w == null) {
+            if (buildFailed) worldReady = false;   // stays on the loading screen with its message
+            return;
+        }
+        pendingWorld = null;
+        gl.setColormapSwatches(w.pal);
+        ringCount = 0;
+        for (int i = 0; i < w.rings.size() && ringCount < ringId.length; i++) {
+            ringId[ringCount++] = gl.addMesh(w.ringNames.get(i), w.rings.get(i));
+        }
+        gl.setSkyDome(w.sky);
+        gl.setDetailTexture(w.detail);
+        gl.setSky(theme.look.zenith != 0 ? theme.look.zenith : theme.sky);   // the colour behind the dome (and the plain look...)
+        gl.setLight(theme.look.skyAmb, theme.look.groundAmb, theme.look.sunColor);
+        gl.setFogColor(theme.horizon);
+        gl.commitStatic(w.chunks);
+        buildMs = w.ms;
+        buildNoteT = BUILD_NOTE_SECONDS;
+        worldReady = true;
     }
 
     // ---- the world ----
@@ -509,7 +600,7 @@ public final class RaceScene implements Scene {
     }
 
     private void submitWorld() {
-        if (gl == null) return;
+        if (gl == null || !worldReady) return;
         buildList();
         gl.setViewports(1);
         gl.setCamera(0, camera.eye(), camera.target(), camera.fov());
@@ -724,6 +815,21 @@ public final class RaceScene implements Scene {
     }
 
     private void drawIntro(Canvas c) {
+        if (!worldReady) {
+            paint.setColor(0xFFF3EBDD);
+            c.drawRect(0f, 0f, Stage.W, Stage.H, paint);
+            paint.setColor(0x33000000);
+            float cx = Stage.W / 2f, cy = 500f;
+            for (int i = 0; i < 8; i++) {
+                float a = (float) (i * Math.PI / 4.0);
+                float on = ((loadingT * 8f) % 8f);
+                float d = (i - on + 8f) % 8f;
+                paint.setColor(((int) (255f * (1f - d / 8f)) << 24) | 0x3A3A3A);
+                c.drawCircle(cx + (float) Math.cos(a) * 70f, cy + (float) Math.sin(a) * 70f, 16f, paint);
+            }
+            Theme.drawCentered(c, buildFailed ? "Could not get the track ready" : "Getting the track ready…", cx, 720f, 64f, Theme.INK);
+            return;
+        }
         paint.setColor(0xB0F3EBDD);
         c.drawRect(0f, 0f, Stage.W, Stage.H, paint);
         Theme.drawBanner(c, INTRO_TEXT[mode], Stage.W / 2f, 190f, 96f, 0xE6F3EBDD, Theme.INK);

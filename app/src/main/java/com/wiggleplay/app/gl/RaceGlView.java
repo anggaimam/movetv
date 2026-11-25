@@ -48,11 +48,21 @@ public final class RaceGlView extends GLSurfaceView {
      * @param context any context
      */
     public RaceGlView(Context context) {
+        this(context, false);
+    }
+
+    /**
+     * Creates the view (hidden). With {@code high} the surface asks for 8-bit colour, 24-bit depth and 4x multisampling
+     * (falling back to 2x, then none, then the old RGB565 chain); the choice is made once, when the surface is created.
+     * @param context any context
+     * @param high true when the Picture setting is not Low
+     */
+    public RaceGlView(Context context, boolean high) {
         super(context);
         appContext = context.getApplicationContext();
         renderer = new GlRenderer(appContext, stats);
         setEGLContextClientVersion(2);
-        setEGLConfigChooser(new Chooser(stats));
+        setEGLConfigChooser(new Chooser(stats, high));
         setPreserveEGLContextOnPause(true);
         getHolder().setFixedSize(HIGH_W, HIGH_H);
         setFocusable(false);
@@ -197,6 +207,99 @@ public final class RaceGlView extends GLSurfaceView {
         });
     }
 
+    /** Scenery merged into chunks off the GL thread, waiting for {@link #commitStatic}. */
+    public static final class PreparedStatic {
+        private final GlMesh[] meshes;
+        private final float[] spheres;
+
+        private PreparedStatic(GlMesh[] meshes, float[] spheres) {
+            this.meshes = meshes;
+            this.spheres = spheres;
+        }
+    }
+
+    /**
+     * Merges placements into chunks. It touches no view state (the meshes are given in {@code library}), so it can run on a
+     * worker thread; hand the result to {@link #commitStatic} on the main thread.
+     * @param placements the scenery
+     * @param library every mesh the placements name, by name
+     * @param chunkCells block size in cells, at least 1
+     * @return the prepared chunks
+     */
+    public static PreparedStatic prepareStatic(List<StaticBatcher.Placement> placements, final java.util.Map<String, MeshData> library,
+            int chunkCells) {
+        List<StaticBatcher.Chunk> built = StaticBatcher.build(placements, new StaticBatcher.MeshLibrary() {
+            @Override
+            public MeshData get(String name) {
+                return library.get(name);
+            }
+        }, chunkCells);
+        GlMesh[] cm = new GlMesh[built.size()];
+        float[] sph = new float[built.size() * 4];
+        for (int i = 0; i < cm.length; i++) {
+            StaticBatcher.Chunk c = built.get(i);
+            cm[i] = GlMesh.of(c);
+            sph[i * 4] = c.cx;
+            sph[i * 4 + 1] = c.cy;
+            sph[i * 4 + 2] = c.cz;
+            sph[i * 4 + 3] = c.radius;
+        }
+        return new PreparedStatic(cm, sph);
+    }
+
+    /**
+     * Uploads chunks made by {@link #prepareStatic} (on the GL thread, at the next frame).
+     * @param p the prepared chunks
+     */
+    public void commitStatic(PreparedStatic p) {
+        final GlMesh[] cm = p.meshes;
+        final float[] sph = p.spheres;
+        queueEvent(new Runnable() {
+            @Override
+            public void run() {
+                renderer.setChunks(cm, sph);
+            }
+        });
+    }
+
+    /**
+     * Sets the hemisphere light: what the sky adds to surfaces facing up, what the ground adds to surfaces facing down, and the
+     * colour of the sun. Each is r, g, b in 0..1. {@link #setSky} puts the plain look back (0.62 ambient, 0.38 sun).
+     * @param skyAmbient light from above
+     * @param groundAmbient light from below
+     * @param sunColor the sun's colour
+     */
+    public void setLight(float[] skyAmbient, float[] groundAmbient, float[] sunColor) {
+        renderer.setLight(skyAmbient, groundAmbient, sunColor);
+    }
+
+    /**
+     * Sets the detail texture of the static world (a 512x512 luminance atlas, see {@link DetailTexture#atlas}); null removes it.
+     * @param atlas the bytes, or null
+     */
+    public void setDetailTexture(final byte[] atlas) {
+        queueEvent(new Runnable() {
+            @Override
+            public void run() {
+                renderer.setDetail(atlas);
+            }
+        });
+    }
+
+    /**
+     * Sets the sky dome mesh (drawn first, unlit, without fog, centred on the eye); null removes it.
+     * @param dome the dome, or null
+     */
+    public void setSkyDome(MeshData dome) {
+        final GlMesh gm = dome == null ? null : GlMesh.of(dome);
+        queueEvent(new Runnable() {
+            @Override
+            public void run() {
+                renderer.setSkyMesh(gm);
+            }
+        });
+    }
+
     /**
      * Sets the swatches painted into the colormap texture (T-28 Part C). Call before the scene's first frame; a later call
      * uploads the texture again. The palette must not be changed afterwards.
@@ -246,6 +349,7 @@ public final class RaceGlView extends GLSurfaceView {
      */
     public void setSky(int rgb) {
         renderer.setSky(rgb);
+        renderer.resetLook();
         renderer.setFogColor(-1);
     }
 
@@ -310,15 +414,30 @@ public final class RaceGlView extends GLSurfaceView {
         });
     }
 
-    /** Picks RGB565 plus 16-bit depth when the device offers it, and otherwise the closest configuration. */
+    /**
+     * Picks the surface format. In HIGH: 8-bit colour with 24-bit depth and 4x, then 2x, then no multisampling; when none of
+     * those is offered (or in LOW) it takes RGB565 with 16-bit depth, and otherwise the closest configuration. The
+     * result is written to the speed meter.
+     */
     private static final class Chooser implements GLSurfaceView.EGLConfigChooser {
+        private static final int EGL_SAMPLE_BUFFERS = 0x3032, EGL_SAMPLES = 0x3031;
         private final GlStats stats;
+        private final boolean high;
 
-        Chooser(GlStats stats) {
+        Chooser(GlStats stats, boolean high) {
             this.stats = stats;
+            this.high = high;
         }
 
-        private static int[] spec(int r, int g, int b, int a, int depth) {
+        private static int[] spec(int r, int g, int b, int a, int depth, int samples) {
+            if (samples > 0) {
+                return new int[] {
+                        EGL10.EGL_RED_SIZE, r, EGL10.EGL_GREEN_SIZE, g, EGL10.EGL_BLUE_SIZE, b, EGL10.EGL_ALPHA_SIZE, a,
+                        EGL10.EGL_DEPTH_SIZE, depth, EGL10.EGL_STENCIL_SIZE, 0,
+                        EGL_SAMPLE_BUFFERS, 1, EGL_SAMPLES, samples,
+                        0x3040, 4, // EGL_RENDERABLE_TYPE, EGL_OPENGL_ES2_BIT
+                        EGL10.EGL_NONE};
+            }
             return new int[] {
                     EGL10.EGL_RED_SIZE, r, EGL10.EGL_GREEN_SIZE, g, EGL10.EGL_BLUE_SIZE, b, EGL10.EGL_ALPHA_SIZE, a,
                     EGL10.EGL_DEPTH_SIZE, depth, EGL10.EGL_STENCIL_SIZE, 0,
@@ -342,21 +461,38 @@ public final class RaceGlView extends GLSurfaceView {
         private static String describe(EGL10 egl, EGLDisplay display, EGLConfig c) {
             return "r" + attr(egl, display, c, EGL10.EGL_RED_SIZE) + "g" + attr(egl, display, c, EGL10.EGL_GREEN_SIZE)
                     + "b" + attr(egl, display, c, EGL10.EGL_BLUE_SIZE) + "a" + attr(egl, display, c, EGL10.EGL_ALPHA_SIZE)
-                    + " d" + attr(egl, display, c, EGL10.EGL_DEPTH_SIZE);
+                    + " d" + attr(egl, display, c, EGL10.EGL_DEPTH_SIZE) + " msaa" + Math.max(0, attr(egl, display, c, EGL_SAMPLES));
         }
 
         @Override
         public EGLConfig chooseConfig(EGL10 egl, EGLDisplay display) {
-            EGLConfig[] wanted = offered(egl, display, spec(5, 6, 5, 0, 16));
+            if (high) {
+                int[] tries = {4, 2, 0};
+                for (int want : tries) {
+                    EGLConfig[] list = offered(egl, display, spec(8, 8, 8, 0, 24, want));
+                    for (EGLConfig c : list) {
+                        int samples = Math.max(0, attr(egl, display, c, EGL_SAMPLES));
+                        if (attr(egl, display, c, EGL10.EGL_RED_SIZE) == 8 && attr(egl, display, c, EGL10.EGL_GREEN_SIZE) == 8
+                                && attr(egl, display, c, EGL10.EGL_BLUE_SIZE) == 8 && attr(egl, display, c, EGL10.EGL_DEPTH_SIZE) >= 24
+                                && (want == 0 ? samples == 0 : samples >= want)) {
+                            String text = "888 d" + attr(egl, display, c, EGL10.EGL_DEPTH_SIZE) + " msaa" + samples;
+                            stats.setConfig(text);
+                            Log.i(TAG, "EGL config " + text);
+                            return c;
+                        }
+                    }
+                }
+            }
+            EGLConfig[] wanted = offered(egl, display, spec(5, 6, 5, 0, 16, 0));
             for (EGLConfig c : wanted) {
                 if (attr(egl, display, c, EGL10.EGL_RED_SIZE) == 5 && attr(egl, display, c, EGL10.EGL_GREEN_SIZE) == 6
                         && attr(egl, display, c, EGL10.EGL_BLUE_SIZE) == 5 && attr(egl, display, c, EGL10.EGL_DEPTH_SIZE) == 16) {
-                    stats.setConfig("r5g6b5 d16");
+                    stats.setConfig(high ? "565 d16 msaa0 (888 not offered)" : "r5g6b5 d16");
                     return c;
                 }
             }
             // Not offered: take what is closest and say so (the overlay shows it; the architect wants to know).
-            EGLConfig[] all = offered(egl, display, spec(0, 0, 0, 0, 0));
+            EGLConfig[] all = offered(egl, display, spec(0, 0, 0, 0, 0, 0));
             StringBuilder sb = new StringBuilder("FALLBACK, offered:");
             EGLConfig best = null;
             for (int i = 0; i < all.length; i++) {
