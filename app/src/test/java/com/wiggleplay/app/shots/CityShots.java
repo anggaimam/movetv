@@ -36,7 +36,8 @@ final class CityShots {
     private static final String[] NAMES = {"saguaro", "butte", "barrel cacti", "rocks", "joshua tree", "scrub", "dry grass", "pebbles",
             "building", "tower", "lamp", "street tree", "parked car", "bus stop", "bench", "hydrant", "bin", "sign", "cone",
             "flower planter", "pine grove", "pine", "aspen", "rock outcrop", "boulders", "cabin", "dock", "canoe", "fallen log",
-            "fern", "wildflowers", "grass"};
+            "fern", "wildflowers", "grass", "habitat dome", "antenna", "rover", "solar array", "big boulder", "crystals", "moon rocks",
+            "dust pebbles"};
 
     private CityShots() { }
 
