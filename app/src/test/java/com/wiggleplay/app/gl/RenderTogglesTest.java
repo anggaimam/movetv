@@ -62,4 +62,19 @@ public class RenderTogglesTest {
         t.describe(sb);
         assertTrue(sb.toString(), sb.toString().contains("merged"));
     }
+
+    @Test
+    public void remoteStepVisitsAllOnThenEachSwitchAlone() {
+        RenderToggles t = new RenderToggles();
+        for (int k = 1; k <= 5; k++) {
+            assertEquals(k, t.step(1));
+            for (int i = 0; i < RenderToggles.COUNT; i++) assertEquals(i == k - 1, t.isOff(i));
+        }
+        assertEquals(0, t.step(1));
+        for (int i = 0; i < RenderToggles.COUNT; i++) assertFalse(t.isOff(i));
+        assertEquals(5, t.step(-1));
+        assertTrue(t.isOff(RenderToggles.HUD));
+        t.flip(RenderToggles.TERRAIN);   // a mixed state starts again from 0
+        assertEquals(1, t.step(1));
+    }
 }

@@ -315,14 +315,21 @@ public class MainActivity extends Activity {
      * texture, the sky dome and the HUD off and on (they would otherwise pick a test pose).
      */
     private boolean raceDebugKey(int keyCode) {
+        if (!perf.isVisible() || !"race".equals(scenes.currentName())) return false;
+        // the Fire TV remote has no digits: fast-forward steps to the next switch state, rewind to the previous one
+        if (keyCode == KeyEvent.KEYCODE_MEDIA_FAST_FORWARD || keyCode == KeyEvent.KEYCODE_MEDIA_REWIND) return true;
         if (keyCode < KeyEvent.KEYCODE_1 || keyCode > KeyEvent.KEYCODE_5) return false;
-        return perf.isVisible() && hub.isTestMode() && "race".equals(scenes.currentName());
+        return hub.isTestMode();
     }
 
     @Override
     public boolean onKeyDown(int keyCode, KeyEvent event) {
         if (raceDebugKey(keyCode)) {
-            if (event.getRepeatCount() == 0) raceGl.toggles().flip(keyCode - KeyEvent.KEYCODE_1);
+            if (event.getRepeatCount() == 0) {
+                if (keyCode == KeyEvent.KEYCODE_MEDIA_FAST_FORWARD) raceGl.toggles().step(1);
+                else if (keyCode == KeyEvent.KEYCODE_MEDIA_REWIND) raceGl.toggles().step(-1);
+                else raceGl.toggles().flip(keyCode - KeyEvent.KEYCODE_1);
+            }
             return true;
         }
         if (testBodyTakes(keyCode, event)) return true;

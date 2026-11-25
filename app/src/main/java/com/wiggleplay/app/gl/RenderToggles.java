@@ -88,6 +88,27 @@ public final class RenderToggles {
         return group == GROUP_TERRAIN ? terrainOff : group == GROUP_PROPS && propsOff;
     }
 
+    /**
+     * Remote-control stepping (no keyboard): the states are 0 = everything on, then 1 to 5 = only that switch off. Moves one
+     * state forward or back, round and round; from a mixed state (made with keys 1 to 5) it starts again from 0.
+     * @param dir 1 for the next state, -1 for the previous one
+     * @return the new state, 0 to 5
+     */
+    public int step(int dir) {
+        int off = 0, cur = 0;
+        for (int i = 0; i < COUNT; i++) {
+            if (isOff(i)) {
+                off++;
+                cur = i + 1;
+            }
+        }
+        if (off != 1) cur = 0;
+        int next = ((cur + dir) % (COUNT + 1) + COUNT + 1) % (COUNT + 1);
+        reset();
+        if (next > 0) flip(next - 1);
+        return next;
+    }
+
     /** Puts everything back on (a race is loading). */
     public void reset() {
         terrainOff = false;
@@ -112,7 +133,7 @@ public final class RenderToggles {
      * @param sb where to append (the line is appended, not cleared first)
      */
     public void describe(StringBuilder sb) {
-        sb.append("keys 1-5:");
+        sb.append("FF/REW or keys 1-5:");
         for (int i = 0; i < COUNT; i++) {
             sb.append(' ').append(i + 1).append(' ').append(NAMES[i]).append(isOff(i) ? " OFF" : " on");
             if (i < COUNT - 1) sb.append(',');
