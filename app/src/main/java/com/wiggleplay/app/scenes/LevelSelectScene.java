@@ -11,6 +11,7 @@ import com.wiggleplay.app.games.GameInfo;
 import com.wiggleplay.app.games.GameRegistry;
 import com.wiggleplay.app.games.race.RaceArt;
 import com.wiggleplay.app.games.race.TrackDef;
+import com.wiggleplay.app.games.race.TruckSwatchArt;
 import com.wiggleplay.app.games.race.TrackDefs;
 import com.wiggleplay.app.ui.RoundButton;
 import com.wiggleplay.app.ui.Theme;
@@ -39,7 +40,8 @@ public final class LevelSelectScene implements Scene {
     private String title = "";
     private int players = 1;
     private boolean racing;
-    private TileMenu.Tile steerTile;
+    private TileMenu.Tile steerTile, truckTile;
+    private int truckIdx;
     private int steerMode = RaceArt.MODE_WHEEL;
     private String trackName = "";
 
@@ -84,9 +86,16 @@ public final class LevelSelectScene implements Scene {
                     ? RaceArt.MODE_LEAN : RaceArt.MODE_WHEEL;
             steerTile = new TileMenu.Tile("steer", "Steering", null, Theme.ORANGE, null, 1290f, 20f, 300f, 300f);
             tiles.add(steerTile);
+            // T-32 Part B: the Truck button, just left of the Steering button; each press cycles yellow, red, green, purple
+            truckIdx = ProfileLogic.raceTruckIndex(env.profile != null ? env.profile.raceTruck() : null);
+            truckTile = new TileMenu.Tile("truck", "Truck", null, Theme.ORANGE, null, 950f, 20f, 300f, 300f);
+            tiles.add(truckTile);
         }
         menu.setTiles(tiles, IDS[0]);
-        if (racing) showSteerIcon();
+        if (racing) {
+            showSteerIcon();
+            showTruckIcon();
+        }
     }
 
     @Override
@@ -115,6 +124,13 @@ public final class LevelSelectScene implements Scene {
             showSteerIcon();
             return;
         }
+        if (racing && "truck".equals(sel)) {
+            truckIdx = (truckIdx + 1) % ProfileLogic.RACE_TRUCKS.length;
+            if (env.profile != null) env.profile.setRaceTruck(ProfileLogic.RACE_TRUCKS[truckIdx]);
+            env.sfx("select");
+            showTruckIcon();
+            return;
+        }
         for (int i = 0; i < 3; i++) {
             if (IDS[i].equals(sel) && game != null) {
                 if (racing) {
@@ -129,6 +145,12 @@ public final class LevelSelectScene implements Scene {
         }
     }
 
+    /** Shows the side-view truck in the chosen colour on the Truck button. */
+    private void showTruckIcon() {
+        final int idx = truckIdx;
+        truckTile.setIcon("truck_" + TruckSwatchArt.NAMES[idx], (c, bw, bh) -> TruckSwatchArt.paint(c, bw, bh, idx));
+    }
+
     /** Shows the picture of the chosen steering mode on the button. */
     private void showSteerIcon() {
         final int mode = steerMode;
@@ -138,8 +160,10 @@ public final class LevelSelectScene implements Scene {
     @Override
     public void draw(Canvas c) {
         Theme.drawBackdrop(c, camera, time);
-        Theme.drawBanner(c, title, Stage.W / 2f, 120f, 72f, 0xE6F3EBDD, Theme.INK);
+        // Turbo Trucks: the Truck and Steering buttons take the middle of the top row, so the title sits between Back and the Truck button
+        float titleX = racing ? 610f : Stage.W / 2f;
+        Theme.drawBanner(c, title, titleX, 120f, 72f, 0xE6F3EBDD, Theme.INK);
         menu.draw(c);
-        if (racing) Theme.drawBanner(c, trackName, Stage.W / 2f, 235f, 44f, 0xE6F3EBDD, Theme.INK);   // T-32: the chosen track
+        if (racing) Theme.drawBanner(c, trackName, titleX, 235f, 44f, 0xE6F3EBDD, Theme.INK);   // T-32: the chosen track
     }
 }

@@ -117,6 +117,17 @@ public final class ProfileLogic {
     }
 
     /**
+     * The position of a truck colour in {@link #RACE_TRUCKS}.
+     * @param cur a saved colour (anything, even null)
+     * @return 0 (yellow), 1 (red), 2 (green) or 3 (purple)
+     */
+    public static int raceTruckIndex(Object cur) {
+        String c = cleanRaceTruck(cur);
+        for (int i = 0; i < RACE_TRUCKS.length; i++) if (RACE_TRUCKS[i].equals(c)) return i;
+        return 0;
+    }
+
+    /**
      * The colour after a truck colour in the cycle yellow, red, green, purple.
      * @param cur the current colour (anything, even null)
      * @return the next colour
@@ -137,6 +148,16 @@ public final class ProfileLogic {
         double d = ((Number) o).doubleValue();
         if (Double.isNaN(d)) return 0;
         return (int) Math.max(0, Math.min(3, Math.round(d)));
+    }
+
+    /**
+     * Whether a finished race's stars should replace the saved best.
+     * @param saved the saved best (anything, even null)
+     * @param earned the stars of the race just finished
+     * @return true only when the earned stars are higher than the saved ones
+     */
+    public static boolean raisesRaceBest(Object saved, int earned) {
+        return cleanRaceBest(earned) > cleanRaceBest(saved);
     }
 
     /**

@@ -137,12 +137,6 @@ public class MeshDataTest {
     @Test
     public void committedMeshesHaveTheExpectedTriangleCounts() throws IOException {
         near("vehicle-truck-yellow", 989);
-        near("track-straight", 106);
-        near("track-corner", 1136);
-        near("track-finish", 274);
-        near("decoration-forest", 2006);
-        near("decoration-tents", 1900);
-        near("decoration-empty", 596);
     }
 
     @Test
@@ -161,9 +155,8 @@ public class MeshDataTest {
     }
 
     @Test
-    public void allTenMeshesLoad() throws IOException {
-        String[] names = {"vehicle-truck-yellow", "vehicle-truck-red", "vehicle-truck-green", "vehicle-truck-purple",
-                "track-straight", "track-corner", "track-finish", "decoration-forest", "decoration-tents", "decoration-empty"};
+    public void allFourTrucksLoad() throws IOException {
+        String[] names = {"vehicle-truck-yellow", "vehicle-truck-red", "vehicle-truck-green", "vehicle-truck-purple"};
         for (String n : names) assertTrue(n, load(n).triangleCount() > 0);
     }
 }

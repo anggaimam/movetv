@@ -242,9 +242,8 @@ public final class Profile {
      * @return true when the saved value was raised
      */
     public boolean recordRaceBest(String trackKey, int level, int stars) {
-        int earned = ProfileLogic.cleanRaceBest(stars);
-        if (earned <= raceBest(trackKey, level)) return false;
-        prefs.edit().putInt(ProfileLogic.raceBestKey(trackKey, level), earned).apply();
+        if (!ProfileLogic.raisesRaceBest(prefs.getAll().get(ProfileLogic.raceBestKey(trackKey, level)), stars)) return false;
+        prefs.edit().putInt(ProfileLogic.raceBestKey(trackKey, level), ProfileLogic.cleanRaceBest(stars)).apply();
         return true;
     }
 

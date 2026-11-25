@@ -185,8 +185,10 @@ public final class RaceScene implements Scene {
             starId = gl.addMesh("star", ProcMesh.starBevelled(0.9f, 0.4f, 0.2f));
             nitroId = gl.addMesh("nitro", ProcMesh.nitroCan());
             magnetId = gl.addMesh("magnet", ProcMesh.magnet());
+            // T-32 Part B: the player drives the saved colour, the three scenery trucks the next three in the order yellow, red, green, purple
+            int mine = env.profile != null ? com.wiggleplay.app.core.ProfileLogic.raceTruckIndex(env.profile.raceTruck()) : 0;
             for (int t = 0; t < 4; t++) {
-                truckId[t] = gl.meshId(TRUCK_MESH[t]);
+                truckId[t] = gl.meshId(TRUCK_MESH[(mine + t) % 4]);
                 truckData[t] = gl.meshData(truckId[t]);
                 for (int p = 0; p < 6; p++) partIdx[t][p] = truckData[t].partIndex(PART_NAMES[p]);
             }
@@ -455,7 +457,10 @@ public final class RaceScene implements Scene {
     private void finishRace() {
         stopLoops();
         int stars = logic.stars(0);
-        if (env.profile != null) env.profile.recordStars(GAME_ID, level, stars);
+        if (env.profile != null) {
+            env.profile.recordStars(GAME_ID, level, stars);
+            env.profile.recordRaceBest(TrackChoice.key(), level, stars);   // T-32 Part B: shown on the track card next visit
+        }
         hud.finish(stars, 0, logic.score(0), 0);
     }
 

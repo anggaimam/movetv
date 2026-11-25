@@ -144,6 +144,6 @@ public final class RaceTrackScene implements Scene {
         Theme.drawBackdrop(c, camera, time);
         Theme.drawBanner(c, "Pick a track", Stage.W / 2f, 110f, 72f, 0xE6F3EBDD, Theme.INK);
         menu.draw(c);
-        Theme.drawBanner(c, "Hold your hand on a track to pick it", Stage.W / 2f, 1010f, 40f, 0xE6F3EBDD, Theme.INK);
+        Theme.drawBanner(c, "Hold your hand on a track to pick it", Stage.W / 2f, 1036f, 40f, 0xE6F3EBDD, Theme.INK);
     }
 }

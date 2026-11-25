@@ -121,6 +121,22 @@ public class ProfileLogicTest {
     }
 
     @Test
+    public void raceBestOnlyGoesUpAndTheTruckIndexFollowsTheCycle() {
+        assertTrue(ProfileLogic.raisesRaceBest(null, 1));
+        assertTrue(ProfileLogic.raisesRaceBest(1, 2));
+        assertFalse(ProfileLogic.raisesRaceBest(2, 2));
+        assertFalse(ProfileLogic.raisesRaceBest(3, 1));
+        assertFalse(ProfileLogic.raisesRaceBest(null, 0));
+        assertTrue(ProfileLogic.raisesRaceBest("junk", 1));   // a corrupt value counts as never played
+        assertFalse(ProfileLogic.raisesRaceBest(1, 9 - 6 - 2));   // 1 is not higher than 1
+        assertEquals(0, ProfileLogic.raceTruckIndex(null));
+        assertEquals(1, ProfileLogic.raceTruckIndex("red"));
+        assertEquals(2, ProfileLogic.raceTruckIndex("green"));
+        assertEquals(3, ProfileLogic.raceTruckIndex("purple"));
+        assertEquals(0, ProfileLogic.raceTruckIndex("blue"));
+    }
+
+    @Test
     public void raceBestStarsAreClampedAndNonNumbersAreZero() {
         assertEquals(0, ProfileLogic.cleanRaceBest(null));
         assertEquals(0, ProfileLogic.cleanRaceBest("3"));

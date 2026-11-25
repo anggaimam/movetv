@@ -27,8 +27,6 @@ import sys
 
 MODELS = [
     "vehicle-truck-yellow", "vehicle-truck-red", "vehicle-truck-green", "vehicle-truck-purple",
-    "track-straight", "track-corner", "track-finish",
-    "decoration-forest", "decoration-tents", "decoration-empty",
 ]
 
 COMPONENT = {5120: ("b", 1), 5121: ("B", 1), 5122: ("h", 2), 5123: ("H", 2), 5125: ("I", 4), 5126: ("f", 4)}
