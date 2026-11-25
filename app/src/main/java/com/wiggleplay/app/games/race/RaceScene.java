@@ -172,6 +172,7 @@ public final class RaceScene implements Scene {
         worldReady = false;
         pendingWorld = null;
         final int gen = ++buildGen;
+        if (env.profile != null) TrackChoice.load(env.profile.raceTrack(), env.profile.raceReversed());   // T-32: the saved track screen choice
         layout = TrackSpline.build(TrackChoice.def(), TrackChoice.reversed(), raceLevel);
         if (gl != null) {
             gl.loadMeshes(TRUCK_MESH[0], TRUCK_MESH[1], TRUCK_MESH[2], TRUCK_MESH[3]);

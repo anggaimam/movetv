@@ -1,6 +1,8 @@
 package com.wiggleplay.app.core;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 import org.junit.Test;
 
@@ -84,6 +86,51 @@ public class ProfileLogicTest {
         assertEquals("wheel", ProfileLogic.cleanRaceSteer("LEAN"));
         assertEquals("wheel", ProfileLogic.cleanRaceSteer(3));
         assertEquals("wheel", ProfileLogic.cleanRaceSteer(""));
+    }
+
+    @Test
+    public void raceTrackIsOneOfTheFourAndDefaultsToDesert() {
+        for (String id : new String[] {"desert", "city", "rockies", "space"}) assertEquals(id, ProfileLogic.cleanRaceTrack(id));
+        assertEquals("desert", ProfileLogic.cleanRaceTrack(null));
+        assertEquals("desert", ProfileLogic.cleanRaceTrack("moon"));
+        assertEquals("desert", ProfileLogic.cleanRaceTrack("desert-r"));
+        assertEquals("desert", ProfileLogic.cleanRaceTrack(7));
+        assertEquals("desert", ProfileLogic.cleanRaceTrack(""));
+    }
+
+    @Test
+    public void raceDirectionIsForwardUnlessSavedTrue() {
+        assertFalse(ProfileLogic.cleanRaceReversed(null));
+        assertFalse(ProfileLogic.cleanRaceReversed("true"));
+        assertFalse(ProfileLogic.cleanRaceReversed(1));
+        assertFalse(ProfileLogic.cleanRaceReversed(Boolean.FALSE));
+        assertTrue(ProfileLogic.cleanRaceReversed(Boolean.TRUE));
+    }
+
+    @Test
+    public void raceTruckCyclesYellowRedGreenPurpleAndDefaultsToYellow() {
+        assertEquals("yellow", ProfileLogic.cleanRaceTruck(null));
+        assertEquals("yellow", ProfileLogic.cleanRaceTruck("blue"));
+        assertEquals("yellow", ProfileLogic.cleanRaceTruck("RED"));
+        assertEquals("purple", ProfileLogic.cleanRaceTruck("purple"));
+        assertEquals("red", ProfileLogic.nextRaceTruck("yellow"));
+        assertEquals("green", ProfileLogic.nextRaceTruck("red"));
+        assertEquals("purple", ProfileLogic.nextRaceTruck("green"));
+        assertEquals("yellow", ProfileLogic.nextRaceTruck("purple"));
+        assertEquals("red", ProfileLogic.nextRaceTruck("junk"));   // junk counts as yellow
+    }
+
+    @Test
+    public void raceBestStarsAreClampedAndNonNumbersAreZero() {
+        assertEquals(0, ProfileLogic.cleanRaceBest(null));
+        assertEquals(0, ProfileLogic.cleanRaceBest("3"));
+        assertEquals(0, ProfileLogic.cleanRaceBest(Double.NaN));
+        assertEquals(2, ProfileLogic.cleanRaceBest(2));
+        assertEquals(3, ProfileLogic.cleanRaceBest(3));
+        assertEquals(3, ProfileLogic.cleanRaceBest(9));
+        assertEquals(0, ProfileLogic.cleanRaceBest(-4));
+        assertEquals("raceBest_desert_EASY", ProfileLogic.raceBestKey("desert", 1));
+        assertEquals("raceBest_city-r_HARD", ProfileLogic.raceBestKey("city-r", 3));
     }
 
     @Test

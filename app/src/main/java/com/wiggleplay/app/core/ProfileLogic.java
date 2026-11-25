@@ -75,6 +75,81 @@ public final class ProfileLogic {
         return STEER_WHEEL;
     }
 
+    /** Turbo Trucks truck colours in the order the Truck button cycles them (T-32), and the default. */
+    public static final String[] RACE_TRUCKS = {"yellow", "red", "green", "purple"};
+    public static final String DEFAULT_RACE_TRUCK = "yellow";
+    /** The default Turbo Trucks track (T-32). */
+    public static final String DEFAULT_RACE_TRACK = "desert";
+
+    /**
+     * Checks a saved Turbo Trucks track.
+     * @param o the saved value (anything, even null)
+     * @return the id of one of the tracks ({@code desert}, {@code city}, {@code rockies}, {@code space}); anything else becomes "desert"
+     */
+    public static String cleanRaceTrack(Object o) {
+        if (o instanceof String) {
+            for (com.wiggleplay.app.games.race.TrackDef d : com.wiggleplay.app.games.race.TrackDefs.ALL) {
+                if (d.id.equals(o)) return d.id;
+            }
+        }
+        return DEFAULT_RACE_TRACK;
+    }
+
+    /**
+     * Checks the saved direction of the Turbo Trucks track.
+     * @param o the saved value (anything, even null)
+     * @return true only for a saved {@code true}
+     */
+    public static boolean cleanRaceReversed(Object o) {
+        return Boolean.TRUE.equals(o);
+    }
+
+    /**
+     * Checks a saved truck colour.
+     * @param o the saved value (anything, even null)
+     * @return "yellow", "red", "green" or "purple"; anything else becomes "yellow"
+     */
+    public static String cleanRaceTruck(Object o) {
+        if (o instanceof String) {
+            for (String t : RACE_TRUCKS) if (t.equals(o)) return t;
+        }
+        return DEFAULT_RACE_TRUCK;
+    }
+
+    /**
+     * The colour after a truck colour in the cycle yellow, red, green, purple.
+     * @param cur the current colour (anything, even null)
+     * @return the next colour
+     */
+    public static String nextRaceTruck(Object cur) {
+        String c = cleanRaceTruck(cur);
+        for (int i = 0; i < RACE_TRUCKS.length; i++) if (RACE_TRUCKS[i].equals(c)) return RACE_TRUCKS[(i + 1) % RACE_TRUCKS.length];
+        return DEFAULT_RACE_TRUCK;
+    }
+
+    /**
+     * Checks a saved best star count.
+     * @param o the saved value (anything, even null)
+     * @return 0 to 3; a value outside the range is clamped, anything that is not a number is 0 (never played)
+     */
+    public static int cleanRaceBest(Object o) {
+        if (!(o instanceof Number)) return 0;
+        double d = ((Number) o).doubleValue();
+        if (Double.isNaN(d)) return 0;
+        return (int) Math.max(0, Math.min(3, Math.round(d)));
+    }
+
+    /**
+     * The profile key of the best stars on a track and level.
+     * @param trackKey {@code desert} or {@code desert-r} (see TrackSpline.key)
+     * @param level 1 (Easy), 2 (Medium) or 3 (Hard)
+     * @return for example {@code raceBest_desert-r_MEDIUM}
+     */
+    public static String raceBestKey(String trackKey, int level) {
+        String[] names = {"EASY", "MEDIUM", "HARD"};
+        return "raceBest_" + trackKey + "_" + names[Math.max(1, Math.min(3, level)) - 1];
+    }
+
     /**
      * Checks a pointer setting.
      * @param o the saved value (anything, even null)

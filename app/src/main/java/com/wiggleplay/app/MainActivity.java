@@ -158,6 +158,7 @@ public class MainActivity extends Activity {
         scenes.register("players", settings.host(new PlayersScene(env)));
         scenes.register("gameselect", settings.host(new GameSelectScene(env)));
         scenes.register("levelselect", settings.host(new LevelSelectScene(env)));
+        scenes.register("racetrack", settings.host(new com.wiggleplay.app.scenes.RaceTrackScene(env)));
         scenes.register(GameRegistry.PLACEHOLDER_SCENE, settings.host(new PlaceholderGameScene(env)));
         scenes.register("fruit", settings.host(new FruitScene(env)));
         scenes.register("dance", settings.host(new com.wiggleplay.app.games.dance.DanceScene(env)));

@@ -234,6 +234,19 @@ public final class TileMenu {
 
         Bitmap body, shadow, iconBmp;
         float hover;
+        private Bitmap custom;
+
+        /**
+         * Gives the tile a finished picture of its own (a track card) in place of the usual flat body and icon; the picture's size is the
+         * tile's size. May be called again to swap the picture while the menu runs (the tile keeps its place and focus).
+         * @param b the bitmap, {@code (int) w} x {@code (int) h}
+         */
+        public void setCustom(Bitmap b) {
+            custom = b;
+            body = b;
+            iconBmp = null;
+            if (shadow == null) shadow = Theme.tileShadow("tile_" + id + "_custom_" + (int) w + "x" + (int) h, (int) w, (int) h, colour);
+        }
 
         /**
          * Creates a tile.
@@ -262,6 +275,10 @@ public final class TileMenu {
 
         void bake() {
             if (pager) return;
+            if (custom != null) {
+                setCustom(custom);
+                return;
+            }
             if (round) {
                 RoundButton.bake(this);
                 return;

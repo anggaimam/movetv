@@ -109,7 +109,8 @@ public final class PlayersScene implements Scene {
         String sel = menu.update(dt, f);
         if (f.input.pressed(KeyEvent.KEYCODE_BACK) || "back".equals(sel)) {
             env.sfx("back");
-            env.go("gameselect", SceneArgs.EMPTY);
+            if ("race".equals(gameId)) env.go("racetrack", SceneArgs.EMPTY);   // T-32: back to the track screen
+            else env.go("gameselect", SceneArgs.EMPTY);
             return;
         }
         if ("settings".equals(sel)) {

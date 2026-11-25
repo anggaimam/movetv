@@ -629,15 +629,18 @@ public class ScreenshotTest {
                 Scene.SceneArgs.of("gameId", "race"), 1, 60, null));
     }
 
-    /** T-28 Part D: the temporary track chip, on a reversed track (City Lights, driven the other way). */
+    /** T-32 Part A: the track screen, each of the four cards focused in turn (remote right-arrow presses). */
     @Test
-    public void raceLevelSelectTrackChip() throws Exception {
-        com.wiggleplay.app.games.race.TrackChoice.set(3);
-        try {
-            check(ShotRig.shoot("race_levelselect_track_chip", new LevelSelectScene(env()),
-                    Scene.SceneArgs.of("gameId", "race"), 1, 60, null));
-        } finally {
-            com.wiggleplay.app.games.race.TrackChoice.set(0);
+    public void raceTrackScreen() throws Exception {
+        for (int card = 0; card < 4; card++) {
+            final int presses = card + 1;   // the first press only shows the focus ring on the first card
+            check(ShotRig.shoot("race_track_card_" + card, new com.wiggleplay.app.scenes.RaceTrackScene(env()), Scene.SceneArgs.EMPTY, 1, 14 + 6 * presses,
+                    (frame, nowMs, body, input) -> {
+                        for (int k = 0; k < presses; k++) {
+                            if (frame == 4 + 6 * k) input.keyDown(KeyEvent.KEYCODE_DPAD_RIGHT);
+                            if (frame == 5 + 6 * k) input.keyUp(KeyEvent.KEYCODE_DPAD_RIGHT);
+                        }
+                    }));
         }
     }
 

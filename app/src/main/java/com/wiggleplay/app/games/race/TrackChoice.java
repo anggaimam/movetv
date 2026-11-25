@@ -30,6 +30,17 @@ public final class TrackChoice {
         index = ((i % n) + n) % n;
     }
 
+    /**
+     * Sets the choice from the saved profile values (T-32).
+     * @param id a track id; an unknown id is the first track
+     * @param reversed true for the other way round
+     */
+    public static void load(String id, boolean reversed) {
+        int shape = 0;
+        for (int i = 0; i < TrackDefs.ALL.length; i++) if (TrackDefs.ALL[i].id.equals(id)) shape = i;
+        set(shape * 2 + (reversed ? 1 : 0));
+    }
+
     /** @return the chosen shape */
     public static TrackDef def() {
         return TrackDefs.ALL[index / 2];

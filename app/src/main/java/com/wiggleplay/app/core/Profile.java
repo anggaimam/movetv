@@ -14,7 +14,7 @@ import java.util.Map;
 public final class Profile {
 
     private static final String FILE = "movetv_profile";
-    private static final String K_HOLD = "hold_ms", K_PLAYERS = "players", K_BOOST = "light_boost", K_POINTER = "pointer", K_DANCE_CAM = "dance_camera", K_RACE_STEER = "race_steer", K_QUALITY = "quality";
+    private static final String K_HOLD = "hold_ms", K_PLAYERS = "players", K_BOOST = "light_boost", K_POINTER = "pointer", K_DANCE_CAM = "dance_camera", K_RACE_STEER = "race_steer", K_QUALITY = "quality", K_RACE_TRACK = "raceTrack", K_RACE_REVERSED = "raceReversed", K_RACE_TRUCK = "raceTruck";
 
     private final SharedPreferences prefs;
 
@@ -174,6 +174,78 @@ public final class Profile {
      */
     public void setRaceSteer(String mode) {
         prefs.edit().putString(K_RACE_STEER, ProfileLogic.cleanRaceSteer(mode)).apply();
+    }
+
+    /**
+     * The Turbo Trucks track (T-32).
+     * @return "desert", "city", "rockies" or "space" (default "desert")
+     */
+    public String raceTrack() {
+        return ProfileLogic.cleanRaceTrack(prefs.getAll().get(K_RACE_TRACK));
+    }
+
+    /**
+     * Saves the Turbo Trucks track.
+     * @param id a track id (anything else is saved as "desert")
+     */
+    public void setRaceTrack(String id) {
+        prefs.edit().putString(K_RACE_TRACK, ProfileLogic.cleanRaceTrack(id)).apply();
+    }
+
+    /**
+     * Whether the Turbo Trucks track is driven the other way round (T-32).
+     * @return true for the reversed direction (default false)
+     */
+    public boolean raceReversed() {
+        return ProfileLogic.cleanRaceReversed(prefs.getAll().get(K_RACE_REVERSED));
+    }
+
+    /**
+     * Saves the Turbo Trucks direction.
+     * @param reversed true for the other way round
+     */
+    public void setRaceReversed(boolean reversed) {
+        prefs.edit().putBoolean(K_RACE_REVERSED, reversed).apply();
+    }
+
+    /**
+     * The Turbo Trucks truck colour (T-32).
+     * @return "yellow", "red", "green" or "purple" (default "yellow")
+     */
+    public String raceTruck() {
+        return ProfileLogic.cleanRaceTruck(prefs.getAll().get(K_RACE_TRUCK));
+    }
+
+    /**
+     * Saves the Turbo Trucks truck colour.
+     * @param colour a colour (anything else is saved as "yellow")
+     */
+    public void setRaceTruck(String colour) {
+        prefs.edit().putString(K_RACE_TRUCK, ProfileLogic.cleanRaceTruck(colour)).apply();
+    }
+
+    /**
+     * The best stars earned on a track and level.
+     * @param trackKey {@code desert} or {@code desert-r}
+     * @param level 1 to 3
+     * @return 0 (never played) to 3
+     */
+    public int raceBest(String trackKey, int level) {
+        return ProfileLogic.cleanRaceBest(prefs.getAll().get(ProfileLogic.raceBestKey(trackKey, level)));
+    }
+
+    /**
+     * Saves the stars of a finished race when they beat the saved best.
+     * @param trackKey {@code desert} or {@code desert-r}
+     * @param level 1 to 3
+     * @param stars stars earned, 0 to 3
+     * @return true when the saved value was raised
+     */
+    public boolean recordRaceBest(String trackKey, int level, int stars) {
+        int earned = ProfileLogic.cleanRaceBest(stars);
+        if (earned <= raceBest(trackKey, level)) return false;
+        prefs.edit().putInt(ProfileLogic.raceBestKey(trackKey, level), earned).apply();
+        return true;
     }
 
     /**
