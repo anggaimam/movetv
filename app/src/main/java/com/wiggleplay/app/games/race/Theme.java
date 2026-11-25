@@ -13,7 +13,8 @@ import com.wiggleplay.app.gl.PaletteSwatches;
 public final class Theme {
 
     /** Ring profiles. */
-    public static final int MESAS = 0, ROLLING = 1, SKYLINE = 2, PEAKS = 3, CRATERS = 4, STARS = 5;
+    public static final int MESAS = 0, ROLLING = 1, SKYLINE = 2, PEAKS = 3, CRATERS = 4, STARS = 5, RIDGE = 6, CRATER_RIM = 7,
+            HIGHLANDS = 8;
     /** Prop orientations: any yaw; the local +z (the front) turned to the road; the local z parallel to the road. */
     public static final int ORIENT_RANDOM = 0, ORIENT_FACE_ROAD = 1, ORIENT_PARALLEL = 2;
     /** Slippery patch kinds (T-31). */
@@ -304,6 +305,7 @@ public final class Theme {
         int count = SW_FIRST_RING + 2 * rings.length;
         for (PropRule r : props) count += r.ramps();
         if (hasSky()) count += 3;
+        count += extraCount();
         if (count > PaletteSwatches.MAX) throw new IllegalStateException("theme " + id + " needs " + count + " swatches");
         road.paint(p);
         p.set(SW_GROUND, ground);
@@ -323,6 +325,7 @@ public final class Theme {
             p.set(skySwatch(1), look.sunDisc);
             p.setRamp(skySwatch(2), look.sunDisc, skyColorAt(sunElevationDeg() / 90f));
         }
+        for (int e = 0; e < extraCount(); e++) p.setRamp(extraSwatch(e), look.terrain.extra[2 * e], look.terrain.extra[2 * e + 1]);
         if (look.terrain != null) {
             p.setRamp(terrainSwatch(0), look.terrain.groundDark, look.terrain.groundLight);
             p.setRamp(terrainSwatch(1), look.terrain.shoulderDark, look.terrain.shoulderLight);
@@ -339,5 +342,23 @@ public final class Theme {
      */
     public int terrainSwatch(int k) {
         return SW_GROUND + k;
+    }
+
+    /** Number of extra ramps of the terrain profile ({@link Terrain.Profile#extra}). */
+    public int extraCount() {
+        return look.terrain == null ? 0 : look.terrain.extra.length / 2;
+    }
+
+    /**
+     * The swatch of extra ramp k (they follow the sky swatches): for Rocky Lakes 0 = water, 1 = lake edge band, 2 = shore gravel,
+     * 3 = rock.
+     * @param k index into the profile's extra ramps
+     * @return the swatch index
+     */
+    public int extraSwatch(int k) {
+        int n = SW_FIRST_RING + 2 * rings.length;
+        for (PropRule r : props) n += r.ramps();
+        if (hasSky()) n += 3;
+        return n + k;
     }
 }

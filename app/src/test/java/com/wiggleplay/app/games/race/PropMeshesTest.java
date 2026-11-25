@@ -8,8 +8,9 @@ import com.wiggleplay.app.gl.PaletteSwatches;
 import org.junit.Test;
 
 public class PropMeshesTest {
-    /** The theme that uses a kind: Desert Dunes for the first 8 kinds, City Lights for the rest. */
+    /** The theme that uses a kind: Desert Dunes for the first 8 kinds, City Lights for the next 12, Rocky Lakes for the rest. */
     private static Theme themeOf(int kind) {
+        if (kind >= PropMeshes.PINE_GROVE) return Themes.ROCKIES;
         return kind >= PropMeshes.BUILDING ? Themes.CITY : Themes.DESERT;
     }
 
@@ -58,7 +59,10 @@ public class PropMeshesTest {
                     min = Math.min(min, p.vertices[i * 8 + 1]);
                     max = Math.max(max, p.vertices[i * 8 + 1]);
                 }
-                assertTrue("kind " + k + " base " + min, min >= -0.03f && min <= 0.08f);
+                // pines, aspens, outcrops and dock posts reach down to stay planted on a slope (T-30b)
+                float floor = k == PropMeshes.PINE_GROVE || k == PropMeshes.PINE || k == PropMeshes.ASPEN || k == PropMeshes.ROCK_OUTCROP
+                        || k == PropMeshes.DOCK || k == PropMeshes.FALLEN_LOG ? -0.55f : -0.03f;
+                assertTrue("kind " + k + " base " + min, min >= floor && min <= 0.08f);
                 assertTrue("kind " + k + " height " + max + " vs " + PropMeshes.height(k), max <= PropMeshes.height(k) + 1e-3f);
             }
         }

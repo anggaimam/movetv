@@ -683,6 +683,19 @@ public class ScreenshotTest {
         check(BackdropShots.shoot(com.wiggleplay.app.games.race.Themes.CITY, "t30_city_backdrop"));
     }
 
+    /** T-30b: the Rocky Lakes height map (lakes, road, props) and every prop close up. */
+    @Test
+    public void rockiesHeightmapAndCloseups() throws Exception {
+        check(RockyShots.shootHeightmap());
+        check(RockyShots.shootCloseups());
+    }
+
+    /** T-30b: the Rocky Lakes backdrop rings unrolled. */
+    @Test
+    public void rockiesBackdrop() throws Exception {
+        check(BackdropShots.shoot(com.wiggleplay.app.games.race.Themes.ROCKIES, "t30_rockies_backdrop"));
+    }
+
     /** T-23 Part C: the new coin and the golden star close up, turned 0, 35 and 75 degrees (a software drawing of the mesh). */
     @Test
     public void raceCoinCloseUp() throws Exception {

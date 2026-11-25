@@ -76,7 +76,7 @@ public class CityTest {
     @Test
     public void towersAndStreetFurnitureStayUnderTheirLimits() {
         PaletteSwatches pal = palette();
-        for (int kind = PropMeshes.BUILDING; kind < PropMeshes.COUNT; kind++) {
+        for (int kind = PropMeshes.BUILDING; kind <= PropMeshes.FLOWER_PLANTER; kind++) {
             for (int v = 0; v < PropMeshes.variants(kind); v++) {
                 MeshData m = PropMeshes.build(kind, v, pal, C.propSwatches(ruleOf(kind)));
                 assertTrue("kind " + kind + " v" + v + " has " + m.triangleCount(), m.triangleCount() <= PropMeshes.MAX_TRIANGLES[kind]);

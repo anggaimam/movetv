@@ -28,6 +28,10 @@ public final class PropScatter {
     public static final float SEEN_RANGE = 40f;
     /** Tries per prop: the first and four retries. */
     public static final int TRIES = 5;
+    /** T-30b: props keep this far from a lake edge (m); rock outcrops stand only where the ground is steeper than this (degrees). */
+    public static final float LAKE_GAP = 3f, OUTCROP_MIN_SLOPE = 15f;
+    /** How far the ground under an outcrop may vary (m): the slab sits on its lowest corner. */
+    public static final float OUTCROP_SLOPE = 2.4f;
 
     private PropScatter() { }
 
@@ -82,6 +86,7 @@ public final class PropScatter {
         float[] rot = new float[16], sc = new float[16], rs = new float[16], tr = new float[16];
         for (Theme.PropRule rule : th.props) {
             if (rule.tierB && !includeTierB) continue;
+            if (rule.kind == PropMeshes.DOCK || rule.kind == PropMeshes.CANOE) continue;   // placed on the shores below
             int n = Math.round(rule.per100m * len / 100f);
             float reach = Math.max(rule.footprint, PropMeshes.reach(rule.kind));
             for (int k = 0; k < n; k++) {
@@ -98,6 +103,9 @@ public final class PropScatter {
                     float z = sm[1] - (float) Math.sin(sm[2]) * side;
                     float fp = reach * scale;
                     if (!accept(t, x, z, fp, startSamples, px, pz, pr, placed)) continue;
+                    if (terrain != null && terrain.lakes().count() > 0 && terrain.lakeEdge(x, z) < LAKE_GAP) continue;
+                    boolean outcrop = rule.kind == PropMeshes.ROCK_OUTCROP;
+                    if (outcrop && (terrain == null || terrain.slopeDeg(x, z) < OUTCROP_MIN_SLOPE)) continue;
                     if (rule.tallAbove > 0f && PropMeshes.height(rule.kind, variant) * scale > rule.tallAbove
                             && nearestRoad(t, x, z) < rule.tallMinDist) continue;
                     float yaw = angle;
@@ -115,8 +123,8 @@ public final class PropScatter {
                             lo = Math.min(lo, h);
                             hi = Math.max(hi, h);
                         }
-                        if (hi - lo > MAX_SLOPE) continue;
-                        y -= SINK;
+                        if (hi - lo > (outcrop ? OUTCROP_SLOPE : MAX_SLOPE)) continue;
+                        y = (outcrop ? lo : y) - SINK;
                     }
                     if (placed == px.length) {
                         px = java.util.Arrays.copyOf(px, placed * 2);
@@ -138,6 +146,69 @@ public final class PropScatter {
                     if (instances != null) instances.add(new Instance(rule.kind, variant, x, y + SINK, z, yaw, scale, fp));
                     break;
                 }
+            }
+        }
+        if (terrain != null && terrain.lakes().count() > 0) placed += shoreProps(t, th, terrain, out, instances);
+        return placed;
+    }
+
+    /**
+     * Docks (lakes 1 and 3) and one canoe per lake (T-30b): at the lake edge point whose distance from the road is nearest to 18 m
+     * (but at least 9 m, so neither touches the road), the dock running out into the water, the canoe lying on the shore along it.
+     */
+    private static int shoreProps(TrackSpline t, Theme th, Terrain terrain, List<StaticBatcher.Placement> out, List<Instance> instances) {
+        Lakes lk = terrain.lakes();
+        int placed = 0;
+        float[] pt = new float[2], pt2 = new float[2];
+        for (Theme.PropRule rule : th.props) {
+            boolean dock = rule.kind == PropMeshes.DOCK;
+            if (!dock && rule.kind != PropMeshes.CANOE) continue;
+            for (int i = 0; i < lk.count(); i++) {
+                if (dock && i != 0 && i != 2) continue;
+                // candidate angles, best first; the canoe takes the second best (away from the dock)
+                float best = Float.MAX_VALUE, second = Float.MAX_VALUE, bestA = Float.NaN, secondA = Float.NaN;
+                for (int q = 0; q < 48; q++) {
+                    float a = (float) (2.0 * Math.PI * q / 48);
+                    lk.point(i, a, 1f, pt);
+                    float r = nearestRoad(t, pt[0], pt[1]);
+                    if (r < 9f || r > 34f) continue;
+                    float score = Math.abs(r - 18f);
+                    if (score < best) {
+                        second = best;
+                        secondA = bestA;
+                        best = score;
+                        bestA = a;
+                    } else if (score < second && Math.abs(a - bestA) > 0.6f) {
+                        second = score;
+                        secondA = a;
+                    }
+                }
+                float a = dock ? bestA : (Float.isNaN(secondA) ? bestA : secondA);
+                if (Float.isNaN(a)) continue;
+                lk.point(i, a, 1f, pt);
+                lk.point(i, a + 0.05f, 1f, pt2);
+                float inx = lk.centreX(i) - pt[0], inz = lk.centreZ(i) - pt[1];
+                float il = (float) Math.sqrt(inx * inx + inz * inz);
+                inx /= il;
+                inz /= il;
+                float x = pt[0], z = pt[1], yaw, y;
+                if (dock) {
+                    yaw = (float) Math.atan2(inx, inz);
+                    y = 0f;
+                } else {
+                    x -= inx * 1.3f;
+                    z -= inz * 1.3f;
+                    float tx = pt2[0] - pt[0], tz = pt2[1] - pt[1];
+                    yaw = (float) Math.atan2(tx, tz);
+                    y = terrain.surface(x, z) - 0.04f;
+                }
+                float[] rot = new float[16], tr = new float[16], m = new float[16];
+                Mat4.rotY(rot, yaw);
+                Mat4.translate(tr, x, y, z);
+                Mat4.multiply(m, tr, rot);
+                out.add(new StaticBatcher.Placement(PropMeshes.name(rule.kind, 0), m, (int) Math.floor(x / 10f), (int) Math.floor(z / 10f)));
+                if (instances != null) instances.add(new Instance(rule.kind, 0, x, y, z, yaw, 1f, dock ? 3f : 2f));
+                placed++;
             }
         }
         return placed;

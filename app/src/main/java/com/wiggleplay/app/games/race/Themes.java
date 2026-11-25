@@ -90,6 +90,45 @@ public final class Themes {
                             0x8CC070, 0.62f)));
 
     /**
+     * Rocky Lakes (T-30b): a mountain valley with four lakes, pine groves, aspens, boulders and rock outcrops on the steeper slopes, a
+     * cabin, forested ridges and snow peaks behind. Hills rise to 8 m from 8 m away from the road; the shores are flat.
+     */
+    public static final Theme ROCKIES = new Theme("rockies", 0x4F95D0, 0xE2F0F7, 28f, 55f, new float[] {-0.35f, -0.85f, -0.40f},
+            0x4E7F3C, 0x4E7F3C, 0x4E7F3C, 0, 0f, 0f,
+            new RoadStyle(0x575B62, 0xC9453C, 0xF3EBDD, 0x8E959B, 0xE2E6E8, 0x2F3A45, 0xF3EBDD, 0xF3EBDD, 0xC9453C, 0, 0x8E959B,
+                    0xE2E6E8, 0, 0),
+            new Theme.Ring[] {
+                    new Theme.Ring(50f, 0x5B8A5E, Theme.ROLLING, 2f, 6f, 192, 31L, false, 0x4A5C52),
+                    new Theme.Ring(54f, 0x3F6D58, Theme.RIDGE, 4f, 10f, 192, 32L, true, 0),
+                    new Theme.Ring(57f, 0xA6B5C8, Theme.PEAKS, 14f, 32f, 192, 33L, true, 0xEEF3F8)},
+            0xD8D2C2, Theme.SLICK_ICE,
+            new Theme.PropRule[] {
+                    new Theme.PropRule(PropMeshes.PINE_GROVE, 1.5f, 12f, 35f, 4.5f, 0.9f, 1.15f, false,
+                            new int[] {0x1F4A35, 0x4F8A5E, 0x4A3526, 0x7E5E45}),
+                    new Theme.PropRule(PropMeshes.PINE, 6f, 8.5f, 32f, 1.8f, 0.85f, 1.2f, true,
+                            new int[] {0x1F4A35, 0x4F8A5E, 0x4A3526, 0x7E5E45}),
+                    new Theme.PropRule(PropMeshes.ASPEN, 2f, 9f, 30f, 1.5f, 0.9f, 1.2f, true,
+                            new int[] {0xBDB8AE, 0xF0ECE4, 0x8DA33E, 0xD6C94A}),
+                    new Theme.PropRule(PropMeshes.ROCK_OUTCROP, 1f, 12f, 40f, 2.5f, 0.9f, 1.3f, false, new int[] {0x6F767C, 0xB9BFC3}),
+                    new Theme.PropRule(PropMeshes.BOULDERS, 4f, 8.1f, 35f, 1.2f, 0.7f, 1.4f, true, new int[] {0x6A7076, 0xB4BABE}),
+                    new Theme.PropRule(PropMeshes.CABIN, 0.4f, 12f, 28f, 3.5f, 0.95f, 1.1f, false,
+                            new int[] {0x7A4E2E, 0xB07A4F, 0x4A3A2E, 0x7C6450, 0xA8322C, 0xE5574D}, Theme.ORIENT_FACE_ROAD, 0f, 0f),
+                    new Theme.PropRule(PropMeshes.DOCK, 0f, 9f, 34f, 3f, 1f, 1f, false, new int[] {0x6E5136, 0xA88460}),
+                    new Theme.PropRule(PropMeshes.CANOE, 0f, 9f, 34f, 2f, 1f, 1f, false, new int[] {0xA8322C, 0xE5574D}),
+                    new Theme.PropRule(PropMeshes.FALLEN_LOG, 2f, 8.5f, 30f, 2f, 0.8f, 1.2f, true, new int[] {0x5E4632, 0x9A7A5C}),
+                    new Theme.PropRule(PropMeshes.FERN, 8f, 7.5f, 25f, 0.8f, 0.8f, 1.3f, true, new int[] {0x3E7A3A, 0x86B866}),
+                    new Theme.PropRule(PropMeshes.WILDFLOWERS, 12f, 7.2f, 25f, 0.4f, 0.8f, 1.3f, true,
+                            new int[] {0x6E4E9A, 0xB494E0, 0xC9A12E, 0xF2D36B, 0x3E7A3A, 0x86B866}),
+                    new Theme.PropRule(PropMeshes.GRASS, 20f, 7f, 25f, 0.3f, 0.8f, 1.4f, true, new int[] {0x557F3A, 0x9CC46A})},
+            // cool sky light, green bounce from the valley floor, a warm sun; grain: grass ground, asphalt road, gravel, concrete (rock)
+            new Theme.Look(Theme.Look.scaled(0x9FC3DE, 0.62f), Theme.Look.scaled(0x8FAF7A, 0.45f),
+                    Theme.Look.scaled(0xFFF4DC, 0.62f), 0x4F95D0, 0xFFF6E6,
+                    new int[] {DetailTexture.GRASS, DetailTexture.ASPHALT, DetailTexture.GRAVEL, DetailTexture.CONCRETE},
+                    // smooth hills to 8 m (wavelength 65 m) from 8 m off the road; the extra ramps: water, lake edge band, shore, rock
+                    new Terrain.Profile(20f, 8f, 65f, 0.4f, 0x4E7F3C, 0x93BF6A, 0x8C8576, 0xBDB6A6, 8f, 24f, false, 0, 0, 0f,
+                            Terrain.HILLS, new int[] {0x1F7F95, 0x5FC9D6, 0x9BE3E8, 0x9BE3E8, 0xA39C8E, 0xD2CBBD, 0x6F767C, 0xB9BFC3}, 0)));
+
+    /**
      * The theme of a track.
      * @param id {@code TrackDef.themeId}
      * @return the theme; {@link #MEADOW} for an id that is unknown or not built yet
@@ -97,6 +136,7 @@ public final class Themes {
     public static Theme byId(String id) {
         if ("desert".equals(id)) return DESERT;
         if ("city".equals(id)) return CITY;
+        if ("rockies".equals(id)) return ROCKIES;
         return MEADOW;
     }
 }

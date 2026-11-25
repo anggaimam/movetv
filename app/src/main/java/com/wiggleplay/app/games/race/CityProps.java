@@ -41,7 +41,7 @@ final class CityProps {
     }
 
     /** A disc of n triangles in the plane z = const, centre (cx, cy), facing +z (dir 1) or -z (dir -1). */
-    private static void disc(MeshKit k, int sw, float cx, float cy, float z, float r, int n, float t, float dir) {
+    static void disc(MeshKit k, int sw, float cx, float cy, float z, float r, int n, float t, float dir) {
         float[] c = f(cx, cy, z);
         for (int i = 0; i < n; i++) {
             double a0 = 2.0 * Math.PI * i / n, a1 = 2.0 * Math.PI * (i + 1) / n;
@@ -51,7 +51,7 @@ final class CityProps {
     }
 
     /** A rounded blob (an ellipsoid with a little jitter): rings from the bottom pole to the top pole, smooth normals. */
-    private static void blob(MeshKit k, float cx, float cy, float cz, float rx, float ry, float rz, int sides, int rings, int sw,
+    static void blob(MeshKit k, float cx, float cy, float cz, float rx, float ry, float rz, int sides, int rings, int sw,
                              float t0, float t1, Random rnd) {
         float[][][] p = new float[rings][sides][3];
         float[][] t = new float[rings][sides];

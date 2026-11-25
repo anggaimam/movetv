@@ -23,15 +23,21 @@ public final class PropMeshes {
     /** City Lights kinds (T-30a), built by {@link CityProps}. */
     public static final int BUILDING = 8, TOWER = 9, LAMP = 10, STREET_TREE = 11, PARKED_CAR = 12, BUS_STOP = 13, BENCH = 14,
             HYDRANT = 15, BIN = 16, SIGN = 17, CONE = 18, FLOWER_PLANTER = 19;
+    /** Rocky Lakes kinds (T-30b), built by {@link RockyProps}. */
+    public static final int PINE_GROVE = 20, PINE = 21, ASPEN = 22, ROCK_OUTCROP = 23, BOULDERS = 24, CABIN = 25, DOCK = 26,
+            CANOE = 27, FALLEN_LOG = 28, FERN = 29, WILDFLOWERS = 30, GRASS = 31;
     /** Number of kinds. */
-    public static final int COUNT = 20;
+    public static final int COUNT = 32;
     /** Triangle limits of the ticket, per kind. */
     public static final int[] MAX_TRIANGLES = {450, 900, 300, 400, 400, 120, 14, 48,
-            1000, 600, 120, 300, 500, 300, 120, 80, 80, 60, 40, 150};
+            1000, 600, 120, 300, 500, 300, 120, 80, 80, 60, 40, 150,
+            2000, 350, 300, 700, 400, 800, 200, 120, 150, 100, 60, 14};
     /** Number of ramps each kind needs in its rule. */
-    public static final int[] RAMPS = {1, 2, 2, 1, 2, 1, 1, 1, 7, 3, 2, 3, 5, 2, 2, 1, 1, 3, 2, 2};
+    public static final int[] RAMPS = {1, 2, 2, 1, 2, 1, 1, 1, 7, 3, 2, 3, 5, 2, 2, 1, 1, 3, 2, 2,
+            2, 2, 2, 1, 1, 3, 1, 1, 1, 1, 3, 1};
 
-    private static final int[] VARIANTS = {3, 2, 3, 3, 2, 1, 2, 2, 3, 3, 2, 2, 3, 2, 2, 1, 2, 3, 2, 1};
+    private static final int[] VARIANTS = {3, 2, 3, 3, 2, 1, 2, 2, 3, 3, 2, 2, 3, 2, 2, 1, 2, 3, 2, 1,
+            4, 3, 2, 3, 3, 2, 1, 1, 2, 1, 2, 1};
     private static final float[] REACH = new float[COUNT];
 
     private PropMeshes() { }
@@ -193,6 +199,42 @@ public final class PropMeshes {
             case FLOWER_PLANTER:
                 CityProps.planter(k, sw, rnd);
                 break;
+            case PINE_GROVE:
+                RockyProps.grove(k, variant, sw, rnd);
+                break;
+            case PINE:
+                RockyProps.pine(k, variant, sw, rnd);
+                break;
+            case ASPEN:
+                RockyProps.aspen(k, variant, sw, rnd);
+                break;
+            case ROCK_OUTCROP:
+                RockyProps.outcrop(k, variant, sw, rnd);
+                break;
+            case BOULDERS:
+                RockyProps.boulders(k, variant, sw, rnd);
+                break;
+            case CABIN:
+                RockyProps.cabin(k, variant, sw, rnd);
+                break;
+            case DOCK:
+                RockyProps.dock(k, sw);
+                break;
+            case CANOE:
+                RockyProps.canoe(k, sw);
+                break;
+            case FALLEN_LOG:
+                RockyProps.log(k, variant, sw, rnd);
+                break;
+            case FERN:
+                RockyProps.fern(k, sw, rnd);
+                break;
+            case WILDFLOWERS:
+                RockyProps.flowers(k, variant, sw, rnd);
+                break;
+            case GRASS:
+                RockyProps.grass(k, sw, rnd);
+                break;
             default:
                 throw new IllegalArgumentException("unknown prop kind " + kind);
         }
@@ -341,7 +383,7 @@ public final class PropMeshes {
         return v;
     }
 
-    private static void rock(MeshKit k, float cx, float cz, float rx, float ry, float rz, int sw, long seed) {
+    static void rock(MeshKit k, float cx, float cz, float rx, float ry, float rz, int sw, long seed) {
         // subdivide once: 42 vertices, 80 faces
         java.util.ArrayList<float[]> verts = new java.util.ArrayList<>();
         for (float[] p : ICO) verts.add(p.clone());

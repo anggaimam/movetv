@@ -81,6 +81,8 @@ public final class Backdrop {
             }
             case Theme.PEAKS:
                 return fromVertices(peaks(r, rnd));
+            case Theme.RIDGE:
+                return ridge(r, rnd);
             case Theme.MESAS:
                 return mesas(r, rnd);
             case Theme.SKYLINE:
@@ -133,10 +135,36 @@ public final class Backdrop {
             float apex = r.minH + rnd.nextFloat() * (r.maxH - r.minH);
             for (int j = 0; j < w; j++) {
                 float t = j <= apexAt ? (float) j / apexAt : (float) (w - j) / (w - apexAt);
-                hv[a + j] = valley + (apex - valley) * t;
+                // v2 (T-30b): jagged flanks, no jitter at the valley and the apex
+                float jag = (rnd.nextFloat() - 0.5f) * 0.2f * (apex - valley) * Math.min(1f, 3f * t) * Math.min(1f, 4f * (1f - t));
+                hv[a + j] = Math.max(valley, valley + (apex - valley) * t + jag);
             }
         }
         return hv;
+    }
+
+    /**
+     * RIDGE (T-30b): forested ridges. A slow base between minH and maxH minus the tooth height, and a serrated top: every pair of
+     * columns is one tooth (rising, then falling) 0.5 to 1.3 m tall, so the edge reads as a line of trees.
+     */
+    private static Profile ridge(Theme.Ring r, Random rnd) {
+        int n = r.segments;
+        float[] base = rolling(r, rnd);
+        float[] l = new float[n], rr = new float[n];
+        float tooth = Math.min(1.3f, Math.max(0f, r.maxH - r.minH) * 0.2f);
+        for (int c = 0; c < n; c += 2) {
+            float lo = Math.max(r.minH, base[c] - tooth), up = Math.min(r.maxH, lo + 0.5f * tooth + tooth * 0.5f * rnd.nextFloat() * 2f);
+            float next = base[(c + 2) % n];
+            l[c] = lo;
+            rr[c] = up;
+            if (c + 1 < n) {
+                l[c + 1] = up;
+                rr[c + 1] = Math.max(r.minH, Math.min(r.maxH, next - tooth));
+            }
+        }
+        // close the circle: the last right edge meets the first left edge
+        rr[n - 1] = l[0];
+        return new Profile(l, rr);
     }
 
     /**
@@ -287,12 +315,29 @@ public final class Backdrop {
             float a0 = (float) (2 * Math.PI * c / n), a1 = (float) (2 * Math.PI * (c + 1) / n);
             float hl = p.left[c], hr = p.right[c];
             if (cap) {
-                quad(b, r.radius, a0, a1, BASE_Y, BASE_Y, CAP_START * hl, CAP_START * hr, u0, v0);
-                quad(b, r.radius, a0, a1, CAP_START * hl, CAP_START * hr, hl, hr, u1, v1);
+                // v2: an uneven snow line (wobbling by up to 3 m) and gullies (a column swaps rock and snow colours)
+                float sl = snowLine(r, c, hl), sr = snowLine(r, c + 1, hr);
+                boolean gully = gully(r, c);
+                quad(b, r.radius, a0, a1, BASE_Y, BASE_Y, sl, sr, gully ? u1 : u0, gully ? v1 : v0);
+                quad(b, r.radius, a0, a1, sl, sr, hl, hr, gully ? u0 : u1, gully ? v0 : v1);
+            } else if (r.profile == Theme.ROLLING && r.accent != 0) {
+                boolean streak = Noise.hash(c / 2, 5, r.seed) < 0.2f;   // vertical rock streaks
+                quad(b, r.radius, a0, a1, BASE_Y, BASE_Y, hl, hr, streak ? u1 : u0, streak ? v1 : v0);
             } else {
                 quad(b, r.radius, a0, a1, BASE_Y, BASE_Y, hl, hr, u0, v0);
             }
         }
+    }
+
+    /** Height of the snow line at ring vertex i of a peak of top height h: 78% of h, wobbling by up to 3 m. */
+    static float snowLine(Theme.Ring r, int i, float h) {
+        float wob = (Noise.fbm(i * 0.23f + 3f, 8.1f, 2, r.seed) - 0.5f) * 6f;
+        return Math.max(0.4f * h, Math.min(0.95f * h, CAP_START * h + wob));
+    }
+
+    /** Whether column c of a snowy PEAKS ring is a gully (2 columns wide). */
+    static boolean gully(Theme.Ring r, int c) {
+        return Noise.hash(c / 2, 7, r.seed) < 0.22f;
     }
 
     /** Whether column c of a SKYLINE ring with an accent takes the light colour (groups of 4 columns, every second one). */

@@ -25,7 +25,7 @@ import java.util.Map;
  */
 final class CityShots {
 
-    private static final int W = 1920, H = 1100, COLS = 5, ROWS = 4, TOP = 70;
+    private static final int W = 1920, H = 1100, COLS = 5, TOP = 70;
     /** kind, variant, yaw (degrees): what the sheet shows. */
     private static final int[][] ITEMS = {
             {PropMeshes.BUILDING, 0, 30}, {PropMeshes.BUILDING, 1, 30}, {PropMeshes.BUILDING, 2, 30}, {PropMeshes.TOWER, 0, 30},
@@ -35,13 +35,18 @@ final class CityShots {
             {PropMeshes.SIGN, 0, 30}, {PropMeshes.SIGN, 2, 30}, {PropMeshes.CONE, 1, 30}, {PropMeshes.FLOWER_PLANTER, 0, 30}};
     private static final String[] NAMES = {"saguaro", "butte", "barrel cacti", "rocks", "joshua tree", "scrub", "dry grass", "pebbles",
             "building", "tower", "lamp", "street tree", "parked car", "bus stop", "bench", "hydrant", "bin", "sign", "cone",
-            "flower planter"};
+            "flower planter", "pine grove", "pine", "aspen", "rock outcrop", "boulders", "cabin", "dock", "canoe", "fallen log",
+            "fern", "wildflowers", "grass"};
 
     private CityShots() { }
 
     /** Draws and saves {@code t30_city_closeups.png}. */
     static File shootCloseups() throws IOException {
-        Theme th = Themes.CITY;
+        return sheet(Themes.CITY, ITEMS, "t30_city_closeups", "City Lights props (software drawing: theme ramps, 3/4 view)", 0xFFDCE6EE);
+    }
+
+    /** One sheet of close-ups of a theme's props: {@code items} are {kind, variant, yaw degrees}. */
+    static File sheet(Theme th, int[][] items, String file, String title, int background) throws IOException {
         PaletteSwatches pal = new PaletteSwatches();
         th.fillPalette(pal);
         // block index -> {dark, light} colours of the ramp
@@ -52,15 +57,16 @@ final class CityShots {
         }
         Bitmap bmp = Bitmap.createBitmap(W, H, Bitmap.Config.ARGB_8888);
         Canvas c = new Canvas(bmp);
-        c.drawColor(0xFFDCE6EE);
+        c.drawColor(background);
         Paint txt = new Paint(Paint.ANTI_ALIAS_FLAG);
         txt.setColor(0xFF1B1B1B);
         txt.setTextSize(36f);
-        c.drawText("City Lights props (software drawing: theme ramps, 3/4 view)", 30f, 48f, txt);
+        c.drawText(title, 30f, 48f, txt);
         txt.setTextSize(22f);
-        int cw = W / COLS, ch = (H - TOP) / ROWS;
-        for (int i = 0; i < ITEMS.length; i++) {
-            int kind = ITEMS[i][0], variant = ITEMS[i][1];
+        int rows = (items.length + COLS - 1) / COLS;
+        int cw = W / COLS, ch = (H - TOP) / rows;
+        for (int i = 0; i < items.length; i++) {
+            int kind = items[i][0], variant = items[i][1];
             int rule = 0;
             for (int r = 0; r < th.props.length; r++) if (th.props[r].kind == kind) rule = r;
             MeshData m = PropMeshes.build(kind, variant, pal, th.propSwatches(rule));
@@ -72,12 +78,12 @@ final class CityShots {
             }
             float extent = Math.max(height, 2f * reach);
             float cx = (i % COLS) * cw + cw / 2f, base = TOP + (i / COLS) * ch + ch - 40f;
-            draw(c, p, ramps, ITEMS[i][2], 14f, 0.8f * (ch - 70f) / extent, cx, base, th);
+            draw(c, p, ramps, items[i][2], 14f, 0.8f * (ch - 70f) / extent, cx, base, th);
             c.drawText(NAMES[kind] + " v" + variant + "  " + m.triangleCount() + " tris", cx - cw / 2f + 14f, base + 30f, txt);
         }
         File dir = new File("build/screenshots");
         if (!dir.isDirectory() && !dir.mkdirs()) throw new IOException("cannot create " + dir);
-        File f = new File(dir, "t30_city_closeups.png");
+        File f = new File(dir, file + ".png");
         try (FileOutputStream os = new FileOutputStream(f)) {
             bmp.compress(Bitmap.CompressFormat.PNG, 100, os);
         }

@@ -85,7 +85,7 @@ public final class RaceScene implements Scene {
     private float noteT;
     private final StringBuilder noteSb = new StringBuilder(64);
     private static final String[] INTRO_TEXT = RaceHud.HINT;
-    private final RenderList list = new RenderList(192);
+    private final RenderList list = new RenderList(240);
 
     // scratch
     private final float[] mTruck = new float[16], mT = new float[16], mR = new float[16], mA = new float[16],
@@ -95,7 +95,10 @@ public final class RaceScene implements Scene {
     private final int[] truckId = new int[4];
     private final int[][] partIdx = new int[4][6];
     private final MeshData[] truckData = new MeshData[4];
-    private int groundId, shadowId, coinId, starId, nitroId, magnetId;
+    private int groundId, shadowId, coinId, starId, nitroId, magnetId, sparkleId = -1;
+    /** T-30b: the lakes of the track and the sparkles on them (8 per lake: x, z, phase); empty on LOW. */
+    private Lakes lakes = Lakes.NONE;
+    private float[] sparkle = new float[0];
     /** The world's look (T-29). Written in full because {@code Theme} here means the menu theme in com.wiggleplay.app.ui. */
     private com.wiggleplay.app.games.race.Theme theme = Themes.MEADOW;
     private final int[] ringId = new int[4];
@@ -491,6 +494,8 @@ public final class RaceScene implements Scene {
         byte[] detail;
         RaceGlView.PreparedStatic chunks;
         int ms;
+        Lakes lakes = Lakes.NONE;
+        boolean low;
     }
 
     /** Builds the road, patches, props, rings, sky dome, detail texture and the merged chunks (worker thread, no GL, no view). */
@@ -502,7 +507,9 @@ public final class RaceScene implements Scene {
         theme.fillPalette(pal);
         TrackSpline forward = reversed ? TrackSpline.build(def, false, raceLevel) : layout;
         long seed = def.id.hashCode();
-        Terrain terrain = theme.look.terrain != null ? Terrain.create(forward, theme, seed, low) : null;
+        w.lakes = Lakes.of(def);
+        w.low = low;
+        Terrain terrain = theme.look.terrain != null ? Terrain.create(forward, theme, seed, low, w.lakes) : null;
         List<MeshData> pieces = TrackMeshBuilder.build(layout, theme.road, pal, terrain != null ? theme.terrainSwatch(1) : -1);
         float[] ident = new float[16];
         Mat4.identity(ident);
@@ -523,8 +530,18 @@ public final class RaceScene implements Scene {
         }
         if (terrain != null) {
             // R2: the ground is a height field cut into 60 m tiles
+            boolean extras = theme.extraCount() >= 4;   // T-30b: water, lake edge, shore and rock ramps
             List<Terrain.Tile> tiles = terrain.build(pal, theme.terrainSwatch(0), theme.terrainSwatch(1),
-                    theme.look.terrain.parkDark != 0 ? theme.terrainSwatch(2) : -1);
+                    theme.look.terrain.parkDark != 0 ? theme.terrainSwatch(2) : -1, extras ? theme.extraSwatch(2) : -1,
+                    extras ? theme.extraSwatch(3) : -1);
+            if (extras) {
+                for (int i = 0; i < w.lakes.count(); i++) {
+                    String name = "lake_" + i;
+                    w.library.put(name, LakeMesh.build(w.lakes, i, pal, theme.extraSwatch(0), theme.extraSwatch(1)));
+                    w.placements.add(new StaticBatcher.Placement(name, ident, (int) Math.floor(w.lakes.centreX(i) / CELL),
+                            (int) Math.floor(w.lakes.centreZ(i) / CELL)));
+                }
+            }
             tiles.addAll(terrain.sidewalk(pal, theme.terrainSwatch(1)));
             for (int i = 0; i < tiles.size(); i++) {
                 String name = "terrain_" + i;
@@ -579,6 +596,25 @@ public final class RaceScene implements Scene {
         ringCount = 0;
         for (int i = 0; i < w.rings.size() && ringCount < ringId.length; i++) {
             ringId[ringCount++] = gl.addMesh(w.ringNames.get(i), w.rings.get(i));
+        }
+        lakes = w.lakes;
+        sparkleId = -1;
+        sparkle = new float[0];
+        if (lakes.count() > 0 && !w.low) {
+            // T-30b: 8 sparkles per lake, seeded inside the water
+            sparkleId = gl.addMesh("sparkle", ProcMesh.disc(0.45f, 8));
+            sparkle = new float[lakes.count() * 8 * 3];
+            float[] pt = new float[2];
+            java.util.Random rnd = new java.util.Random(77L);
+            for (int i = 0; i < lakes.count(); i++) {
+                for (int q = 0; q < 8; q++) {
+                    lakes.point(i, rnd.nextFloat() * 6.2831855f, 0.15f + 0.7f * rnd.nextFloat(), pt);
+                    int o = (i * 8 + q) * 3;
+                    sparkle[o] = pt[0];
+                    sparkle[o + 1] = pt[1];
+                    sparkle[o + 2] = rnd.nextFloat() * 6.2831855f;
+                }
+            }
         }
         gl.setSkyDome(w.sky);
         gl.setDetailTexture(w.detail);
@@ -641,6 +677,14 @@ public final class RaceScene implements Scene {
         for (int i = 0; i < ringCount; i++) {
             Mat4.translate(mT, eye[0], 0f, eye[2]);
             list.add(ringId[i], 0, mT, 0, false, 1, true);
+        }
+        // T-30b: sparkles on the lakes (within 50 m of the camera): alpha 0.15 + 0.55 max(0, sin(2.5 t + phase))
+        for (int i = 0; sparkleId >= 0 && i < sparkle.length; i += 3) {
+            float dx = sparkle[i] - eye[0], dz = sparkle[i + 1] - eye[2];
+            if (dx * dx + dz * dz > 50f * 50f) continue;
+            float a = 0.15f + 0.55f * Math.max(0f, (float) Math.sin(2.5f * time + sparkle[i + 2]));
+            Mat4.translate(mT, sparkle[i], 0.02f, sparkle[i + 1]);
+            list.add(sparkleId, 0, mT, (Math.round(a * 255f) << 24) | 0xFFFFFF, true, 1);
         }
         // coins and the golden star (only those near the truck and not behind the camera)
         CarModel car = logic.car(0);

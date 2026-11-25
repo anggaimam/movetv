@@ -16,6 +16,11 @@ public final class TrackDef {
      * heading toward point 1. Do not modify.
      */
     public final float[] control;
+    /**
+     * Lakes (T-30b) as cx, cz, rx, rz, rotation in degrees, five numbers per lake; empty for none. The same for both driving
+     * directions. Do not modify.
+     */
+    public final float[] lakes;
 
     /**
      * Creates a track definition.
@@ -25,6 +30,15 @@ public final class TrackDef {
      * @param control control points (x, z pairs); copied
      */
     public TrackDef(String id, String name, String themeId, float[] control) {
+        this(id, name, themeId, control, new float[0]);
+    }
+
+    /**
+     * Creates a track definition with lakes.
+     * @param lakes cx, cz, rx, rz, rotation (degrees) per lake; copied
+     */
+    public TrackDef(String id, String name, String themeId, float[] control, float[] lakes) {
+        this.lakes = lakes.clone();
         this.id = id;
         this.name = name;
         this.themeId = themeId;

@@ -38,7 +38,8 @@ public final class PropShadows {
         int tris = 0, n = 0;
         for (PropScatter.Instance p : props) {
             float reach = PropMeshes.reach(p.kind) * p.scale;
-            if (reach < MIN_REACH || p.kind == PropMeshes.DRY_GRASS || p.kind == PropMeshes.PEBBLES) continue;
+            if (reach < MIN_REACH || p.kind == PropMeshes.DRY_GRASS || p.kind == PropMeshes.PEBBLES
+                    || p.kind == PropMeshes.DOCK || p.kind == PropMeshes.GRASS || p.kind == PropMeshes.WILDFLOWERS) continue;
             float r = Math.max(p.footprint, reach * 0.6f) * DISC;
             tris += add(terrain, pal, groundSwatch, p.x, p.z, r, r, 0f, 1f, library, out, ident, n++);
             float height = PropMeshes.height(p.kind) * p.scale;

@@ -35,6 +35,12 @@ public final class Terrain {
         /** Park grass ramp (0 = no parks) and the noise level above which a cell is park. */
         public final int parkDark, parkLight;
         public final float parkLevel;
+        /** The ground shape: {@link #DUNES} (the default), {@link #HILLS} (T-30b) or {@link #CRATERED} (T-30c). */
+        public final int kind;
+        /** Extra colour ramps as pairs dark, light, after the sky swatches ({@link Theme#extraSwatch}); empty for none. */
+        public final int[] extra;
+        /** Craters per track (CRATERED only). */
+        public final int craters;
 
         public Profile(float windDeg, float amplitude, float wavelength, float bump, int groundDark, int groundLight,
                        int shoulderDark, int shoulderLight) {
@@ -45,6 +51,16 @@ public final class Terrain {
         public Profile(float windDeg, float amplitude, float wavelength, float bump, int groundDark, int groundLight,
                        int shoulderDark, int shoulderLight, float riseFrom, float riseTo, boolean sidewalk, int parkDark,
                        int parkLight, float parkLevel) {
+            this(windDeg, amplitude, wavelength, bump, groundDark, groundLight, shoulderDark, shoulderLight, riseFrom, riseTo,
+                    sidewalk, parkDark, parkLight, parkLevel, DUNES, new int[0], 0);
+        }
+
+        public Profile(float windDeg, float amplitude, float wavelength, float bump, int groundDark, int groundLight,
+                       int shoulderDark, int shoulderLight, float riseFrom, float riseTo, boolean sidewalk, int parkDark,
+                       int parkLight, float parkLevel, int kind, int[] extra, int craters) {
+            this.kind = kind;
+            this.extra = extra.clone();
+            this.craters = craters;
             this.riseFrom = riseFrom;
             this.riseTo = riseTo;
             this.sidewalk = sidewalk;
@@ -61,6 +77,13 @@ public final class Terrain {
             this.shoulderLight = shoulderLight;
         }
     }
+
+    /** Ground shapes. */
+    public static final int DUNES = 0, HILLS = 1, CRATERED = 2;
+    /** Slope (cos of the angle) beyond which a cell takes the rock ramp: 25 degrees. */
+    public static final float ROCK_NY = 0.906f;
+    /** How far below the road level the bed of a lake lies (the water is at -0.01). */
+    public static final float BED_DEPTH = 0.13f;
 
     /** One 60 m tile: its mesh (world space) and the 10 m cell of its centre. */
     public static final class Tile {
@@ -94,10 +117,12 @@ public final class Terrain {
     private final int cpt, tilesX, tilesZ;
     private final float x0, z0;
     private final int gw, gh;
-    private float[] heights, tones, dists;
+    private final Lakes lakes;
+    private float[] heights, tones, dists, lakeD;
     private boolean ready;
 
-    private Terrain(TrackSpline t, Theme th, long seed, boolean low) {
+    private Terrain(TrackSpline t, Theme th, long seed, boolean low, Lakes lakes) {
+        this.lakes = lakes;
         this.pr = th.look.terrain;
         this.seed = seed;
         this.cell = low ? 4f : 2.5f;
@@ -155,8 +180,16 @@ public final class Terrain {
      * @throws IllegalArgumentException for a theme without a terrain profile
      */
     public static Terrain create(TrackSpline forward, Theme th, long seed, boolean low) {
+        return create(forward, th, seed, low, Lakes.NONE);
+    }
+
+    /**
+     * Creates the terrain of a track with lakes (T-30b).
+     * @param lakes the lakes (the ground there is flat at the shore and lies below the water inside)
+     */
+    public static Terrain create(TrackSpline forward, Theme th, long seed, boolean low, Lakes lakes) {
         if (th.look.terrain == null) throw new IllegalArgumentException("theme " + th.id + " has no terrain");
-        Terrain t = new Terrain(forward, th, seed, low);
+        Terrain t = new Terrain(forward, th, seed, low, lakes);
         t.fill();
         return t;
     }
@@ -193,12 +226,52 @@ public final class Terrain {
      * @return y in metres, {@code ROAD_Y} within 8 m of the road
      */
     public float height(float x, float z) {
-        return heightAt(x, z, distance(x, z));
+        return heightAt(x, z, distance(x, z), lakes.count() == 0 ? Lakes.FAR : lakes.edge(x, z));
     }
 
-    private float heightAt(float x, float z, float d) {
+    /** The lakes of this ground. */
+    public Lakes lakes() {
+        return lakes;
+    }
+
+    /**
+     * Distance to the nearest lake edge, negative inside a lake.
+     * @return metres, {@link Lakes#FAR} without lakes nearby
+     */
+    public float lakeEdge(float x, float z) {
+        return lakes.count() == 0 ? Lakes.FAR : lakes.edge(x, z);
+    }
+
+    /**
+     * The steepness of the built ground at a point.
+     * @return degrees, 0 for flat
+     */
+    public float slopeDeg(float x, float z) {
+        float h = Math.max(1f, cell * 0.5f);
+        float gx = (surface(x + h, z) - surface(x - h, z)) / (2f * h), gz = (surface(x, z + h) - surface(x, z - h)) / (2f * h);
+        return (float) Math.toDegrees(Math.atan(Math.sqrt(gx * gx + gz * gz)));
+    }
+
+    private float heightAt(float x, float z, float d, float lakeEdge) {
+        float base = shapeAt(x, z, d);
+        if (lakeEdge >= Lakes.FAR) return base;
+        // the shore is flat within 3 m of the edge, the hills rise behind it (full height from 15 m); the bed lies under the water
+        float h = ROAD_Y + (base - ROAD_Y) * Noise.smoothstep(3f, 15f, lakeEdge);
+        if (lakeEdge < 0f) h -= BED_DEPTH * Math.min(1f, -lakeEdge / 1.5f);
+        return h;
+    }
+
+    private float shapeAt(float x, float z, float d) {
         float ramp = Noise.smoothstep(pr.riseFrom, pr.riseTo, d);
         if (ramp <= 0f) return ROAD_Y;
+        if (pr.kind == HILLS) {
+            // smooth fbm hills: 3 octaves, wavelength pr.wavelength, rounded peaks and wide valleys
+            float n = Noise.fbm(x / pr.wavelength, z / pr.wavelength, 3, seed + 5L);
+            float body = pr.amplitude * (float) Math.pow(Noise.smoothstep(0.30f, 0.74f, n), 1.15) * (0.75f + 0.25f
+                    * Noise.fbm(x / 23f, z / 23f, 2, seed + 9L));
+            float bumps = pr.bump * 2f * (Noise.noise(x / 8f, z / 8f, seed + 3L) - 0.5f);
+            return ROAD_Y + ramp * (body + bumps + 0.02f);
+        }
         float p = (x * windX + z * windZ) / pr.wavelength + 0.5f * (Noise.fbm(x / 90f, z / 90f, 2, seed + 5L) - 0.5f);
         float q = (-x * windZ + z * windX) / (pr.wavelength * 2.5f);
         float ridge = 1f - Math.abs(2f * Noise.noise(p, q, seed) - 1f);
@@ -212,12 +285,15 @@ public final class Terrain {
         tones = new float[gw * gh];
         float[] dist = new float[gw * gh];
         dists = dist;
+        lakeD = new float[gw * gh];
         for (int j = 0; j < gh; j++) {
             for (int i = 0; i < gw; i++) {
                 float x = x0 + i * cell, z = z0 + j * cell;
                 float d = distance(x, z);
                 dist[i + gw * j] = d;
-                heights[i + gw * j] = heightAt(x, z, d);
+                float le = lakes.count() == 0 ? Lakes.FAR : lakes.edge(x, z);
+                lakeD[i + gw * j] = le;
+                heights[i + gw * j] = heightAt(x, z, d, le);
             }
         }
         for (int j = 0; j < gh; j++) {
@@ -295,6 +371,17 @@ public final class Terrain {
      * @return the tiles
      */
     public List<Tile> build(PaletteSwatches pal, int groundSwatch, int shoulderSwatch, int parkSwatch) {
+        return build(pal, groundSwatch, shoulderSwatch, parkSwatch, -1, -1);
+    }
+
+    /**
+     * Builds the tiles with the extras of T-30b: cells next to a lake take the shore ramp, cells steeper than 25 degrees the rock
+     * ramp, and cells wholly inside a lake are left out (the water covers them).
+     * @param shoreSwatch swatch of the shore ramp, or -1
+     * @param rockSwatch swatch of the rock ramp, or -1
+     */
+    public List<Tile> build(PaletteSwatches pal, int groundSwatch, int shoulderSwatch, int parkSwatch, int shoreSwatch,
+                            int rockSwatch) {
         if (!ready) throw new IllegalStateException("not filled");
         List<Tile> out = new ArrayList<>();
         float gv = pal.v(groundSwatch), sv = pal.v(shoulderSwatch);
@@ -320,15 +407,24 @@ public final class Terrain {
                                 dmax = Math.max(dmax, d);
                             }
                             if (dmax < cut) continue;   // under the road
+                            float lmin = Float.MAX_VALUE, lmax = -Float.MAX_VALUE;
+                            for (int m = 0; m < 3; m++) {
+                                float le = lakeD[cells[k][m * 2] + gw * cells[k][m * 2 + 1]];
+                                lmin = Math.min(lmin, le);
+                                lmax = Math.max(lmax, le);
+                            }
+                            if (lmax < -0.2f) continue;   // wholly inside a lake
                             boolean shoulder = dsum / 3f < FLAT_D + 0.5f;
                             boolean grass = park && !shoulder;
-                            int sw = shoulder ? shoulderSwatch : (grass ? parkSwatch : groundSwatch);
-                            float tv = shoulder ? sv : (grass ? pal.v(parkSwatch) : gv);
+                            boolean shore = shoreSwatch >= 0 && lmin < 1.5f && !shoulder;
+                            boolean rock = rockSwatch >= 0 && !shoulder && !shore && steep(cells[k]);
+                            int sw = shoulder ? shoulderSwatch : (shore ? shoreSwatch : (rock ? rockSwatch : (grass ? parkSwatch : groundSwatch)));
+                            float tv = shoulder ? sv : (shore ? pal.v(shoreSwatch) : (rock ? pal.v(rockSwatch) : (grass ? pal.v(parkSwatch) : gv)));
                             for (int m = 0; m < 3; m++) {
                                 int ci = cells[k][m * 2], cj = cells[k][m * 2 + 1];
                                 normalAt(ci, cj, nrm);
                                 float t = tones[ci + gw * cj];
-                                if (shoulder) t = 0.35f + 0.5f * Noise.noise(ci * 0.7f, cj * 0.7f, seed + 77L);
+                                if (shoulder || shore) t = 0.35f + 0.5f * Noise.noise(ci * 0.7f, cj * 0.7f, seed + 77L);
                                 int o = vc * 8;
                                 v[o] = x0 + ci * cell;
                                 v[o + 1] = heights[ci + gw * cj];
@@ -352,6 +448,16 @@ public final class Terrain {
             }
         }
         return out;
+    }
+
+    /** Whether the triangle (three grid corners as i, j pairs) is steeper than 25 degrees. */
+    private boolean steep(int[] c) {
+        float ax = 0f, ay = heights[c[0] + gw * c[1]], az = 0f;
+        float ux = (c[2] - c[0]) * cell, uy = heights[c[2] + gw * c[3]] - ay, uz = (c[3] - c[1]) * cell;
+        float wx = (c[4] - c[0]) * cell, wy = heights[c[4] + gw * c[5]] - ay, wz = (c[5] - c[1]) * cell;
+        float nx = uy * wz - uz * wy, ny = uz * wx - ux * wz, nz = ux * wy - uy * wx;
+        float l = (float) Math.sqrt(nx * nx + ny * ny + nz * nz);
+        return l > 1e-9f && Math.abs(ny) / l < ROCK_NY;
     }
 
     /** Whether the cell with corner (gi, gj) is park: far enough from the sidewalk and in a high patch of slow noise (one answer per cell). */

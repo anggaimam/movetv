@@ -17,7 +17,9 @@ public final class TrackDefs {
 
     private static final TrackDef ROCKIES = new TrackDef("rockies", "Rocky Lakes", "rockies", new float[] {
             0, 0, -40, 0, -72, 10, -88, 38, -80, 66, -55, 80, -28, 78, -8, 92, 15, 104, 42, 100, 55, 78,
-            50, 52, 59, 28, 51, 6, 25, 0});
+            50, 52, 59, 28, 51, 6, 25, 0},
+            // T-30b: big lake and small lake in the infield, one beside the start straight, one beyond the S-bend at the top
+            new float[] {24, 64, 26, 15, 90, -30, 38, 20, 12, 45, -20, -24, 28, 12, 0, -44, 108, 26, 15, 0});
 
     private static final TrackDef SPACE = new TrackDef("space", "Star Road", "space", new float[] {
             0, 0, -42, 0, -78, 12, -90, 42, -70, 68, -38, 62, -8, 48, 22, 58, 52, 74, 82, 56, 80, 20, 45, 0});

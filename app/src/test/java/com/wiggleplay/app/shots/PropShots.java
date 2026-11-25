@@ -43,10 +43,12 @@ final class PropShots {
 
     private static final int[] KIND_COLOURS = {0xFF2E7D32, 0xFFB5541C, 0xFFD81B60, 0xFF5D4037, 0xFF6A1B9A, 0xFF8D6E63, 0xFFC0A060,
             0xFF9E9E9E, 0xFFA0522D, 0xFF455A64, 0xFFFFC107, 0xFF43A047, 0xFFD32F2F, 0xFF1E88E5, 0xFF795548, 0xFFFF5252, 0xFF37474F,
-            0xFF8E24AA, 0xFFFF6F00, 0xFFEC407A};
+            0xFF8E24AA, 0xFFFF6F00, 0xFFEC407A, 0xFF1B5E20, 0xFF2E7D32, 0xFFFBC02D, 0xFF616161, 0xFF9E9E9E, 0xFF6D4C41, 0xFFA1887F,
+            0xFFE53935, 0xFF4E342E, 0xFF558B2F, 0xFF8E24AA, 0xFF9CCC65};
     private static final String[] KIND_NAMES = {"saguaro", "butte", "barrel cacti", "rocks", "joshua tree", "scrub", "dry grass",
             "pebbles", "building", "tower", "lamp", "street tree", "parked car", "bus stop", "bench", "hydrant", "bin", "sign", "cone",
-            "flower planter"};
+            "flower planter", "pine grove", "pine", "aspen", "rock outcrop", "boulders", "cabin", "dock", "canoe", "fallen log",
+            "fern", "wildflowers", "grass"};
 
     private static File shootTheme(Theme th, TrackDef def, String file, int background, String title, boolean sidewalk)
             throws IOException {
