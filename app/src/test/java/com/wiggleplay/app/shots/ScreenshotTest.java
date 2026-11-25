@@ -644,6 +644,24 @@ public class ScreenshotTest {
         }
     }
 
+    /** T-24 Part A: two players, the race HUD in each half (no GL here, so the world is the flat stand-in). */
+    @Test
+    public void raceTwoPlayers() throws Exception {
+        RaceScene.setRulesSeen(true);
+        check(ShotRig.shoot("race_two_players", new RaceScene(env(), null),
+                Scene.SceneArgs.of("level", 2, "players", 2, "steer", "wheel"), 2, 300,
+                (frame, now, body, input) -> body.setHeld(TestPoseSource.CTRL_ARMS_OUT, true)));
+    }
+
+    /** T-24 Part B: two players, the shared end screen with the trophy and the medal (the safety limit runs out). */
+    @Test
+    public void raceTwoPlayersEnd() throws Exception {
+        RaceScene.setRulesSeen(true);
+        check(ShotRig.shoot("race_two_players_end", new RaceScene(env(), null),
+                Scene.SceneArgs.of("level", 1, "players", 2, "steer", "wheel"), 2, 60 * 150,
+                (frame, now, body, input) -> { }));
+    }
+
     /** T-28 Part D: the race HUD with the minimap of a reversed track and the two-lap pill. */
     @Test
     public void raceReversedTrackHud() throws Exception {
