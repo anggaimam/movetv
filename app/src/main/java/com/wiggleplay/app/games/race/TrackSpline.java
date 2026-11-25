@@ -112,7 +112,7 @@ public final class TrackSpline implements TrackPath {
      * @return the spline
      */
     public static TrackSpline build(TrackDef def, boolean reversed, RaceLevel level) {
-        return build(def, reversed, level, RoadObjects.RAMPS_ONLY);
+        return build(def, reversed, level, RoadObjects.ALL);
     }
 
     /**

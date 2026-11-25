@@ -146,6 +146,49 @@ public final class RoadObjects {
         return -1;
     }
 
+    /** Half the width of a patch, and the distance from a pothole's centre at which the truck's centre hits it. */
+    public static final float PATCH_HALF = PATCH_WIDTH / 2f, POTHOLE_HIT = 1.1f;
+
+    /**
+     * Where pothole {@code j} of group {@code i} lies along the lap.
+     * @param i a pothole group
+     * @param j 0, or 1 in a group of two
+     * @return s of the pothole's centre
+     */
+    public float potholeS(int i, int j) { return s[i] + j * POTHOLE_GAP; }
+
+    /**
+     * Whether a truck is on a patch of ice or water.
+     * @param sAlong the truck's distance along the lap
+     * @param offset the truck's lateral offset
+     * @return true when the centre is inside the 8 x 4 m patch
+     */
+    public boolean onPatch(float sAlong, float offset) {
+        for (int i = 0; i < kind.length; i++) {
+            if (kind[i] != ICE) continue;
+            if (sAlong >= s[i] && sAlong <= s[i] + PATCH_LENGTH && Math.abs(offset - lateral[i]) <= PATCH_HALF) return true;
+        }
+        return false;
+    }
+
+    /**
+     * Pothole group index whose pothole {@code j} the truck is touching, searching from group {@code from} (to enumerate, call with
+     * increasing keys). Returns a key {@code group * 2 + j} or -1.
+     * @param sAlong the truck's distance along the lap
+     * @param offset the truck's lateral offset
+     * @return the key of a pothole within {@link #POTHOLE_HIT} of the truck's centre, or -1
+     */
+    public int potholeAt(float sAlong, float offset) {
+        for (int i = 0; i < kind.length; i++) {
+            if (kind[i] != POTHOLE || sAlong < s[i] - 2f || sAlong > s[i] + POTHOLE_GAP + 2f) continue;
+            for (int j = 0; j < potholes(i); j++) {
+                float ds = sAlong - potholeS(i, j), dl = offset - lateral[i];
+                if (ds * ds + dl * dl <= POTHOLE_HIT * POTHOLE_HIT) return i * 2 + j;
+            }
+        }
+        return -1;
+    }
+
     /**
      * Whether a place on the lap is near an object (coin runs there are dropped).
      * @param from start of the span

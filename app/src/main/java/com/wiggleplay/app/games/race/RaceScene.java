@@ -117,6 +117,11 @@ public final class RaceScene implements Scene {
     private TrackSpline layout;
     /** T-31: pooled dust discs (x, z, age, unused) at a launch or landing, and the mesh. */
     private final float[] dustPool = new float[8 * 4];
+    /** T-31 Part B: 6 pooled spray quads (x, z, age, unused) behind the wheels on ice or water, and when the next one is due. */
+    private final float[] sprayPool = new float[6 * 4];
+    private int sprayNext;
+    private float sprayTimer;
+    private static final float SPRAY_SECONDS = 0.4f;
     private int dustId = -1, dustNext;
     private static final float DUST_SECONDS = 0.5f;
     private int buildMs;
@@ -174,6 +179,7 @@ public final class RaceScene implements Scene {
             shadowId = gl.addMesh("shadow", ProcMesh.disc(1.2f));
             dustId = gl.addMesh("dust", ProcMesh.disc(1f));
             for (int i = 0; i < 8; i++) dustPool[i * 4 + 2] = DUST_SECONDS;
+            for (int i = 0; i < 6; i++) sprayPool[i * 4 + 2] = SPRAY_SECONDS;
             coinId = gl.addMesh("coin", ProcMesh.coinReeded());
             starId = gl.addMesh("star", ProcMesh.starBevelled(0.9f, 0.4f, 0.2f));
             nitroId = gl.addMesh("nitro", ProcMesh.nitroCan());
@@ -436,6 +442,10 @@ public final class RaceScene implements Scene {
             spawnDust(car.x(), car.z());
             camera.onLanding();
         }
+        if (logic.consumeBump(0) > 0) {   // T-31 Part B: a pothole
+            if (env.sfx != null) env.sfx.play("impact", 0.75f, 0.45f);
+            camera.onBump();
+        }
         if (car.consumeHitWall() && env.sfx != null) {
             env.sfx.play("impact", 1f, Math.max(0.25f, Math.min(1f, car.speed() / (raceLevel.baseSpeed * 1.2f))));
         }
@@ -595,7 +605,9 @@ public final class RaceScene implements Scene {
                 addStatic(w, "ramp_" + i, ObjectMeshes.ramp(ro, i, layout, pal), ident);
                 addStatic(w, "marks_" + i, ObjectMeshes.rampMarks(ro, i, layout, pal), ident);
             }
-            addStatic(w, "sign_" + i, ObjectMeshes.sign(ro, i, layout, pal), ident);
+            else if (ro.kind(i) == RoadObjects.POTHOLE) addStatic(w, "pit_" + i, ObjectMeshes.pothole(ro, i, layout, pal), ident);
+            else addStatic(w, "slick_" + i, ObjectMeshes.patch(ro, i, layout, pal, theme.slick), ident);
+            addStatic(w, "sign_" + i, ObjectMeshes.sign(ro, i, layout, pal, theme.slick), ident);
         }
         // T-29 Part B: props scattered by fixed rules on the forward track (same layout in both directions); the filler tier is
         // left out on LOW (and, with T-24, in 2P)
@@ -696,6 +708,20 @@ public final class RaceScene implements Scene {
         CarModel car = logic.car(0);
         camera.update(dt, car.x(), car.z(), car.yaw(), logic.boosting(0), car.y());
         for (int i = 0; i < 8; i++) dustPool[i * 4 + 2] += dt;
+        for (int i = 0; i < 6; i++) sprayPool[i * 4 + 2] += dt;
+        if (logic.slick(0) && car.speed() > 1f) {
+            sprayTimer -= dt;
+            if (sprayTimer <= 0f) {   // a quad behind a rear wheel, the two sides in turn
+                sprayTimer = 0.07f;
+                int i = sprayNext;
+                sprayNext = (sprayNext + 1) % 6;
+                float fx = (float) Math.sin(car.yaw()), fz = (float) Math.cos(car.yaw());
+                float side = (i & 1) == 0 ? -0.7f : 0.7f;
+                sprayPool[i * 4] = car.x() - fx * 1.4f - fz * side;
+                sprayPool[i * 4 + 1] = car.z() - fz * 1.4f + fx * side;
+                sprayPool[i * 4 + 2] = 0f;
+            }
+        }
     }
 
     /** Puts 4 dust discs round a place (a launch or a landing); the pool holds 8. */
@@ -783,6 +809,17 @@ public final class RaceScene implements Scene {
             int rgb = theme.dust != 0 ? theme.dust : 0xCCCCCC;
             list.add(dustId, 0, mA, (Math.round(0.6f * (1f - k) * 255f) << 24) | (rgb & 0xFFFFFF), true, 1);
         }
+        // T-31 Part B: spray behind the wheels on ice (white) or water (blue): alpha 0.7 to 0, radius 0.25 to 0.6 over 0.4 s
+        for (int i = 0; dustId >= 0 && i < 6; i++) {
+            float age = sprayPool[i * 4 + 2];
+            if (age >= SPRAY_SECONDS) continue;
+            float k = age / SPRAY_SECONDS, rad = 0.25f + 0.35f * k;
+            Mat4.translate(mT, sprayPool[i * 4], 0.12f, sprayPool[i * 4 + 1]);
+            Mat4.scale(mB, rad, 1f, rad);
+            Mat4.multiply(mA, mT, mB);
+            int rgb = theme.slick == com.wiggleplay.app.games.race.Theme.SLICK_WATER ? ObjectMeshes.WATER : 0xFFFFFF;
+            list.add(dustId, 0, mA, (Math.round(0.7f * (1f - k) * 255f) << 24) | rgb, true, 1);
+        }
         for (int i = 0; i < 3; i++) {
             layout.sample(scS[i], smp);
             float off = SCENERY_LANE[i] * raceLevel.laneFrac * layout.roadHalfWidth();
@@ -841,7 +878,7 @@ public final class RaceScene implements Scene {
         CarModel car = logic.car(0);
         float norm = Math.min(1f, car.speed() / (raceLevel.baseSpeed * 1.5f));
         env.sfx.loop("engine", 0.6f + 1.2f * norm, 0.35f);
-        boolean skid = Math.abs(input.steer) > 0.75f && car.speed() > 0.8f * raceLevel.baseSpeed && hud.running();
+        boolean skid = (logic.slick(0) || Math.abs(input.steer) > 0.75f && car.speed() > 0.8f * raceLevel.baseSpeed) && hud.running();
         if (skid) env.sfx.loop("skid", 1f, 0.3f); else env.sfx.stopLoop("skid");
     }
 

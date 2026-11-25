@@ -63,7 +63,7 @@ public final class RaceLogic {
     private final boolean[] finished = new boolean[2];
     private final int[] coinEvents = new int[2];
     private final boolean[] starEvent = new boolean[2], lapEvent = new boolean[2];
-    private final int[] nitroEvents = new int[2], launchEvents = new int[2], landEvents = new int[2];
+    private final int[] nitroEvents = new int[2], launchEvents = new int[2], landEvents = new int[2], bumpEvents = new int[2];
     private final boolean[][] slotNitro = new boolean[2][];
     private final boolean[][] slotMagnet = new boolean[2][];
     private final float[] magnetLeft = new float[2];
@@ -199,6 +199,7 @@ public final class RaceLogic {
         for (int p = 0; p < players; p++) {
             if (car[p].consumeLaunch()) launchEvents[p]++;
             if (car[p].consumeLanding()) landEvents[p]++;
+            if (car[p].consumeBump()) bumpEvents[p]++;
         }
         if (wasOver) return;
         for (int p = 0; p < players; p++) {
@@ -538,6 +539,23 @@ public final class RaceLogic {
         landEvents[p] = 0;
         return c;
     }
+
+    /**
+     * Pothole hits since the last call, for the thud and the camera shake.
+     * @param p player 0 or 1
+     * @return the number of hits
+     */
+    public int consumeBump(int p) {
+        int c = bumpEvents[p];
+        bumpEvents[p] = 0;
+        return c;
+    }
+
+    /**
+     * @param p player 0 or 1
+     * @return true while the truck is sliding on ice or water (and for 0.4 s after)
+     */
+    public boolean slick(int p) { return car[p].slick(); }
 
     /**
      * @param p player 0 or 1

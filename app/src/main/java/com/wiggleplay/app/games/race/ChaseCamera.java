@@ -31,7 +31,9 @@ public final class ChaseCamera {
 
     private float yaw;
     private float fov = FOV;
-    private float truckY, dipLeft;
+    private float truckY, dipLeft, shakeLeft, shakeApplied;
+    /** Pothole shake (T-31 Part B): vertical amplitude (m), frequency (Hz) and length (s), fading out. */
+    public static final float SHAKE_AMP = 0.08f, SHAKE_HZ = 12f, SHAKE_SECONDS = 0.25f;
 
     /**
      * Puts the camera right behind the truck at once (at the start of a round).
@@ -44,6 +46,8 @@ public final class ChaseCamera {
         fov = FOV;
         truckY = 0f;
         dipLeft = 0f;
+        shakeLeft = 0f;
+        shakeApplied = 0f;
         place(x, z, 1f);
     }
 
@@ -68,6 +72,11 @@ public final class ChaseCamera {
         dipLeft = Math.max(0f, dipLeft - dt);
         yaw += angleDiff(truckYaw, yaw) * Math.min(1f, dt * 4f);
         place(x, z, Math.min(1f, dt * 5f));
+        shakeLeft = Math.max(0f, shakeLeft - dt);
+        float shake = shakeLeft > 0f
+                ? SHAKE_AMP * (float) Math.sin(2.0 * Math.PI * SHAKE_HZ * (SHAKE_SECONDS - shakeLeft)) * (shakeLeft / SHAKE_SECONDS) : 0f;
+        eye[1] += shake - shakeApplied;   // only the change, so the shake never builds up in the eased height
+        shakeApplied = shake;
         float goal = boosting ? FOV_BOOST : FOV;
         float step = (FOV_BOOST - FOV) / 0.3f * dt;
         if (fov < goal) fov = Math.min(goal, fov + step);
@@ -77,6 +86,11 @@ public final class ChaseCamera {
     /** The truck has landed: the eye dips by {@link #LAND_DIP} and eases back over {@link #LAND_SECONDS}. */
     public void onLanding() {
         dipLeft = LAND_SECONDS;
+    }
+
+    /** The truck hit a pothole: the eye shakes vertically ({@link #SHAKE_AMP} m, {@link #SHAKE_HZ} Hz, {@link #SHAKE_SECONDS} s, fading). */
+    public void onBump() {
+        shakeLeft = SHAKE_SECONDS;
     }
 
     private void place(float x, float z, float k) {

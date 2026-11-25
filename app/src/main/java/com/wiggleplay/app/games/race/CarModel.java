@@ -31,6 +31,11 @@ public final class CarModel {
     public static final float PITCH_MIN = (float) Math.toRadians(-10.0), PITCH_MAX = (float) Math.toRadians(12.0);
     private static final float RAMP_PITCH = (float) Math.toRadians(9.0), LAND_DIP = (float) Math.toRadians(3.0), LAND_SECONDS = 0.25f;
 
+    /** Pothole: speed factor, pitch kick (radians) and its duration. Patch: steering and grip easing, travel easing, slide cap, time after. */
+    public static final float POTHOLE_SPEED = 0.8f, SLICK_STEER = 0.5f, SLICK_AFTER = 0.4f;
+    private static final float BUMP_KICK = (float) Math.toRadians(4.0), BUMP_SECONDS = 0.2f;
+    private static final float SLICK_GRIP = 1.5f, SLICK_TRAVEL = 3f, SLICK_CAP = (float) Math.toRadians(20.0);
+
     private static final float GRIP_MIN = 0.2f;
     private static final float MIN_SPEED_FRACTION = 0.35f;
     private static final float MAX_HEADING_ERROR = (float) Math.toRadians(75.0);
@@ -51,6 +56,10 @@ public final class CarModel {
     private float y, vy, airPitch, landT = LAND_SECONDS, landFrom, impact;
     private boolean air, launched, landed;
     private int onRamp = -1;
+    // T-31 Part B: pothole bump (pitch kick), slick (travel direction, time left after the patch), the pothole last hit
+    private float travel, bumpT = BUMP_SECONDS, slickLeft;
+    private boolean bumped, slick;
+    private int lastPothole = -1;
 
     /**
      * Largest |offset| the truck can reach on a road: the barrier's inner face (half-width + 0.6) minus half the truck
@@ -101,6 +110,12 @@ public final class CarModel {
         launched = false;
         landed = false;
         onRamp = -1;
+        travel = yaw;
+        bumpT = BUMP_SECONDS;
+        slickLeft = 0f;
+        bumped = false;
+        slick = false;
+        lastPothole = -1;
         hint = t.project(x, z, -1, tp);
         s = tp.s;
         offset = tp.offset;
@@ -127,9 +142,9 @@ public final class CarModel {
         float before = speed;
         if (!air) speed += (target - speed) * Math.min(1f, dt * (target > speed ? 6f : 8f));   // in the air the speed is held
         float gripTarget = Math.max(GRIP_MIN, Math.min(1f, speed / base));
-        grip += (gripTarget - grip) * Math.min(1f, dt * 4f);
+        grip += (gripTarget - grip) * Math.min(1f, dt * (slick ? SLICK_GRIP : 4f));
 
-        float rate = -steer * maxYaw * grip * (air ? AIR_STEER : 1f)
+        float rate = -steer * maxYaw * grip * (air ? AIR_STEER : 1f) * (slick ? SLICK_STEER : 1f)
                 + assist * (2f * angleDiff(roadYaw, yaw) + 0.5f * tp.offset / half);
         yaw += rate * dt;
         float err = angleDiff(yaw, roadYaw);
@@ -137,8 +152,18 @@ public final class CarModel {
         else if (err < -MAX_HEADING_ERROR) yaw = roadYaw - MAX_HEADING_ERROR;
         yaw = wrap(yaw);
 
-        x += (float) Math.sin(yaw) * speed * dt;
-        z += (float) Math.cos(yaw) * speed * dt;
+        if (slick) {
+            // sliding: the travel direction lags the heading by at most 20 degrees
+            travel += angleDiff(yaw, travel) * Math.min(1f, dt * SLICK_TRAVEL);
+            float gap = angleDiff(travel, yaw);
+            if (gap > SLICK_CAP) travel = yaw + SLICK_CAP;
+            else if (gap < -SLICK_CAP) travel = yaw - SLICK_CAP;
+            travel = wrap(travel);
+        } else {
+            travel = yaw;
+        }
+        x += (float) Math.sin(travel) * speed * dt;
+        z += (float) Math.cos(travel) * speed * dt;
 
         // the barrier wall: put the truck back along the road's normal, steer it along the road, scrape
         hint = t.project(x, z, hint, tp);
@@ -158,7 +183,10 @@ public final class CarModel {
         }
         s = tp.s;
         offset = tp.offset;
-        vertical(dt, t.roadObjects());
+        RoadObjects ro = t.roadObjects();
+        vertical(dt, ro);
+        hazards(dt, ro);
+        if (!slick) travel = yaw;   // the wall may have turned the heading this frame
 
         lean = -steer / 5f * Math.min(1f, speed / base);
         float accel = (speed - before) / dt;
@@ -167,6 +195,28 @@ public final class CarModel {
         spin += speed * dt / WHEEL_RADIUS;
         if (spin > TWO_PI) spin -= TWO_PI;
         frontYaw = -steer * 0.6f;
+    }
+
+    /** Potholes and slick patches (T-31 Part B): runs after the new s, offset and height are known. */
+    private void hazards(float dt, RoadObjects ro) {
+        // pothole: once per pothole per pass, on the ground only
+        int key = y < 0.3f ? ro.potholeAt(s, offset) : -1;
+        if (key >= 0 && key != lastPothole) {
+            lastPothole = key;
+            speed = Math.max(speed * POTHOLE_SPEED, MIN_SPEED_FRACTION * base);
+            bumped = true;
+            bumpT = 0f;
+        } else if (key < 0 && lastPothole >= 0) {
+            // free again once the truck is clear of the last one (the group of two re-arms between its two potholes)
+            lastPothole = -1;
+        }
+        if (bumpT < BUMP_SECONDS) bumpT += dt;
+        // slick: on the patch and for 0.4 s after; then the travel direction is the heading again
+        if (ro.onPatch(s, offset) && y < 0.3f) slickLeft = SLICK_AFTER;
+        else slickLeft = Math.max(0f, slickLeft - dt);
+        boolean was = slick;
+        slick = slickLeft > 0f;
+        if (was && !slick) travel = yaw;
     }
 
     /** Ramp, flight and landing (T-31): runs after the new s and offset are known. */
@@ -267,6 +317,22 @@ public final class CarModel {
         return e;
     }
 
+    /**
+     * Whether the truck hit a pothole since the last call.
+     * @return true once per pothole
+     */
+    public boolean consumeBump() {
+        boolean e = bumped;
+        bumped = false;
+        return e;
+    }
+
+    /** @return true on a patch of ice or water and for 0.4 s after it */
+    public boolean slick() { return slick; }
+
+    /** @return the direction the truck moves in (differs from {@link #yaw} by at most 20 degrees while sliding) */
+    public float travelYaw() { return travel; }
+
     /** @return the vertical speed at the last touch-down, units per second */
     public float landingImpact() { return impact; }
 
@@ -310,7 +376,7 @@ public final class CarModel {
     /** @return body lean in radians (roll; leans away from the turn) */
     public float bodyLean() { return lean; }
     /** @return body pitch in radians (positive = nose up while speeding up) */
-    public float bodyPitch() { return pitch + airPitch; }
+    public float bodyPitch() { return pitch + airPitch + (bumpT < BUMP_SECONDS ? BUMP_KICK * (1f - bumpT / BUMP_SECONDS) : 0f); }
     /** @return how far the wheels have turned, radians (0 to 2 pi) */
     public float wheelSpin() { return spin; }
     /** @return front wheel angle in radians (same sign as yaw) */

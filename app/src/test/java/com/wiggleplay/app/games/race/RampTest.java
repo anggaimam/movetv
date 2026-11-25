@@ -267,11 +267,10 @@ public class RampTest {
                         float need;
                         switch (ro.kind(i)) {
                             case RoadObjects.RAMP: from = ro.s(i) - 10f; to = ro.s(i) + 25f; need = 30f; break;
-                            case RoadObjects.POTHOLE: from = ro.s(i) - 10f; to = ro.end(i) + 10f; need = 25f; break;
+                            case RoadObjects.POTHOLE: from = ro.s(i) - 4f; to = ro.end(i) + 4f; need = 25f; break;
                             default: from = ro.s(i); to = ro.end(i); need = 25f; break;
                         }
                         float tight = Float.MAX_VALUE;
-                        if (ro.kind(i) == RoadObjects.POTHOLE) need = 0f;   // pothole data is checked and adjusted in Part B
                         for (float s = from; s <= to; s += ds) tight = Math.min(tight, Math.abs(t.radiusAt(Math.floorMod(Math.round(s / ds), m))));
                         if (tight < need) bad.append(o).append("radius ").append(tight).append(" under ").append(need).append("; ");
                         if (ro.kind(i) == RoadObjects.ICE) {
@@ -412,7 +411,7 @@ public class RampTest {
                                 int b0 = block(p, p.indices[k] & 0xFFFF);
                                 assertEquals(b0, block(p, p.indices[k + 1] & 0xFFFF));
                                 assertEquals(b0, block(p, p.indices[k + 2] & 0xFFFF));
-                                assertTrue("object swatch " + b0, b0 >= 10 && b0 <= 15);
+                                assertTrue("object swatch " + b0, (b0 >= 10 && b0 <= 15) || b0 >= ObjectMeshes.SW_FIRST_HAZARD);
                             }
                         }
                     }
@@ -488,7 +487,7 @@ public class RampTest {
     }
 
     @Test
-    public void everyRaceFinishesWithinFivePercentOfTheRaceWithoutObjects() {
+    public void everyRaceFinishesWithinEightPercentOfTheRaceWithoutObjects() {
         StringBuilder bad = new StringBuilder();
         for (RaceLevel lv : RaceLevel.values()) {
             for (TrackDef def : DEFS) {
@@ -500,7 +499,7 @@ public class RampTest {
                     System.out.printf("%-10s %-6s with ramps %.1f s, without %.1f s (%.1f%%)%n", TrackSpline.key(def, rev), lv, with, without,
                             100f * (with - without) / without);
                     if (!f1[0]) bad.append(id).append(" did not finish; ");
-                    if (with > without * 1.05f) bad.append(id).append(" took ").append(with).append(" s against ").append(without).append("; ");
+                    if (with > without * 1.08f) bad.append(id).append(" took ").append(with).append(" s against ").append(without).append("; ");
                 }
             }
         }

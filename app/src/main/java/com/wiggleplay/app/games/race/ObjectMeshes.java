@@ -12,11 +12,20 @@ public final class ObjectMeshes {
 
     /** Swatches: ramp top and sign board yellow, dark chevrons and arrows, ramp side, cream road paint, sign post grey, orange board. */
     public static final int SW_YELLOW = 10, SW_DARK = 11, SW_SIDE = 12, SW_CREAM = 13, SW_POST = 14, SW_ORANGE = 15;
+    /**
+     * T-31 Part B: the hazard swatches, an appended block at the top of the palette (above every theme's own colours, which must stay
+     * below {@link #SW_FIRST_HAZARD}): pothole floor and rim, ice, water, white streaks and glyphs, water edge, blue sign board.
+     */
+    public static final int SW_FIRST_HAZARD = 216, SW_PIT_FLOOR = 216, SW_PIT_RIM = 217, SW_ICE = 218, SW_WATER = 219, SW_WHITE = 220,
+            SW_WATER_EDGE = 221, SW_BLUE = 222;
+    /** Colours of the hazard swatches. */
+    public static final int PIT_FLOOR = 0x3A3633, PIT_RIM = 0x6E6A66, ICE = 0xD6F0FA, WATER = 0x6CC3E6, WHITE = 0xFFFFFF,
+            WATER_EDGE = 0xA8DDF2, BLUE = 0x5B8DB8;
     /** Colours of those swatches. */
     public static final int YELLOW = 0xF2C572, DARK = 0x2F3A45, SIDE = 0x8C7E72, CREAM = 0xF3EBDD, POST = 0x7C858E, ORANGE = 0xE89A4C;
 
     /** Triangle limits of the ticket. */
-    public static final int MAX_RAMP = 30, MAX_SIGN = 30, MAX_MARKS = 30;
+    public static final int MAX_RAMP = 30, MAX_SIGN = 30, MAX_MARKS = 30, MAX_POTHOLE = 24, MAX_PATCH = 24;
     /** Road paint height above the road. */
     public static final float PAINT_Y = 0.006f;
     /** Distance of a sign from the road centre beyond the half-width (outside the barrier), and the sign's sizes. */
@@ -32,6 +41,13 @@ public final class ObjectMeshes {
         p.set(SW_CREAM, CREAM);
         p.set(SW_POST, POST);
         p.set(SW_ORANGE, ORANGE);
+        p.set(SW_PIT_FLOOR, PIT_FLOOR);
+        p.set(SW_PIT_RIM, PIT_RIM);
+        p.set(SW_ICE, ICE);
+        p.set(SW_WATER, WATER);
+        p.set(SW_WHITE, WHITE);
+        p.set(SW_WATER_EDGE, WATER_EDGE);
+        p.set(SW_BLUE, BLUE);
     }
 
     /** The road frame at s: x, z, forward x, forward z, right x, right z (right = toward positive offset). */
@@ -137,15 +153,29 @@ public final class ObjectMeshes {
     }
 
     /**
-     * The warning sign of object {@code i}: a grey post 1.6 m high and a 1.2 m diamond board facing the oncoming truck. A ramp has a
-     * yellow board with a dark up-arrow (T-31 Part B adds the other kinds).
+     * The warning sign of object {@code i}, for a theme with ice (see {@link #sign(RoadObjects, int, TrackPath, PaletteSwatches, int)}).
      * @param ro the objects
      * @param i an object
      * @param t the track
      * @param pal the palette
-     * @return the mesh (one part "sign"), at most {@link #MAX_SIGN} triangles
+     * @return the mesh
      */
     public static MeshData sign(RoadObjects ro, int i, TrackPath t, PaletteSwatches pal) {
+        return sign(ro, i, t, pal, Theme.SLICK_ICE);
+    }
+
+    /**
+     * The warning sign of object {@code i}: a grey post 1.6 m high and a 1.2 m diamond board facing the oncoming truck. A ramp has a
+     * yellow board with a dark up-arrow, a pothole an orange board with a dark dot, a patch a blue board with a white snowflake (ice)
+     * or drop (water).
+     * @param ro the objects
+     * @param i an object
+     * @param t the track
+     * @param pal the palette
+     * @param slick the theme's {@link Theme#slick}, which picks the glyph of a patch's sign
+     * @return the mesh (one part "sign"), at most {@link #MAX_SIGN} triangles
+     */
+    public static MeshData sign(RoadObjects ro, int i, TrackPath t, PaletteSwatches pal, int slick) {
         float[] spot = new float[4];
         signSpot(ro, i, t, spot);
         float fx = spot[2], fz = spot[3], rx = -fz, rz = fx;   // right of the road direction
@@ -167,19 +197,120 @@ public final class ObjectMeshes {
         // board: a diamond (a square turned 45 degrees) facing back along -forward, a little in front of the post
         float cy = POST_HEIGHT + 0.3f, half = BOARD * 0.7071f;
         float bx = px - fx * 0.08f, bz = pz - fz * 0.08f;
+        int kind = ro.kind(i);
+        int boardSw = kind == RoadObjects.RAMP ? SW_YELLOW : kind == RoadObjects.POTHOLE ? SW_ORANGE : SW_BLUE;
         float[] top = {bx, cy + half, bz}, bot = {bx, cy - half, bz};
         float[] lf = {bx - rx * half, cy, bz - rz * half}, rt = {bx + rx * half, cy, bz + rz * half};
-        k.flatTri(copy(lf), copy(bot), copy(rt), 0f, 0f, 0f, SW_YELLOW, -fx, 0f, -fz);
-        k.flatTri(copy(lf), copy(rt), copy(top), 0f, 0f, 0f, SW_YELLOW, -fx, 0f, -fz);
-        // arrow: a triangle head and a bar, 1 cm in front of the board
-        float ox = -fx * 0.012f, oz = -fz * 0.012f;
-        float[] ah = {bx + ox, cy + 0.38f, bz + oz};
-        float[] al = {bx - rx * 0.26f + ox, cy + 0.02f, bz - rz * 0.26f + oz}, ar = {bx + rx * 0.26f + ox, cy + 0.02f, bz + rz * 0.26f + oz};
-        k.flatTri(ah, al, ar, 0f, 0f, 0f, SW_DARK, -fx, 0f, -fz);
-        float[] s1 = {bx - rx * 0.09f + ox, cy + 0.02f, bz - rz * 0.09f + oz}, s2 = {bx + rx * 0.09f + ox, cy + 0.02f, bz + rz * 0.09f + oz};
-        float[] s3 = {s2[0], cy - 0.32f, s2[2]}, s4 = {s1[0], cy - 0.32f, s1[2]};
-        k.flatTri(s1, s2, s3, 0f, 0f, 0f, SW_DARK, -fx, 0f, -fz);
-        k.flatTri(copy(s1), copy(s3), copy(s4), 0f, 0f, 0f, SW_DARK, -fx, 0f, -fz);
+        k.flatTri(copy(lf), copy(bot), copy(rt), 0f, 0f, 0f, boardSw, -fx, 0f, -fz);
+        k.flatTri(copy(lf), copy(rt), copy(top), 0f, 0f, 0f, boardSw, -fx, 0f, -fz);
+        // the glyph, 1 cm in front of the board; u to the right of the road, v up
+        float[] o = {bx - fx * 0.012f, cy, bz - fz * 0.012f};
+        if (kind == RoadObjects.RAMP) {
+            glyphTri(k, o, rx, rz, fx, fz, 0f, 0.38f, -0.26f, 0.02f, 0.26f, 0.02f, SW_DARK);
+            glyphQuad(k, o, rx, rz, fx, fz, -0.09f, 0.02f, 0.09f, -0.32f, SW_DARK);
+        } else if (kind == RoadObjects.POTHOLE) {
+            glyphQuad(k, o, rx, rz, fx, fz, -0.2f, 0.2f, 0.2f, -0.2f, SW_DARK);
+            glyphTri(k, o, rx, rz, fx, fz, -0.2f, 0.2f, 0.2f, 0.2f, 0f, 0.4f, SW_DARK);
+        } else if (slick == Theme.SLICK_WATER) {
+            // a drop: a triangle pointing up over a diamond
+            glyphTri(k, o, rx, rz, fx, fz, 0f, 0.4f, -0.22f, 0f, 0.22f, 0f, SW_WHITE);
+            glyphTri(k, o, rx, rz, fx, fz, -0.22f, 0f, 0.22f, 0f, 0f, -0.3f, SW_WHITE);
+        } else {
+            // a snowflake: three bars through the middle
+            for (int b = 0; b < 3; b++) {
+                double a = b * Math.PI / 3.0;
+                float ux = (float) Math.sin(a) * 0.36f, vy = (float) Math.cos(a) * 0.36f, wx = (float) Math.cos(a) * 0.05f, wy = -(float) Math.sin(a) * 0.05f;
+                float[] p1 = glyphPoint(o, rx, rz, fx, fz, -ux - wx, -vy - wy), p2 = glyphPoint(o, rx, rz, fx, fz, ux - wx, vy - wy);
+                float[] p3 = glyphPoint(o, rx, rz, fx, fz, ux + wx, vy + wy), p4 = glyphPoint(o, rx, rz, fx, fz, -ux + wx, -vy + wy);
+                k.flatTri(p1, p2, p3, 0f, 0f, 0f, SW_WHITE, -fx, 0f, -fz);
+                k.flatTri(copy(p1), copy(p3), p4, 0f, 0f, 0f, SW_WHITE, -fx, 0f, -fz);
+            }
+        }
         return k.mesh("sign");
+    }
+
+    private static float[] glyphPoint(float[] o, float rx, float rz, float fx, float fz, float u, float v) {
+        return new float[] {o[0] + rx * u, o[1] + v, o[2] + rz * u};
+    }
+
+    private static void glyphTri(MeshKit k, float[] o, float rx, float rz, float fx, float fz, float u1, float v1, float u2, float v2,
+                                 float u3, float v3, int sw) {
+        k.flatTri(glyphPoint(o, rx, rz, fx, fz, u1, v1), glyphPoint(o, rx, rz, fx, fz, u2, v2), glyphPoint(o, rx, rz, fx, fz, u3, v3),
+                0f, 0f, 0f, sw, -fx, 0f, -fz);
+    }
+
+    private static void glyphQuad(MeshKit k, float[] o, float rx, float rz, float fx, float fz, float u0, float v0, float u1, float v1, int sw) {
+        glyphTri(k, o, rx, rz, fx, fz, u0, v0, u1, v0, u1, v1, sw);
+        glyphTri(k, o, rx, rz, fx, fz, u0, v0, u1, v1, u0, v1, sw);
+    }
+
+    /**
+     * The potholes of group {@code i}: each a dark floor (an octagon, 0.9 m radius) inside a lighter rim ring 0.15 m wide, flat on the
+     * road at y = 0.006.
+     * @param ro the objects
+     * @param i a pothole group
+     * @param t the track
+     * @param pal the palette
+     * @return the mesh (one part "pothole"), 24 triangles per pothole
+     */
+    public static MeshData pothole(RoadObjects ro, int i, TrackPath t, PaletteSwatches pal) {
+        MeshKit k = new MeshKit(pal);
+        float lat = ro.lateral(i);
+        int n = 8;
+        float rIn = RoadObjects.POTHOLE_RADIUS - 0.15f, rOut = RoadObjects.POTHOLE_RADIUS;
+        for (int j = 0; j < ro.potholes(i); j++) {
+            float[] f = frame(t, ro.potholeS(i, j));
+            for (int q = 0; q < n; q++) {
+                double a0 = 2.0 * Math.PI * q / n, a1 = 2.0 * Math.PI * (q + 1) / n;
+                float[] c0 = pt(f, 0f, lat, PAINT_Y);
+                float[] i0 = pt(f, (float) Math.cos(a0) * rIn, lat + (float) Math.sin(a0) * rIn, PAINT_Y);
+                float[] i1 = pt(f, (float) Math.cos(a1) * rIn, lat + (float) Math.sin(a1) * rIn, PAINT_Y);
+                float[] o0 = pt(f, (float) Math.cos(a0) * rOut, lat + (float) Math.sin(a0) * rOut, PAINT_Y);
+                float[] o1 = pt(f, (float) Math.cos(a1) * rOut, lat + (float) Math.sin(a1) * rOut, PAINT_Y);
+                k.flatTri(c0, i0, i1, 0f, 0f, 0f, SW_PIT_FLOOR, 0f, 1f, 0f);
+                k.flatTri(copy(i0), copy(o0), copy(o1), 0f, 0f, 0f, SW_PIT_RIM, 0f, 1f, 0f);
+                k.flatTri(copy(i0), copy(o1), copy(i1), 0f, 0f, 0f, SW_PIT_RIM, 0f, 1f, 0f);
+            }
+        }
+        return k.mesh("pothole");
+    }
+
+    /**
+     * The ice or water patch {@code i}: 8 m long and 4 m wide in four 2 m sections that follow the road. Ice: pale blue with three white
+     * streaks; water: blue with a lighter edge along both long sides. Flat at y = 0.006.
+     * @param ro the objects
+     * @param i a patch
+     * @param t the track
+     * @param pal the palette
+     * @param slick {@link Theme#SLICK_ICE} or {@link Theme#SLICK_WATER}
+     * @return the mesh (one part "slick"), at most {@link #MAX_PATCH} triangles
+     */
+    public static MeshData patch(RoadObjects ro, int i, TrackPath t, PaletteSwatches pal, int slick) {
+        MeshKit k = new MeshKit(pal);
+        float lat = ro.lateral(i), h = RoadObjects.PATCH_HALF;
+        boolean water = slick == Theme.SLICK_WATER;
+        float[][] fr = new float[5][];
+        for (int q = 0; q <= 4; q++) fr[q] = frame(t, ro.s(i) + q * 2f);
+        int base = water ? SW_WATER : SW_ICE;
+        for (int q = 0; q < 4; q++) strip(k, fr[q], fr[q + 1], lat - h, lat + h, PAINT_Y, base);
+        if (water) {
+            for (int q = 0; q < 4; q++) {
+                strip(k, fr[q], fr[q + 1], lat - h, lat - h + 0.3f, PAINT_Y + 0.002f, SW_WATER_EDGE);
+                strip(k, fr[q], fr[q + 1], lat + h - 0.3f, lat + h, PAINT_Y + 0.002f, SW_WATER_EDGE);
+            }
+        } else {
+            // three streaks, each over the middle two sections
+            float[] ws = {-1.1f, 0f, 1.1f};
+            for (float w : ws) {
+                for (int q = 1; q <= 2; q++) strip(k, fr[q], fr[q + 1], lat + w - 0.06f, lat + w + 0.06f, PAINT_Y + 0.002f, SW_WHITE);
+            }
+        }
+        return k.mesh("slick");
+    }
+
+    private static void strip(MeshKit k, float[] f0, float[] f1, float l0, float l1, float y, int sw) {
+        float[] a = pt(f0, 0f, l0, y), b = pt(f0, 0f, l1, y), c = pt(f1, 0f, l1, y), d = pt(f1, 0f, l0, y);
+        k.flatTri(a, b, c, 0f, 0f, 0f, sw, 0f, 1f, 0f);
+        k.flatTri(copy(a), copy(c), d, 0f, 0f, 0f, sw, 0f, 1f, 0f);
     }
 }

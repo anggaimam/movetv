@@ -306,7 +306,7 @@ public final class Theme {
         for (PropRule r : props) count += r.ramps();
         if (hasSky()) count += 3;
         count += extraCount();
-        if (count > PaletteSwatches.MAX) throw new IllegalStateException("theme " + id + " needs " + count + " swatches");
+        if (count > ObjectMeshes.SW_FIRST_HAZARD) throw new IllegalStateException("theme " + id + " needs " + count + " swatches");
         road.paint(p);
         ObjectMeshes.paint(p);   // T-31: swatches 10 to 15 for ramps, signs and road paint
         p.set(SW_GROUND, ground);

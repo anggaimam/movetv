@@ -477,7 +477,7 @@ public class RaceLogicTest {
 
     /** T-28 B: three auto-drivers on 4 layouts x 2 directions x 3 levels (24 races each, the magnet on, seed 42). */
     @Test public void threeDriversOnTheSplineTracks() {
-        float[] lo = {50f, 45f, 40f}, hi = {65f, 60f, 55f};   // centre driver bands per level (8-track average)
+        float[] lo = {50f, 45f, 40f}, hi = {65f, 60f, 58f};   // centre driver bands per level (8-track average; T-31 Part B: Hard top 55 -> 58, patches and potholes drop side-lane runs)
         StringBuilder bad = new StringBuilder();
         for (int lvI = 0; lvI < 3; lvI++) {
             RaceLevel lv = RaceLevel.values()[lvI];
@@ -496,8 +496,8 @@ public class RaceLogicTest {
                                 lv, DRIVER_NAMES[kind], TrackSpline.key(def, rev), x[0], x[1], pc, stars, x[2] / lv.laps, x[4]);
                         String id = lv + " " + DRIVER_NAMES[kind] + " " + TrackSpline.key(def, rev) + " ";
                         if (x[3] != 1f) bad.append(id).append("did not finish; ");
-                        // a single race may be 3 points under the low edge or 7 over the high edge (T-31: ramp coins lift a centre driver; was 5)
-                        if (kind == CENTRE && (pc < lo[lvI] - 3f || pc > hi[lvI] + 7f)) bad.append(id).append("centre ").append(pc).append("%; ");
+                        // a single race may be 3 points under the low edge or 9 over the high edge (T-31: ramp coins and dropped runs lift a centre driver; was 5)
+                        if (kind == CENTRE && (pc < lo[lvI] - 3f || pc > hi[lvI] + 9f)) bad.append(id).append("centre ").append(pc).append("%; ");
                         if (kind == SEEKER && pc < 72f) bad.append(id).append("seeker ").append(pc).append("%; ");
                         if (kind == CUTTER && pc < 37f) bad.append(id).append("cutter ").append(pc).append("%; ");
                         if (kind == CENTRE && lvI == 1 && x[2] / lv.laps < 3f) bad.append(id).append("cans/lap ").append(x[2] / lv.laps).append("; ");
