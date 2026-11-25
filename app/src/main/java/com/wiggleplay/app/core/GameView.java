@@ -123,6 +123,8 @@ public final class GameView extends View {
         if (hasWindowFocus) resetTiming();
     }
 
+    private long displayAt = 0;
+
     @Override
     protected void onDraw(Canvas c) {
         long nowN = SystemClock.elapsedRealtimeNanos();
@@ -143,6 +145,14 @@ public final class GameView extends View {
         }
 
         frame.nowMs = SystemClock.uptimeMillis();
+        if (perf.isVisible() && frame.nowMs - displayAt >= 1000) {   // T-30 Gate 0: what the screen itself is set to
+            displayAt = frame.nowMs;
+            android.view.Display d = getDisplay();
+            if (d != null) {
+                android.view.Display.Mode m = d.getMode();
+                perf.setDisplay(d.getRefreshRate(), m.getPhysicalWidth(), m.getPhysicalHeight());
+            }
+        }
         hub.latest(frame.pose);
         frame.camera = hub.cameraPicture();
         if (perf.isVisible()) perf.setLock(hub.lockState().ordinal(), hub.lockRejections());

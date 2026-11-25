@@ -88,11 +88,15 @@ public final class RenderToggles {
         return group == GROUP_TERRAIN ? terrainOff : group == GROUP_PROPS && propsOff;
     }
 
+    /** The number of states {@link #step} walks through: 0 all on, 1 to 5 one switch off, 6 terrain, props, detail and sky off. */
+    public static final int STATES = 7;
+
     /**
-     * Remote-control stepping (no keyboard): the states are 0 = everything on, then 1 to 5 = only that switch off. Moves one
-     * state forward or back, round and round; from a mixed state (made with keys 1 to 5) it starts again from 0.
+     * Remote-control stepping (no keyboard): state 0 is everything on, states 1 to 5 have only that switch off, and state 6 has
+     * terrain, props, detail texture and sky off (the road, the trucks and the HUD only: the floor test). Moves one state
+     * forward or back, round and round; from any other mixed state (made with keys 1 to 5) it starts again from 0.
      * @param dir 1 for the next state, -1 for the previous one
-     * @return the new state, 0 to 5
+     * @return the new state, 0 to 6
      */
     public int step(int dir) {
         int off = 0, cur = 0;
@@ -102,10 +106,18 @@ public final class RenderToggles {
                 cur = i + 1;
             }
         }
-        if (off != 1) cur = 0;
-        int next = ((cur + dir) % (COUNT + 1) + COUNT + 1) % (COUNT + 1);
+        if (off == 4 && terrainOff && propsOff && detailOff && skyOff) cur = 6;
+        else if (off != 1) cur = 0;
+        int next = ((cur + dir) % STATES + STATES) % STATES;
         reset();
-        if (next > 0) flip(next - 1);
+        if (next >= 1 && next <= COUNT) {
+            flip(next - 1);
+        } else if (next == 6) {
+            terrainOff = true;
+            propsOff = true;
+            detailOff = true;
+            skyOff = true;
+        }
         return next;
     }
 

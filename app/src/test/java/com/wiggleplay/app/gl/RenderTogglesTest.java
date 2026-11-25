@@ -64,17 +64,25 @@ public class RenderTogglesTest {
     }
 
     @Test
-    public void remoteStepVisitsAllOnThenEachSwitchAlone() {
+    public void remoteStepVisitsAllOnThenEachSwitchAloneThenTheFloorTest() {
         RenderToggles t = new RenderToggles();
         for (int k = 1; k <= 5; k++) {
             assertEquals(k, t.step(1));
             for (int i = 0; i < RenderToggles.COUNT; i++) assertEquals(i == k - 1, t.isOff(i));
         }
+        assertEquals(6, t.step(1));
+        assertTrue(t.isOff(RenderToggles.TERRAIN));
+        assertTrue(t.isOff(RenderToggles.PROPS));
+        assertTrue(t.isOff(RenderToggles.DETAIL));
+        assertTrue(t.isOff(RenderToggles.SKY));
+        assertFalse(t.isOff(RenderToggles.HUD));
         assertEquals(0, t.step(1));
         for (int i = 0; i < RenderToggles.COUNT; i++) assertFalse(t.isOff(i));
+        assertEquals(6, t.step(-1));
         assertEquals(5, t.step(-1));
         assertTrue(t.isOff(RenderToggles.HUD));
-        t.flip(RenderToggles.TERRAIN);   // a mixed state starts again from 0
+        assertFalse(t.isOff(RenderToggles.SKY));
+        t.flip(RenderToggles.TERRAIN);   // another mixed state starts again from 0
         assertEquals(1, t.step(1));
     }
 }

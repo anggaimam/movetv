@@ -43,6 +43,8 @@ public final class PerfOverlay {
     private String glText = "";
     // T-30 Gate 0: the debug switches (keys 1 to 5), and one-second timing of the scene (canvas draw, update) and frame spread
     private RenderToggles toggles;
+    private float displayHz;
+    private int displayW, displayH;
     private String spreadText = "";
     private String toggleText = "";
     private long gateWindowNs = 0;
@@ -58,6 +60,18 @@ public final class PerfOverlay {
      */
     public void setGlStats(GlStats stats) {
         glStats = stats;
+    }
+
+    /**
+     * Tells the overlay what the screen is doing (shown on the timing line, to tell a screen running at 48 Hz from a slow game).
+     * @param hz the display's refresh rate
+     * @param w the display mode's width in pixels
+     * @param h the display mode's height in pixels
+     */
+    public void setDisplay(float hz, int w, int h) {
+        displayHz = hz;
+        displayW = w;
+        displayH = h;
     }
 
     /**
@@ -308,6 +322,7 @@ public final class PerfOverlay {
                         .append((glStats.triangles() + 500) / 1000).append("k, draws ").append(glStats.draws());
                 String cfg = glStats.config();
                 if (cfg.length() > 0) sb.append("  egl ").append(cfg);
+                if (displayHz > 0f) sb.append("  screen ").append(displayW).append('x').append(displayH).append(" @ ").append(one(displayHz)).append(" Hz");
                 glText = sb.toString();
                 // Gate 0: canvas ms = the scene's 2D draw on the main thread, update ms = the scene update, both averaged
                 // over one second (the biggest in brackets); frame spread = shortest / average / longest time between frames
