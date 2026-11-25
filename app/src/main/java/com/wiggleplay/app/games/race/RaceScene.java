@@ -75,7 +75,20 @@ public final class RaceScene implements Scene {
     private final RaceHud raceHud = new RaceHud();
     private final RaceRules rules = new RaceRules();
     private final ChaseCamera camera = new ChaseCamera();
+    // T-24: the second player's own camera, jump detector, steering inputs (one of each mode), HUD and controls
+    private final ChaseCamera camera2 = new ChaseCamera();
+    private final ChaseCamera[] cams = {camera, camera2};
     private final JumpDetect jump = new JumpDetect();
+    private final JumpDetect jump2 = new JumpDetect();
+    private final SteerInput[] steerModes2 = {new AirplaneArms(), new BodyLean(), new SteeringWheel()};
+    private SteerInput steerIn2 = steerModes2[2];
+    private final RaceHud raceHud2 = new RaceHud();
+    private int np = 1;
+    private float noneT2;
+    private float finalT2 = 99f;
+    private PlayerPose introPose2;
+    private int coinLowId = -1, arrowId = -1;
+    private static final int P1_RGB = 0x29B6F6, P2_RGB = 0xFF6EC7;
     private final AirplaneArms arms = new AirplaneArms();
     private final BodyLean lean = new BodyLean();
     private final SteeringWheel wheel = new SteeringWheel();
@@ -85,7 +98,7 @@ public final class RaceScene implements Scene {
     private float noteT;
     private final StringBuilder noteSb = new StringBuilder(64);
     private static final String[] INTRO_TEXT = RaceHud.HINT;
-    private final RenderList list = new RenderList(240);
+    private final RenderList list = new RenderList(420);
 
     // scratch
     private final float[] mTruck = new float[16], mT = new float[16], mR = new float[16], mA = new float[16],
@@ -168,6 +181,7 @@ public final class RaceScene implements Scene {
         env.leaveMenus();
         level = Math.max(1, Math.min(3, args.getInt("level", 1)));
         raceLevel = RaceLevel.fromNumber(level);
+        np = args.getInt("players", env.players) == 2 ? 2 : 1;   // T-24
         long built0 = SystemClock.uptimeMillis();
         worldReady = false;
         pendingWorld = null;
@@ -182,6 +196,8 @@ public final class RaceScene implements Scene {
             for (int i = 0; i < 8; i++) dustPool[i * 4 + 2] = DUST_SECONDS;
             for (int i = 0; i < 6; i++) sprayPool[i * 4 + 2] = SPRAY_SECONDS;
             coinId = gl.addMesh("coin", ProcMesh.coinReeded());
+            coinLowId = gl.addMesh("coinLow", ProcMesh.coinLow());
+            arrowId = gl.addMesh("playerArrow", ProcMesh.playerArrow());
             starId = gl.addMesh("star", ProcMesh.starBevelled(0.9f, 0.4f, 0.2f));
             nitroId = gl.addMesh("nitro", ProcMesh.nitroCan());
             magnetId = gl.addMesh("magnet", ProcMesh.magnet());
@@ -196,7 +212,8 @@ public final class RaceScene implements Scene {
             theme = Themes.byId(TrackChoice.def().themeId);
             // a theme with terrain has its own ground; the others keep the flat ground grid
             if (theme.look.terrain == null) groundId = gl.addMesh("ground", ProcMesh.groundGrid(GROUND_SIZE, GROUND_CELLS));
-            final boolean low = GameView.quality == GameView.LOW;
+            // T-24: two players use the LOW world (no filler props, far rings only, fewer patches)
+            final boolean low = GameView.quality == GameView.LOW || np == 2;
             // T-30 Gate 0: with the speed meter showing, the static world is merged per group so keys 1 and 2 can switch terrain
             // and props off (a few more draw calls than the normal build); the other switches work either way
             final boolean split = env.perf != null && env.perf.isVisible();
@@ -205,7 +222,8 @@ public final class RaceScene implements Scene {
             gl.setFogColor(theme.horizon);
             gl.setFog(theme.fogNear, theme.fogFar);
             gl.setSunDir(theme.sunDir[0], theme.sunDir[1], theme.sunDir[2]);
-            gl.setViewports(1);
+            gl.setViewports(np);
+            gl.setChunkCullDistance(np == 2 ? 45f : 0f);   // T-24: 45 m per viewport
             // R1: the rest of the world (road, patches, props, rings, sky dome, detail texture) is built on a worker thread
             // while the rules / loading screen shows; update() commits it, and the intro waits for it
             final com.wiggleplay.app.games.race.Theme th = theme;
@@ -240,20 +258,27 @@ public final class RaceScene implements Scene {
                 : ProfileLogic.DEFAULT_RACE_STEER);
         mode = RaceArt.modeOf(ProfileLogic.cleanRaceSteer(steerName));
         steerIn = steerModes[mode];
+        steerIn2 = steerModes2[mode];
         raceHud.setMode(mode);
+        raceHud2.playerColour = 0xFFFF6EC7;
+        raceHud2.setMode(mode);
         rules.setMode(mode);
         hud.setRules(rules);
         jump.reset();
         for (SteerInput si : steerModes) si.reset();
+        for (SteerInput si : steerModes2) si.reset();
+        jump2.reset();
+        jump2.setRequireHeadRise(true);
         newLogic();
         raceHud.reset();
+        raceHud2.reset();
         boolean showRules = !RULES_SEEN[level];
         RULES_SEEN[level] = true;
         intro = false;
         introAfterRules = false;
         if (showRules) {
             introAfterRules = true;
-            hud.start(1, true);
+            hud.start(np, true);
         } else {
             startIntro();
         }
@@ -276,11 +301,10 @@ public final class RaceScene implements Scene {
     }
 
     private void newLogic() {
-        logic = new RaceLogic(layout, raceLevel, 1, System.nanoTime());
-        CarModel car = logic.car(0);
-        camera.snap(car.x(), car.z(), car.yaw());
+        logic = new RaceLogic(layout, raceLevel, np, System.nanoTime());
+        for (int p = 0; p < np; p++) cams[p].snap(logic.car(p).x(), logic.car(p).z(), logic.car(p).yaw());
         for (int i = 0; i < 3; i++) {
-            scS[i] = layout.lapLength() * (i + 1) / 4f;
+            scS[i] = layout.lapLength() * (i + 1) / (float) (scenery() + 1);
             scSpin[i] = 0f;
             scWheelYaw[i] = 0f;
         }
@@ -289,7 +313,12 @@ public final class RaceScene implements Scene {
         rightUntil = 0;
         noneT = 0f;
         finalT = 99f;
+        noneT2 = 0f;
+        finalT2 = 99f;
     }
+
+    /** Scenery trucks: 3 for one player, 2 for two (T-24). */
+    private int scenery() { return 4 - np; }
 
     private void startIntro() {
         intro = true;
@@ -300,8 +329,10 @@ public final class RaceScene implements Scene {
     private void beginRound() {
         newLogic();
         raceHud.reset();
+        raceHud2.reset();
         steerIn.reset();
-        hud.start(1, false);
+        steerIn2.reset();
+        hud.start(np, false);
     }
 
     // ---- per frame ----
@@ -310,6 +341,7 @@ public final class RaceScene implements Scene {
     public void update(float dt, Frame f) {
         time += dt;
         PlayerPose pose = f.pose.players[0];
+        PlayerPose pose2 = np == 2 ? f.pose.players[1] : null;
         camBitmap = f.camera;
         if (!worldReady) {
             loadingT += dt;
@@ -321,7 +353,7 @@ public final class RaceScene implements Scene {
             return;
         }
         if (intro) {
-            updateIntro(dt, f, pose);
+            updateIntro(dt, f, pose, pose2);
             return;
         }
         String sel = hud.update(dt, f);
@@ -352,14 +384,20 @@ public final class RaceScene implements Scene {
         }
         // gestures run every frame so their baselines settle, but only count while racing
         steerIn.update(pose, f.nowMs, dt);
-        speedMeterNote(dt);
         jump.update(pose, f.nowMs);
         boolean jumpEvent = jump.consumeJump();
+        boolean jumpEvent2 = false;
+        if (np == 2) {
+            steerIn2.update(pose2, f.nowMs, dt);
+            jump2.update(pose2, f.nowMs);
+            jumpEvent2 = jump2.consumeJump();
+        }
+        speedMeterNote(dt);
         if (hud.phase() != Hud.END) {
-            Controls in = readInput(f, pose);
+            Controls in = readInput(f, pose, 0);
             jumpEvent |= in.jump;
+            Controls in2 = np == 2 ? readInput(f, pose2, 1) : null;
             boolean racing = hud.running();
-            CarModel car = logic.car(0);
             if (racing) {
                 logic.setControls(0, in.steer, in.brake);
                 if (jumpEvent) {
@@ -367,16 +405,26 @@ public final class RaceScene implements Scene {
                     logic.onJump(0);
                     if (!was && logic.boosting(0)) env.sfx("whoosh");
                 }
+                if (np == 2) {
+                    logic.setControls(1, in2.steer, in2.brake);
+                    if (jumpEvent2 || in2.jump) {
+                        boolean was = logic.boosting(1);
+                        logic.onJump(1);
+                        if (!was && logic.boosting(1)) env.sfx("whoosh");
+                    }
+                }
                 logic.update(dt);
-                raceEvents(car);
+                for (int p = 0; p < np; p++) raceEvents(p);
                 if (logic.over() || hud.phase() == Hud.ENDING) finishRace();
             }
-            updateHud(dt, racing, in);
+            updateHud(0, dt, racing, in);
+            if (np == 2) updateHud(1, dt, racing, in2);
         } else {
-            // behind the end screen the truck keeps driving by itself
-            logic.setControls(0, autoSteer(logic.car(0)), false);
+            // behind the end screen the trucks keep driving by themselves
+            for (int p = 0; p < np; p++) logic.setControls(p, autoSteer(logic.car(p)), false);
             logic.update(dt);
             raceHud.update(dt, false);
+            if (np == 2) raceHud2.update(dt, false);
         }
         if (!hud.paused() && hud.phase() != Hud.RULES) moveScenery(dt);
         followCamera(dt);
@@ -390,8 +438,17 @@ public final class RaceScene implements Scene {
     }
 
     private final Controls input = new Controls();
+    private final Controls input2 = new Controls();
 
-    private Controls readInput(Frame f, PlayerPose pose) {
+    /** Player 0 also takes the remote's keys; player 1 steers by body only (in test mode the hub moves the active test body). */
+    private Controls readInput(Frame f, PlayerPose pose, int p) {
+        if (p == 1) {
+            boolean test = "test".equals(f.pose.source);
+            input2.steer = test && steerIn2.steerState() == SteerInput.State.NONE ? leanSteer(pose) : steerIn2.steer();
+            input2.jump = false;
+            input2.brake = jump2.crouching();
+            return input2;
+        }
         long now = f.nowMs;
         if (f.input.pressed(KeyEvent.KEYCODE_DPAD_LEFT) || f.input.held(KeyEvent.KEYCODE_DPAD_LEFT)
                 || f.input.pressed(KeyEvent.KEYCODE_A) || f.input.held(KeyEvent.KEYCODE_A)) leftUntil = now + KEY_HOLD_MS;
@@ -420,34 +477,36 @@ public final class RaceScene implements Scene {
         return a > 0f ? -m : m;
     }
 
-    private void raceEvents(CarModel car) {
-        if (logic.consumeNitro(0) > 0) env.sfx("star", 1.5f);   // T-26: a nitro can
-        if (logic.consumeMagnet(0) > 0) env.sfx("star", 1.2f);   // the magnet
-        int coins = logic.consumeCoins(0);
+    private void raceEvents(int p) {
+        CarModel car = logic.car(p);
+        ChaseCamera cam = cams[p];
+        if (logic.consumeNitro(p) > 0) env.sfx("star", 1.5f);   // T-26: a nitro can
+        if (logic.consumeMagnet(p) > 0) env.sfx("star", 1.2f);   // the magnet
+        int coins = logic.consumeCoins(p);
         if (coins > 0) {
             env.sfx("coin", 1f + 0.06f * Math.min(coins, 4));
             raceHud.popup(1);
         }
-        if (logic.consumeStar(0)) {
+        if (logic.consumeStar(p)) {
             env.sfx("star");
             raceHud.popup(5);
         }
-        if (logic.consumeLap(0)) {
-            if (logic.lapsDone(0) < logic.lapsTotal()) env.sfx("go");
-            if (logic.currentLap(0) == logic.lapsTotal() && !logic.finished(0)) finalT = 0f;
+        if (logic.consumeLap(p)) {
+            if (logic.lapsDone(p) < logic.lapsTotal()) env.sfx("go");
+            if (logic.currentLap(p) == logic.lapsTotal() && !logic.finished(p)) { if (p == 0) finalT = 0f; else finalT2 = 0f; }
         }
-        if (logic.consumeLaunch(0) > 0) {   // T-31: off the lip of a ramp
+        if (logic.consumeLaunch(p) > 0) {   // T-31: off the lip of a ramp
             env.sfx("whoosh", 1.2f);
             spawnDust(car.x(), car.z());
         }
-        if (logic.consumeLanding(0) > 0) {
-            if (env.sfx != null) env.sfx.play("impact", 1.3f, Math.min(0.7f, 0.3f + 0.05f * logic.landingImpact(0)));
+        if (logic.consumeLanding(p) > 0) {
+            if (env.sfx != null) env.sfx.play("impact", 1.3f, Math.min(0.7f, 0.3f + 0.05f * logic.landingImpact(p)));
             spawnDust(car.x(), car.z());
-            camera.onLanding();
+            cam.onLanding();
         }
-        if (logic.consumeBump(0) > 0) {   // T-31 Part B: a pothole
+        if (logic.consumeBump(p) > 0) {   // T-31 Part B: a pothole
             if (env.sfx != null) env.sfx.play("impact", 0.75f, 0.45f);
-            camera.onBump();
+            cam.onBump();
         }
         if (car.consumeHitWall() && env.sfx != null) {
             env.sfx.play("impact", 1f, Math.max(0.25f, Math.min(1f, car.speed() / (raceLevel.baseSpeed * 1.2f))));
@@ -457,6 +516,14 @@ public final class RaceScene implements Scene {
     private void finishRace() {
         stopLoops();
         int stars = logic.stars(0);
+        if (np == 2) {   // T-24: both players' stars; only player 1's go to the profile
+            if (env.profile != null) {
+                env.profile.recordStars(GAME_ID, level, stars);
+                env.profile.recordRaceBest(TrackChoice.key(), level, stars);
+            }
+            hud.finish(stars, logic.stars(1), logic.score(0), logic.score(1));
+            return;
+        }
         if (env.profile != null) {
             env.profile.recordStars(GAME_ID, level, stars);
             env.profile.recordRaceBest(TrackChoice.key(), level, stars);   // T-32 Part B: shown on the track card next visit
@@ -464,30 +531,41 @@ public final class RaceScene implements Scene {
         hud.finish(stars, 0, logic.score(0), 0);
     }
 
-    private void updateHud(float dt, boolean racing, Controls in) {
-        CarModel car = logic.car(0);
-        raceHud.lap = logic.currentLap(0);
-        raceHud.lapTotal = logic.lapsTotal();
-        raceHud.meter = logic.boostMeter(0);
-        raceHud.boosting = logic.boosting(0);
-        raceHud.boostLeft = logic.boostLeft(0);
-        raceHud.magnetK = logic.magnetLeft(0) / RaceLogic.MAGNET_SECONDS;
-        raceHud.braking = racing && in.brake && !logic.boosting(0);
-        boolean active = steerIn.steerState() == SteerInput.State.ACTIVE;
-        raceHud.iconDeg = steerIn.iconAngleDeg();
-        raceHud.steerActive = active;
-        if (racing) noneT = active ? 0f : noneT + dt;
-        raceHud.noneSeconds = noneT;
-        if (finalT < 90f && racing) finalT += dt;
-        raceHud.finalLapSeconds = finalT;
-        raceHud.playerS = car.s();
-        raceHud.sceneryCount = 3;
-        System.arraycopy(scS, 0, raceHud.sceneryS, 0, 3);
-        raceHud.camera = camBitmap;
-        raceHud.update(dt, racing);
+    private void updateHud(int p, float dt, boolean racing, Controls in) {
+        CarModel car = logic.car(p);
+        RaceHud h = p == 0 ? raceHud : raceHud2;
+        SteerInput si = p == 0 ? steerIn : steerIn2;
+        h.lap = logic.currentLap(p);
+        h.lapTotal = logic.lapsTotal();
+        h.meter = logic.boostMeter(p);
+        h.boosting = logic.boosting(p);
+        h.boostLeft = logic.boostLeft(p);
+        h.magnetK = logic.magnetLeft(p) / RaceLogic.MAGNET_SECONDS;
+        h.braking = racing && in.brake && !logic.boosting(p);
+        boolean active = si.steerState() == SteerInput.State.ACTIVE;
+        h.iconDeg = si.iconAngleDeg();
+        h.steerActive = active;
+        if (p == 0) {
+            if (racing) noneT = active ? 0f : noneT + dt;
+            h.noneSeconds = noneT;
+            if (finalT < 90f && racing) finalT += dt;
+            h.finalLapSeconds = finalT;
+        } else {
+            if (racing) noneT2 = active ? 0f : noneT2 + dt;
+            h.noneSeconds = noneT2;
+            if (finalT2 < 90f && racing) finalT2 += dt;
+            h.finalLapSeconds = finalT2;
+        }
+        h.place = np == 2 ? logic.place(p) : 0;
+        h.playerS = car.s();
+        h.player2S = p == 0 && np == 2 ? logic.car(1).s() : -1f;
+        h.sceneryCount = scenery();
+        System.arraycopy(scS, 0, h.sceneryS, 0, 3);
+        h.camera = p == 0 && np == 1 ? camBitmap : null;
+        h.update(dt, racing);
     }
 
-    private void updateIntro(float dt, Frame f, PlayerPose pose) {
+    private void updateIntro(float dt, Frame f, PlayerPose pose, PlayerPose pose2) {
         if (!worldReady) {
             introT = 0f;   // the countdown starts when the track is ready
             introPose = pose;
@@ -495,7 +573,13 @@ public final class RaceScene implements Scene {
         }
         introT += dt;
         introPose = pose;
+        introPose2 = pose2;
         steerIn.update(pose, f.nowMs, dt);
+        if (np == 2) {
+            steerIn2.update(pose2, f.nowMs, dt);
+            jump2.update(pose2, f.nowMs);
+            jump2.consumeJump();
+        }
         speedMeterNote(dt);
         jump.update(pose, f.nowMs);
         jump.consumeJump();
@@ -505,6 +589,10 @@ public final class RaceScene implements Scene {
         followCamera(dt);
         raceHud.iconDeg = steerIn.iconAngleDeg();
         raceHud.steerActive = steerIn.steerState() == SteerInput.State.ACTIVE;
+        if (np == 2) {
+            raceHud2.iconDeg = steerIn2.iconAngleDeg();
+            raceHud2.steerActive = steerIn2.steerState() == SteerInput.State.ACTIVE;
+        }
         submitWorld();
         if (introT >= INTRO_SECONDS || skip) {
             intro = false;
@@ -697,7 +785,7 @@ public final class RaceScene implements Scene {
 
     private void moveScenery(float dt) {
         float v = raceLevel.baseSpeed * 0.8f;
-        for (int i = 0; i < 3; i++) {
+        for (int i = 0; i < scenery(); i++) {
             scS[i] += v * dt;
             if (scS[i] > layout.lapLength()) scS[i] -= layout.lapLength();
             scSpin[i] += v * dt / WHEEL_R;
@@ -711,21 +799,26 @@ public final class RaceScene implements Scene {
     }
 
     private void followCamera(float dt) {
-        CarModel car = logic.car(0);
-        camera.update(dt, car.x(), car.z(), car.yaw(), logic.boosting(0), car.y());
+        for (int p = 0; p < np; p++) {
+            CarModel car = logic.car(p);
+            cams[p].update(dt, car.x(), car.z(), car.yaw(), logic.boosting(p), car.y());
+        }
         for (int i = 0; i < 8; i++) dustPool[i * 4 + 2] += dt;
         for (int i = 0; i < 6; i++) sprayPool[i * 4 + 2] += dt;
-        if (logic.slick(0) && car.speed() > 1f) {
-            sprayTimer -= dt;
-            if (sprayTimer <= 0f) {   // a quad behind a rear wheel, the two sides in turn
-                sprayTimer = 0.07f;
-                int i = sprayNext;
-                sprayNext = (sprayNext + 1) % 6;
-                float fx = (float) Math.sin(car.yaw()), fz = (float) Math.cos(car.yaw());
-                float side = (i & 1) == 0 ? -0.7f : 0.7f;
-                sprayPool[i * 4] = car.x() - fx * 1.4f - fz * side;
-                sprayPool[i * 4 + 1] = car.z() - fz * 1.4f + fx * side;
-                sprayPool[i * 4 + 2] = 0f;
+        for (int p = 0; p < np; p++) {
+            CarModel car = logic.car(p);
+            if (logic.slick(p) && car.speed() > 1f) {
+                sprayTimer -= dt;
+                if (sprayTimer <= 0f) {   // a quad behind a rear wheel, the two sides in turn
+                    sprayTimer = 0.07f;
+                    int i = sprayNext;
+                    sprayNext = (sprayNext + 1) % 6;
+                    float fx = (float) Math.sin(car.yaw()), fz = (float) Math.cos(car.yaw());
+                    float side = (i & 1) == 0 ? -0.7f : 0.7f;
+                    sprayPool[i * 4] = car.x() - fx * 1.4f - fz * side;
+                    sprayPool[i * 4 + 1] = car.z() - fz * 1.4f + fx * side;
+                    sprayPool[i * 4 + 2] = 0f;
+                }
             }
         }
     }
@@ -745,65 +838,48 @@ public final class RaceScene implements Scene {
     private void submitWorld() {
         if (gl == null || !worldReady) return;
         buildList();
-        gl.setViewports(1);
-        gl.setCamera(0, camera.eye(), camera.target(), camera.fov());
+        gl.setViewports(np);
+        for (int p = 0; p < np; p++) gl.setCamera(p, cams[p].eye(), cams[p].target(), cams[p].fov());
         gl.submit(list);
     }
 
     private void buildList() {
         list.begin();
-        // T-23: the ground grid follows the camera, snapped to whole cells so its vertices don't swim
-        float[] eye = camera.eye();
-        float gx = GROUND_STEP * (float) Math.floor(eye[0] / GROUND_STEP + 0.5f);
-        float gz = GROUND_STEP * (float) Math.floor(eye[2] / GROUND_STEP + 0.5f);
-        Mat4.translate(mT, gx, 0f, gz);
-        if (groundId >= 0) list.add(groundId, 0, mT, theme.ground, true, 1);
-        // T-29: the backdrop rings follow the camera's position (not its turning) and are drawn without fog
-        for (int i = 0; i < ringCount; i++) {
-            Mat4.translate(mT, eye[0], 0f, eye[2]);
-            list.add(ringId[i], 0, mT, 0, false, 1, true);
+        final int vm = np == 2 ? 3 : 1;   // the viewports that show a shared thing
+        for (int v = 0; v < np; v++) {
+            final int bit = 1 << v;
+            // T-23: the ground grid follows the camera, snapped to whole cells so its vertices don't swim
+            float[] eye = cams[v].eye();
+            float gx = GROUND_STEP * (float) Math.floor(eye[0] / GROUND_STEP + 0.5f);
+            float gz = GROUND_STEP * (float) Math.floor(eye[2] / GROUND_STEP + 0.5f);
+            Mat4.translate(mT, gx, 0f, gz);
+            if (groundId >= 0) list.add(groundId, 0, mT, theme.ground, true, bit);
+            // T-29: the backdrop rings follow the camera's position (not its turning) and are drawn without fog
+            for (int i = 0; i < ringCount; i++) {
+                Mat4.translate(mT, eye[0], 0f, eye[2]);
+                list.add(ringId[i], 0, mT, 0, false, bit, true);
+            }
+            // T-30b: sparkles on the lakes (within 50 m of the camera); none in two players (the world is built LOW)
+            for (int i = 0; sparkleId >= 0 && i < sparkle.length; i += 3) {
+                float dx = sparkle[i] - eye[0], dz = sparkle[i + 1] - eye[2];
+                if (dx * dx + dz * dz > 50f * 50f) continue;
+                float a = 0.15f + 0.55f * Math.max(0f, (float) Math.sin(2.5f * time + sparkle[i + 2]));
+                Mat4.translate(mT, sparkle[i], 0.02f, sparkle[i + 1]);
+                list.add(sparkleId, 0, mT, (Math.round(a * 255f) << 24) | 0xFFFFFF, true, bit);
+            }
+            addCoins(v, bit, eye);
         }
-        // T-30b: sparkles on the lakes (within 50 m of the camera): alpha 0.15 + 0.55 max(0, sin(2.5 t + phase))
-        for (int i = 0; sparkleId >= 0 && i < sparkle.length; i += 3) {
-            float dx = sparkle[i] - eye[0], dz = sparkle[i + 1] - eye[2];
-            if (dx * dx + dz * dz > 50f * 50f) continue;
-            float a = 0.15f + 0.55f * Math.max(0f, (float) Math.sin(2.5f * time + sparkle[i + 2]));
-            Mat4.translate(mT, sparkle[i], 0.02f, sparkle[i + 1]);
-            list.add(sparkleId, 0, mT, (Math.round(a * 255f) << 24) | 0xFFFFFF, true, 1);
-        }
-        // coins and the golden star (only those near the truck and not behind the camera)
-        CarModel car = logic.car(0);
-        float fx = (float) Math.sin(car.yaw()), fz = (float) Math.cos(car.yaw());
-        float spin = time * TWO_PI * 2f;
-        for (int i = 0; i < logic.slotCount(0); i++) {
-            if (logic.slotGone(0, i)) continue;
-            float dx = logic.slotX(0, i) - car.x(), dz = logic.slotZ(0, i) - car.z();
-            if (dx * dx + dz * dz > 55f * 55f || dx * fx + dz * fz < -8f) continue;
-            float y = (logic.slotHeight(0, i) > 0f ? logic.slotHeight(0, i) : 1.0f) + 0.15f * (float) Math.sin(time * 4f + i);
-            Mat4.translate(mT, logic.slotX(0, i), y, logic.slotZ(0, i));
-            Mat4.rotY(mR, spin);
-            Mat4.multiply(mA, mT, mR);
-            if (logic.slotIsStar(0, i)) {
-                list.add(starId, 0, mA, STAR_COLOUR, false, 1);   // T-23 Part C: palette swatches, not one flat colour
-                Mat4.scale(mB, 1.6f, 1.6f, 1.6f);
-                Mat4.multiply(mC, mA, mB);
-                list.add(starId, 0, mC, GLOW_COLOUR, true, 1);
-            } else if (logic.slotIsMagnet(0, i)) {
-                // the magnet: bigger than a coin, hovering a little higher
-                Mat4.scale(mB, 1.6f, 1.6f, 1.6f);
-                Mat4.multiply(mC, mA, mB);
-                list.add(magnetId, 0, mC, 0, false, 1);
-            } else if (logic.slotIsNitro(0, i)) {
-                // T-26: a nitro can, a little bigger than a coin so it stands out among them
-                Mat4.scale(mB, 1.3f, 1.3f, 1.3f);
-                Mat4.multiply(mC, mA, mB);
-                list.add(nitroId, 0, mC, 0, false, 1);
-            } else {
-                list.add(coinId, 0, mA, COIN_COLOUR, false, 1);   // T-23 Part C: one draw call, swatches from the palette
+        // the trucks: the players' first (their own colours), then the friendly scenery trucks
+        for (int p = 0; p < np; p++) {
+            CarModel car = logic.car(p);
+            addTruck(p, car.x(), car.y(), car.z(), car.yaw(), car.bodyLean(), car.bodyPitch(), car.wheelSpin(), car.frontWheelYaw(), vm);
+            if (np == 2 && arrowId >= 0) {   // T-24: a floating arrow in the player colour, bobbing a little
+                Mat4.translate(mA, car.x(), car.y() + 2.4f + 0.12f * (float) Math.sin(time * 4f + p * 2f), car.z());
+                Mat4.rotY(mR, car.yaw());
+                Mat4.multiply(mB, mA, mR);
+                list.add(arrowId, 0, mB, p == 0 ? P1_RGB : P2_RGB, true, vm);
             }
         }
-        // the player's truck, then the three friendly scenery trucks
-        addTruck(0, car.x(), car.y(), car.z(), car.yaw(), car.bodyLean(), car.bodyPitch(), car.wheelSpin(), car.frontWheelYaw());
         // T-31: dust at the launch and the landing (alpha 0.6 to 0, radius 0.3 to 1.0 over 0.5 s)
         for (int i = 0; dustId >= 0 && i < 8; i++) {
             float age = dustPool[i * 4 + 2];
@@ -813,7 +889,7 @@ public final class RaceScene implements Scene {
             Mat4.scale(mB, rad, 1f, rad);
             Mat4.multiply(mA, mT, mB);
             int rgb = theme.dust != 0 ? theme.dust : 0xCCCCCC;
-            list.add(dustId, 0, mA, (Math.round(0.6f * (1f - k) * 255f) << 24) | (rgb & 0xFFFFFF), true, 1);
+            list.add(dustId, 0, mA, (Math.round(0.6f * (1f - k) * 255f) << 24) | (rgb & 0xFFFFFF), true, vm);
         }
         // T-31 Part B: spray behind the wheels on ice (white) or water (blue): alpha 0.7 to 0, radius 0.25 to 0.6 over 0.4 s
         for (int i = 0; dustId >= 0 && i < 6; i++) {
@@ -824,18 +900,55 @@ public final class RaceScene implements Scene {
             Mat4.scale(mB, rad, 1f, rad);
             Mat4.multiply(mA, mT, mB);
             int rgb = theme.slick == com.wiggleplay.app.games.race.Theme.SLICK_WATER ? ObjectMeshes.WATER : 0xFFFFFF;
-            list.add(dustId, 0, mA, (Math.round(0.7f * (1f - k) * 255f) << 24) | rgb, true, 1);
+            list.add(dustId, 0, mA, (Math.round(0.7f * (1f - k) * 255f) << 24) | rgb, true, vm);
         }
-        for (int i = 0; i < 3; i++) {
+        for (int i = 0; i < scenery(); i++) {
             layout.sample(scS[i], smp);
             float off = SCENERY_LANE[i] * raceLevel.laneFrac * layout.roadHalfWidth();
             float x = smp[0] - (float) Math.cos(smp[2]) * off, z = smp[1] + (float) Math.sin(smp[2]) * off;
-            addTruck(i + 1, x, 0f, z, smp[2], 0f, 0f, scSpin[i], scWheelYaw[i]);
+            addTruck(i + np, x, 0f, z, smp[2], 0f, 0f, scSpin[i], scWheelYaw[i], vm);
+        }
+    }
+
+    /** Player p's coins, golden star, magnet and nitro cans: only those near the truck and not behind it, in its viewport only. */
+    private void addCoins(int p, int bit, float[] eye) {
+        CarModel car = logic.car(p);
+        float fx = (float) Math.sin(car.yaw()), fz = (float) Math.cos(car.yaw());
+        float spin = time * TWO_PI * 2f;
+        for (int i = 0; i < logic.slotCount(p); i++) {
+            if (logic.slotGone(p, i)) continue;
+            float dx = logic.slotX(p, i) - car.x(), dz = logic.slotZ(p, i) - car.z();
+            if (dx * dx + dz * dz > 55f * 55f || dx * fx + dz * fz < -8f) continue;
+            float y = (logic.slotHeight(p, i) > 0f ? logic.slotHeight(p, i) : 1.0f) + 0.15f * (float) Math.sin(time * 4f + i);
+            Mat4.translate(mT, logic.slotX(p, i), y, logic.slotZ(p, i));
+            Mat4.rotY(mR, spin);
+            Mat4.multiply(mA, mT, mR);
+            if (logic.slotIsStar(p, i)) {
+                list.add(starId, 0, mA, STAR_COLOUR, false, bit);   // T-23 Part C: palette swatches, not one flat colour
+                Mat4.scale(mB, 1.6f, 1.6f, 1.6f);
+                Mat4.multiply(mC, mA, mB);
+                list.add(starId, 0, mC, GLOW_COLOUR, true, bit);
+            } else if (logic.slotIsMagnet(p, i)) {
+                // the magnet: bigger than a coin, hovering a little higher
+                Mat4.scale(mB, 1.6f, 1.6f, 1.6f);
+                Mat4.multiply(mC, mA, mB);
+                list.add(magnetId, 0, mC, 0, false, bit);
+            } else if (logic.slotIsNitro(p, i)) {
+                // T-26: a nitro can, a little bigger than a coin so it stands out among them
+                Mat4.scale(mB, 1.3f, 1.3f, 1.3f);
+                Mat4.multiply(mC, mA, mB);
+                list.add(nitroId, 0, mC, 0, false, bit);
+            } else {
+                // T-24: in two players, coins farther than 15 m from this viewport's eye use the 48-triangle coin
+                float ex = logic.slotX(p, i) - eye[0], ez = logic.slotZ(p, i) - eye[2];
+                boolean far = np == 2 && ex * ex + ez * ez > 15f * 15f && coinLowId >= 0;
+                list.add(far ? coinLowId : coinId, 0, mA, COIN_COLOUR, false, bit);
+            }
         }
     }
 
     /** One truck: parts as {@code truck x T(part) [x rotY(front wheel)] x rotX(spin)}, plus its shadow. */
-    private void addTruck(int t, float x, float y, float z, float yaw, float lean, float pitch, float spin, float frontYaw) {
+    private void addTruck(int t, float x, float y, float z, float yaw, float lean, float pitch, float spin, float frontYaw, int vm) {
         Mat4.translate(mT, x, y, z);
         Mat4.rotY(mR, yaw);
         Mat4.multiply(mA, mT, mR);
@@ -856,13 +969,13 @@ public final class RaceScene implements Scene {
             if (p >= P_FL) {
                 Mat4.rotX(mR, spin);
                 Mat4.multiply(mC, mB, mR);
-                list.add(truckId[t], partIdx[t][p], mC, 0, false, 1);
+                list.add(truckId[t], partIdx[t][p], mC, 0, false, vm);
             } else {
-                list.add(truckId[t], partIdx[t][p], mB, 0, false, 1);
+                list.add(truckId[t], partIdx[t][p], mB, 0, false, vm);
             }
         }
         Mat4.translate(mA, x, 0.06f, z);
-        list.add(shadowId, 0, mA, SHADOW, true, 1);
+        list.add(shadowId, 0, mA, SHADOW, true, vm);
     }
 
     private static float angleDiff(float to, float from) {
@@ -882,9 +995,16 @@ public final class RaceScene implements Scene {
             return;
         }
         CarModel car = logic.car(0);
-        float norm = Math.min(1f, car.speed() / (raceLevel.baseSpeed * 1.5f));
+        float sp = car.speed();
+        boolean slick = logic.slick(0), sharp = Math.abs(input.steer) > 0.75f && car.speed() > 0.8f * raceLevel.baseSpeed;
+        if (np == 2) {   // two trucks share one engine and one skid loop: the faster truck sets the pitch
+            sp = Math.max(sp, logic.car(1).speed());
+            slick |= logic.slick(1);
+            sharp |= Math.abs(input2.steer) > 0.75f && logic.car(1).speed() > 0.8f * raceLevel.baseSpeed;
+        }
+        float norm = Math.min(1f, sp / (raceLevel.baseSpeed * 1.5f));
         env.sfx.loop("engine", 0.6f + 1.2f * norm, 0.35f);
-        boolean skid = (logic.slick(0) || Math.abs(input.steer) > 0.75f && car.speed() > 0.8f * raceLevel.baseSpeed) && hud.running();
+        boolean skid = (slick || sharp) && hud.running();
         if (skid) env.sfx.loop("skid", 1f, 0.3f); else env.sfx.stopLoop("skid");
     }
 
@@ -909,8 +1029,53 @@ public final class RaceScene implements Scene {
             return;
         }
         if (gl != null && gl.toggles().isOff(com.wiggleplay.app.gl.RenderToggles.HUD)) return;   // Gate 0: key 5, HUD off
-        if (hud.phase() != Hud.END) raceHud.draw(c);
-        hud.draw(c, logic.score(0), 0);
+        if (hud.phase() != Hud.END) {
+            if (np == 2) {   // T-24: a HUD in each half and one shared minimap
+                raceHud.drawHalf(c, 0);
+                raceHud2.drawHalf(c, 1);
+                raceHud.drawSharedMinimap(c);
+                paint.setColor(RaceArt.INK);
+                c.drawRect(Stage.W / 2f - 3f, 0f, Stage.W / 2f + 3f, Stage.H, paint);   // the 6 px ink divider
+            } else {
+                raceHud.draw(c);
+            }
+        }
+        hud.draw(c, logic.score(0), np == 2 ? logic.score(1) : 0);
+        if (np == 2 && hud.phase() == Hud.END) drawPlaces(c);
+    }
+
+    /** T-24 Part B: a trophy beside the winner's name and a medal beside the other player's, on the shared end screen. */
+    private void drawPlaces(Canvas c) {
+        for (int p = 0; p < 2; p++) {
+            float cx = p == 0 ? 600f : 1320f, x = cx - 190f, y = 282f;
+            if (logic.place(p) == 1) {
+                paint.setColor(0xFFF2C14E);   // the cup
+                android.graphics.Path cup = FLAT_ROAD;
+                cup.rewind();
+                cup.moveTo(x - 24f, y - 30f);
+                cup.lineTo(x + 24f, y - 30f);
+                cup.lineTo(x + 16f, y + 6f);
+                cup.lineTo(x - 16f, y + 6f);
+                cup.close();
+                c.drawPath(cup, paint);
+                c.drawRect(x - 5f, y + 6f, x + 5f, y + 18f, paint);
+                c.drawRoundRect(x - 20f, y + 16f, x + 20f, y + 26f, 5f, 5f, paint);
+                paint.setStyle(Paint.Style.STROKE);
+                paint.setStrokeWidth(6f);
+                c.drawCircle(x - 28f, y - 20f, 10f, paint);
+                c.drawCircle(x + 28f, y - 20f, 10f, paint);
+                paint.setStyle(Paint.Style.FILL);
+            } else {
+                paint.setColor(0xFF5BB8D8);   // the ribbon, then a silver disc
+                c.drawRect(x - 14f, y - 34f, x - 2f, y - 4f, paint);
+                paint.setColor(0xFFE0605A);
+                c.drawRect(x + 2f, y - 34f, x + 14f, y - 4f, paint);
+                paint.setColor(0xFFB8C3CC);
+                c.drawCircle(x, y + 8f, 22f, paint);
+                paint.setColor(0xFFE8EDF0);
+                c.drawCircle(x, y + 8f, 14f, paint);
+            }
+        }
     }
 
     /** Stand-in for the 3D world when there is no GL view (screenshot tests): sky, grass and a road. */
@@ -961,8 +1126,7 @@ public final class RaceScene implements Scene {
     }
 
     /** The player's shoulders and arms as thick rounded lines in the player colour, where they are on the screen. */
-    private void drawArmsOnScreen(Canvas c) {
-        PlayerPose p = introPose;
+    private void drawArmsOnScreen(Canvas c, PlayerPose p, int colour) {
         if (p == null || !p.present) return;
         Keypoint ls = p.kps[Kp.L_SHOULDER], rs = p.kps[Kp.R_SHOULDER];
         if (ls.s < 0.3f || rs.s < 0.3f) return;
@@ -971,7 +1135,7 @@ public final class RaceScene implements Scene {
         paint.setStrokeJoin(Paint.Join.ROUND);
         for (int pass = 0; pass < 2; pass++) {
             paint.setStrokeWidth(pass == 0 ? 44f : 30f);
-            paint.setColor(pass == 0 ? 0xFFFFFFFF : Theme.P1);
+            paint.setColor(pass == 0 ? 0xFFFFFFFF : colour);
             c.drawLine(ls.x, ls.y, rs.x, rs.y, paint);
             arm(c, ls, p.kps[Kp.L_ELBOW], p.kps[Kp.L_WRIST]);
             arm(c, rs, p.kps[Kp.R_ELBOW], p.kps[Kp.R_WRIST]);
@@ -1007,15 +1171,18 @@ public final class RaceScene implements Scene {
         paint.setColor(0xB0F3EBDD);
         c.drawRect(0f, 0f, Stage.W, Stage.H, paint);
         Theme.drawBanner(c, INTRO_TEXT[mode], Stage.W / 2f, 190f, 96f, 0xE6F3EBDD, Theme.INK);
-        drawArmsOnScreen(c);
-        // the steering icon (plane, leaning kid or wheel), tilting with the gesture
-        boolean active = steerIn.steerState() == SteerInput.State.ACTIVE;
-        android.graphics.Bitmap icon = raceHud.icon(active);
-        if (icon != null) {
+        drawArmsOnScreen(c, introPose, Theme.P1);
+        if (np == 2) drawArmsOnScreen(c, introPose2, Theme.P2);
+        // the steering icon (plane, leaning kid or wheel), tilting with the gesture; one for each player in two players
+        for (int p = 0; p < np; p++) {
+            SteerInput si = p == 0 ? steerIn : steerIn2;
+            android.graphics.Bitmap icon = (p == 0 ? raceHud : raceHud2).icon(si.steerState() == SteerInput.State.ACTIVE);
+            if (icon == null) continue;
+            float r = np == 2 ? 130f : 190f;
             c.save();
-            c.translate(Stage.W / 2f, 420f);
-            c.rotate(-steerIn.iconAngleDeg());
-            introRect.set(-190f, -190f, 190f, 190f);
+            c.translate(np == 2 ? (p == 0 ? 480f : 1440f) : Stage.W / 2f, 420f);
+            c.rotate(-si.iconAngleDeg());
+            introRect.set(-r, -r, r, r);
             c.drawBitmap(icon, null, introRect, introPaint);
             c.restore();
         }

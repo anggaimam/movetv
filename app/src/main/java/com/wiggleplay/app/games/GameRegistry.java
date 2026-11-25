@@ -41,10 +41,10 @@ public final class GameRegistry {
         GameInfo bubbles = new GameInfo("bubbles", "Bubble Burst", 0xFF2A93B8, com.wiggleplay.app.games.bubbles.BubbleArt::cover, "bubbles", 1, 2, false);
         bubbles.live = com.wiggleplay.app.games.bubbles.BubbleArt.LIVE;
         g.add(bubbles);
-        // T-22: the 3D race (one player for now; two players come with T-24). T-23 Part B2: the steering choice
+        // T-22: the 3D race (one or two players, T-24). T-23 Part B2: the steering choice
         // (Wheel or Lean) sits on the level screen, so the level starts "race" directly.
         GameInfo race = new GameInfo("race", "Turbo Trucks", Theme.MUSTARD, com.wiggleplay.app.games.race.RaceArt::cover,
-                "race", 1, 1, false);
+                "race", 1, 2, false);   // T-24: one or two players
         race.live = com.wiggleplay.app.games.race.RaceArt.LIVE;
         g.add(race);
         GAMES = Collections.unmodifiableList(g);

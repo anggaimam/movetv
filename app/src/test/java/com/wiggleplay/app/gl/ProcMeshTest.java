@@ -154,6 +154,30 @@ public class ProcMeshTest {
     }
 
     @Test
+    public void lowCoinIsOnePartOf48TrianglesWithTheSameSizeAndSwatches() {
+        MeshData m = ProcMesh.coinLow();
+        MeshData.Part p = only(m);
+        assertEquals(48, m.triangleCount());
+        assertIndicesInRange(m);
+        assertOutwardWinding(m);
+        float maxR = 0f, maxZ = 0f;
+        for (int v = 0; v < p.vertexCount; v++) {
+            maxR = Math.max(maxR, (float) Math.hypot(p.vertices[v * 8], p.vertices[v * 8 + 1]));
+            maxZ = Math.max(maxZ, Math.abs(p.vertices[v * 8 + 2]));
+            assertTrue("vertex " + v + " takes its colour from a swatch", swatchOf(p, v) >= 0);
+        }
+        assertEquals(0.6f, maxR, 1e-3f);
+        assertEquals(0.075f, maxZ, 1e-3f);
+    }
+
+    @Test
+    public void playerArrowIsTwoTrianglesFacingBothWays() {
+        MeshData m = ProcMesh.playerArrow();
+        assertEquals(2, m.triangleCount());
+        assertIndicesInRange(m);
+    }
+
+    @Test
     public void reededCoinIsOnePartUnder400TrianglesWithAReededRimAndAStar() {
         MeshData m = ProcMesh.coinReeded();
         MeshData.Part p = only(m);

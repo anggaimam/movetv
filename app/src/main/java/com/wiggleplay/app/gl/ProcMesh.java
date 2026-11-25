@@ -290,6 +290,52 @@ public final class ProcMesh {
     }
 
     /**
+     * T-24: the coin as the far split-screen view draws it: a 12-sided upright disc facing +Z with a darker edge band, same
+     * radius (0.6) and thickness (0.15) and the same palette swatches as {@link #coinReeded}. One part, 48 triangles
+     * (12 per face, 24 for the edge); draw it with {@code flat = false}.
+     * @return the mesh
+     */
+    public static MeshData coinLow() {
+        final int n = 12;
+        final float r = 0.6f, h = 0.075f;
+        Buf b = new Buf(2 * (n + 1) + 4 * n, 3 * (2 * n + 2 * n));
+        for (int s = 1; s >= -1; s -= 2) {
+            int c = b.vu(0, 0, s * h, 0, 0, s, SWATCH_COIN_FACE);
+            int[] ring = new int[n];
+            for (int i = 0; i < n; i++) {
+                double a = 2.0 * Math.PI * i / n;
+                ring[i] = b.vu((float) (Math.cos(a) * r), (float) (Math.sin(a) * r), s * h, 0, 0, s, SWATCH_COIN_RIM);
+            }
+            for (int i = 0; i < n; i++) b.t2(s, c, ring[i], ring[(i + 1) % n]);
+        }
+        for (int i = 0; i < n; i++) {
+            double a0 = 2.0 * Math.PI * i / n, a1 = 2.0 * Math.PI * (i + 1) / n, am = 0.5 * (a0 + a1);
+            float nx = (float) Math.cos(am), ny = (float) Math.sin(am);
+            int f0 = b.vu((float) (Math.cos(a0) * r), (float) (Math.sin(a0) * r), h, nx, ny, 0, SWATCH_COIN_GROOVE);
+            int k0 = b.vu((float) (Math.cos(a0) * r), (float) (Math.sin(a0) * r), -h, nx, ny, 0, SWATCH_COIN_GROOVE);
+            int f1 = b.vu((float) (Math.cos(a1) * r), (float) (Math.sin(a1) * r), h, nx, ny, 0, SWATCH_COIN_GROOVE);
+            int k1 = b.vu((float) (Math.cos(a1) * r), (float) (Math.sin(a1) * r), -h, nx, ny, 0, SWATCH_COIN_GROOVE);
+            b.t(f0, k1, f1);
+            b.t(f0, k0, k1);
+        }
+        return b.mesh("coinLow");
+    }
+
+    /**
+     * T-24: the floating player arrow, a flat triangle (0.9 wide, 0.6 tall) standing upright in the XY plane with its point
+     * down, visible from both sides. Two triangles; draw it flat in the player colour.
+     * @return the mesh
+     */
+    public static MeshData playerArrow() {
+        Buf b = new Buf(6, 6);
+        int a0 = b.v(-0.45f, 0.6f, 0f, 0, 0, 1), a1 = b.v(0.45f, 0.6f, 0f, 0, 0, 1), a2 = b.v(0f, 0f, 0f, 0, 0, 1);
+        b.t(a0, a2, a1);
+        int c0 = b.v(-0.45f, 0.6f, 0f, 0, 0, -1), c1 = b.v(0.45f, 0.6f, 0f, 0, 0, -1), c2 = b.v(0f, 0f, 0f, 0, 0, -1);
+        b.t(c0, c1, c2);
+        return b.mesh("playerArrow");
+    }
+
+    /**
      * A nitro can standing upright (axis Y): a blue body with a white band, a sloped shoulder, an orange cap and a yellow
      * lightning bolt on the +Z side. About 0.9 tall and 0.76 wide, one part, one draw call, 146 triangles
      * (draw it with {@code flat = false}). T-26.

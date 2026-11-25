@@ -56,6 +56,10 @@ final class RaceHud {
     float noneSeconds;
     float finalLapSeconds = 99f;
     float playerS;
+    /** Second player's distance on the minimap (two players), or -1 for none. */
+    float player2S = -1f;
+    /** Race position badge in two players: 1 or 2, or 0 for none. */
+    int place;
     final float[] sceneryS = new float[3];
     int sceneryCount;
     Bitmap camera;
@@ -217,6 +221,106 @@ final class RaceHud {
         drawCamera(c);
     }
 
+
+    private static final String[] PLACE = {"", "1st", "2nd"};
+
+    /**
+     * T-24: this player's half of the two-player screen: lap pill, steering icon, boost rocket, brake, magnet, popups, the
+     * position badge and the final-lap banner, laid out in a 960 x 1080 half (the shared minimap and divider are drawn by
+     * the scene).
+     * @param c canvas (stage coordinates)
+     * @param side 0 for the left half, 1 for the right half
+     */
+    void drawHalf(Canvas c, int side) {
+        float ox = side * Stage.W / 2f;
+        c.save();
+        c.clipRect(ox, 0f, ox + Stage.W / 2f, Stage.H);
+        c.translate(ox, 0f);
+        // the lap pill and the position badge sit under the score bubble
+        float x = 40f, y = 156f;
+        rect.set(x, y, x + 220f, y + 72f);
+        fill.setColor(playerColour);
+        c.drawRoundRect(rect, 36f, 36f, fill);
+        rect.set(x + 6f, y + 6f, x + 214f, y + 66f);
+        fill.setColor(PAPER);
+        c.drawRoundRect(rect, 30f, 30f, fill);
+        String[] names = lapTotal == 2 ? LAP_OF_2 : LAP;
+        Theme.drawCentered(c, names[Math.max(1, Math.min(names.length, lap)) - 1], x + 110f, y + 50f, 44f, INK);
+        if (place > 0) {
+            rect.set(x, y + 90f, x + 140f, y + 90f + 72f);
+            fill.setColor(playerColour);
+            c.drawRoundRect(rect, 36f, 36f, fill);
+            Theme.drawCentered(c, PLACE[Math.min(2, place)], x + 70f, y + 90f + 52f, 48f, 0xFFFFFFFF);
+        }
+        for (int i = 0; i < popups.size(); i++) {
+            Popup p = popups.at(i);
+            float k = 1f - p.life / 0.9f;
+            float py = 330f + 20f * k * 4f;
+            Theme.drawCentered(c, PLUS[p.points], 150f, py + 3f, 48f, 0x66000000);
+            Theme.drawCentered(c, PLUS[p.points], 150f, py, 48f, p.points >= 3 ? 0xFFFFE066 : 0xFFFFFFFF);
+        }
+        // the steering icon, smaller, bottom centre of the half
+        float cx = 480f, cy = 960f;
+        boolean hint = !steerActive && noneSeconds > 2f;
+        float pulse = hint ? 1f + 0.08f * (float) Math.sin(time * 7f) : 1f;
+        c.save();
+        c.translate(cx, cy);
+        c.scale(pulse * 0.8f, pulse * 0.8f);
+        fill.setColor(0xCCF3EBDD);
+        c.drawCircle(0f, 0f, 74f, fill);
+        c.rotate(-iconDeg);
+        Bitmap icon = steerActive ? iconOn : iconOff;
+        if (icon != null) {
+            rect.set(-66f, -66f, 66f, 66f);
+            c.drawBitmap(icon, null, rect, bmp);
+        }
+        c.restore();
+        if (hint) Theme.drawBanner(c, HINT[mode], cx, cy - 110f, 44f, 0xE6F3EBDD, INK);
+        // the boost rocket on the outer-right of the half, small
+        c.save();
+        c.translate(860f, 905f);
+        c.scale(0.62f, 0.62f);
+        float rx = 0f, ry = 0f, h = 200f;
+        boolean full = !boosting && meter >= 0.999f;
+        float rp = full ? 1f + 0.07f * (float) Math.sin(time * 9f) : 1f;
+        fill.setColor(0xCCF3EBDD);
+        rect.set(rx - 85f, ry - 120f, rx + 85f, ry + 150f);
+        c.drawRoundRect(rect, 40f, 40f, fill);
+        float fillK = boosting ? Math.max(0f, boostLeft / RaceLogic.BOOST_SECONDS) : meter;
+        RaceArt.rocket(c, rx, ry - 6f, h * rp, 0xFFB8C3CC, boosting ? 1f : 0f, time);
+        if (fillK > 0.01f) {
+            float sc = h * rp / 200f;
+            float bottom = ry - 6f + 100f * sc, top = ry - 6f - 100f * sc;
+            float yy = bottom - (bottom - top) * fillK;
+            c.save();
+            c.clipRect(rx - 80f, yy, rx + 80f, bottom + 4f);
+            RaceArt.rocket(c, rx, ry - 6f, h * rp, boosting ? RaceArt.ORANGE : (full ? 0xFFE0605A : 0xFF5BB8D8), 0f, time);
+            c.restore();
+        }
+        c.restore();
+        if (full) Theme.drawCentered(c, "Jump!", 860f, 760f, 40f, RaceArt.ORANGE);
+        if (braking) {
+            fill.setColor(0xFFFFFFFF);
+            c.drawCircle(300f, 960f, 46f, fill);
+            fill.setColor(RaceArt.PINK);
+            c.drawCircle(300f, 960f, 40f, fill);
+        }
+        if (lap >= lapTotal && finalLapSeconds < 2.6f) {
+            Theme.drawBanner(c, "Final lap!", 480f, 300f, 64f, 0xE6F3EBDD, RaceArt.ORANGE);
+        }
+        c.restore();
+    }
+
+    /** T-24: the shared minimap at the top centre of the two-player screen (both dots). */
+    void drawSharedMinimap(Canvas c) {
+        if (mapBmp == null || layout == null) return;
+        float x = (Stage.W - MAP_W) / 2f, y = MAP_Y + 100f;
+        c.save();
+        c.translate(x - MAP_X, y - MAP_Y);
+        drawMinimap(c);
+        c.restore();
+    }
+
     private void drawSpeedLines(Canvas c) {
         if (lines.size() == 0) return;
         stroke.setColor(0xFFFFFFFF);
@@ -238,6 +342,7 @@ final class RaceHud {
         c.drawBitmap(mapBmp, MAP_X, MAP_Y, null);
         for (int i = 0; i < sceneryCount; i++) dot(c, sceneryS[i], 7f, 0xFF8A97A3, 0f);
         dot(c, playerS, 11f, playerColour, 4f);
+        if (player2S >= 0f) dot(c, player2S, 11f, 0xFFFF6EC7, 4f);
     }
 
     private void dot(Canvas c, float s, float r, int colour, float ring) {
