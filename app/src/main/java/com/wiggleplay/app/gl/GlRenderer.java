@@ -183,6 +183,9 @@ public final class GlRenderer implements GLSurfaceView.Renderer {
     private GlMesh[] meshes = new GlMesh[0];
     private GlMesh[] chunks = new GlMesh[0];
     private float[] spheres = new float[0];
+    /** The chunk group of each chunk ({@link RenderToggles#groupOf}); the debug switches skip groups. */
+    private int[] chunkGroup = new int[0];
+    private volatile RenderToggles toggles;
     private int[] order = new int[0];
     private float[] dist = new float[0];
     private final float[] proj = new float[16], view = new float[16], vp = new float[16];
@@ -283,10 +286,16 @@ public final class GlRenderer implements GLSurfaceView.Renderer {
         meshes[id] = mesh;
     }
 
-    void setChunks(GlMesh[] newChunks, float[] newSpheres) {
+    /** Gives the renderer the debug switches (any thread). */
+    void setToggles(RenderToggles t) {
+        toggles = t;
+    }
+
+    void setChunks(GlMesh[] newChunks, float[] newSpheres, int[] groups) {
         for (GlMesh m : chunks) if (m != null) m.release();
         chunks = newChunks;
         spheres = newSpheres;
+        chunkGroup = groups;
         order = new int[newChunks.length];
         dist = new float[newChunks.length];
     }
@@ -325,6 +334,7 @@ public final class GlRenderer implements GLSurfaceView.Renderer {
         meshes = new GlMesh[0];
         chunks = new GlMesh[0];
         spheres = new float[0];
+        chunkGroup = new int[0];
         order = new int[0];
         dist = new float[0];
         if (skyMesh != null) skyMesh.release();
@@ -417,7 +427,9 @@ public final class GlRenderer implements GLSurfaceView.Renderer {
         GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, detailTex);
         GLES20.glActiveTexture(GLES20.GL_TEXTURE0);
         GLES20.glUniform1i(uDetail, 1);
-        boolean detail = detailTex != 0;
+        RenderToggles tg = toggles;
+        boolean skyOff = tg != null && tg.isOff(RenderToggles.SKY);
+        boolean detail = detailTex != 0 && !(tg != null && tg.isOff(RenderToggles.DETAIL));
         GLES20.glUniform3f(uSunDir, sx, sy, sz);
         GLES20.glUniform3f(uSkyAmb, lsr, lsg, lsb);
         GLES20.glUniform3f(uGroundAmb, lgr, lgg, lgb);
@@ -455,7 +467,7 @@ public final class GlRenderer implements GLSurfaceView.Renderer {
             GLES20.glUniform3f(uEye, eye[0], eye[1], eye[2]);
 
             // the sky dome: unlit, no fog, no depth, centred on the eye, drawn before everything else
-            if (skyMesh != null && skyMesh.isUploaded()) {
+            if (!skyOff && skyMesh != null && skyMesh.isUploaded()) {
                 Mat4.translate(model, eye[0], eye[1], eye[2]);
                 Mat4.multiply(mvp, vp, model);
                 GLES20.glDisable(GLES20.GL_DEPTH_TEST);
@@ -488,6 +500,7 @@ public final class GlRenderer implements GLSurfaceView.Renderer {
             for (int c = 0; c < chunks.length; c++) {
                 int s = c * 4;
                 if (chunks[c] == null || !chunks[c].isUploaded()) continue;
+                if (tg != null && tg.groupOff(chunkGroup[c])) continue;
                 if (!frustum.sphereVisible(spheres[s], spheres[s + 1], spheres[s + 2], spheres[s + 3])) continue;
                 float dx = spheres[s] - eye[0], dy = spheres[s + 1] - eye[1], dz = spheres[s + 2] - eye[2];
                 float d2 = dx * dx + dy * dy + dz * dz;

@@ -6,6 +6,7 @@ import android.graphics.Paint;
 import android.os.Debug;
 
 import com.wiggleplay.app.gl.GlStats;
+import com.wiggleplay.app.gl.RenderToggles;
 
 /**
  * The little performance readout in the top-left corner: draw fps (1 second average), worst frame time
@@ -40,6 +41,16 @@ public final class PerfOverlay {
     private GlStats glStats;
     private boolean glVisible = false;
     private String glText = "";
+    // T-30 Gate 0: the debug switches (keys 1 to 5), and one-second timing of the scene (canvas draw, update) and frame spread
+    private RenderToggles toggles;
+    private String spreadText = "";
+    private String toggleText = "";
+    private long gateWindowNs = 0;
+    private float gateUpdSum, gateDrawSum, gateUpdMax, gateDrawMax;
+    private int gateFrames = 0;
+    private float gateUpdAvg, gateDrawAvg, gateUpdPeak, gateDrawPeak;
+    private float secBestMs = Float.MAX_VALUE;
+    private float frameMinMs, frameMaxMs;
 
     /**
      * Gives the overlay the GL view's speed numbers (shown as a line while the GL view is visible).
@@ -47,6 +58,14 @@ public final class PerfOverlay {
      */
     public void setGlStats(GlStats stats) {
         glStats = stats;
+    }
+
+    /**
+     * Gives the overlay the debug switches, whose state it shows while the GL view is visible.
+     * @param t the switches, or null
+     */
+    public void setToggles(RenderToggles t) {
+        toggles = t;
     }
 
     /**
@@ -159,6 +178,22 @@ public final class PerfOverlay {
         if (updateMs > updMax) updMax = updateMs;
         if (drawMs > drawMax) drawMax = drawMs;
         timingFrames++;
+        long now = System.nanoTime();
+        if (gateWindowNs == 0) gateWindowNs = now;
+        gateUpdSum += updateMs;
+        gateDrawSum += drawMs;
+        if (updateMs > gateUpdMax) gateUpdMax = updateMs;
+        if (drawMs > gateDrawMax) gateDrawMax = drawMs;
+        gateFrames++;
+        if (now - gateWindowNs >= 1_000_000_000L) {
+            gateUpdAvg = gateUpdSum / gateFrames;
+            gateDrawAvg = gateDrawSum / gateFrames;
+            gateUpdPeak = gateUpdMax;
+            gateDrawPeak = gateDrawMax;
+            gateUpdSum = gateDrawSum = gateUpdMax = gateDrawMax = 0f;
+            gateFrames = 0;
+            gateWindowNs = now;
+        }
     }
 
     /** Removes the pointer debug line (no hand is showing). */
@@ -184,6 +219,13 @@ public final class PerfOverlay {
         secStartNanos = 0;
         secFrames = 0;
         secWorstMs = 0f;
+        secBestMs = Float.MAX_VALUE;
+        frameMinMs = 0f;
+        frameMaxMs = 0f;
+        gateWindowNs = 0;
+        gateUpdSum = gateDrawSum = gateUpdMax = gateDrawMax = 0f;
+        gateFrames = 0;
+        gateUpdAvg = gateDrawAvg = gateUpdPeak = gateDrawPeak = 0f;
         fps = 0f;
         worstMs = 0f;
         java.util.Arrays.fill(worstBuckets, 0f);
@@ -199,6 +241,7 @@ public final class PerfOverlay {
         if (lastNanos != 0) {
             float ms = (nowNanos - lastNanos) / 1_000_000f;
             if (ms > secWorstMs) secWorstMs = ms;
+            if (ms < secBestMs) secBestMs = ms;
         }
         lastNanos = nowNanos;
         if (secStartNanos == 0) secStartNanos = nowNanos;
@@ -211,6 +254,9 @@ public final class PerfOverlay {
             float w = 0f;
             for (float b : worstBuckets) if (b > w) w = b;
             worstMs = w;
+            frameMinMs = secBestMs == Float.MAX_VALUE ? 0f : secBestMs;
+            frameMaxMs = secWorstMs;
+            secBestMs = Float.MAX_VALUE;
             secFrames = 0;
             secWorstMs = 0f;
             secStartNanos = nowNanos;
@@ -263,6 +309,19 @@ public final class PerfOverlay {
                 String cfg = glStats.config();
                 if (cfg.length() > 0) sb.append("  egl ").append(cfg);
                 glText = sb.toString();
+                // Gate 0: canvas ms = the scene's 2D draw on the main thread, update ms = the scene update, both averaged
+                // over one second (the biggest in brackets); frame spread = shortest / average / longest time between frames
+                // over one second, for the canvas (the screen's frames) and for the GL view (rendered frames)
+                sb.setLength(0);
+                sb.append("canvas ").append(one(gateDrawAvg)).append(" (").append(one(gateDrawPeak)).append(") ms  update ")
+                        .append(one(gateUpdAvg)).append(" (").append(one(gateUpdPeak)).append(") ms  frame ms min/avg/max: canvas ")
+                        .append(one(frameMinMs)).append('/').append(one(fps > 0f ? 1000f / fps : 0f)).append('/')
+                        .append(one(frameMaxMs)).append("  gl ").append(one(glStats.frameMinMs())).append('/')
+                        .append(one(glStats.fps() > 0f ? 1000f / glStats.fps() : 0f)).append('/').append(one(glStats.frameMaxMs()));
+                spreadText = sb.toString();
+                sb.setLength(0);
+                if (toggles != null) toggles.describe(sb);
+                toggleText = sb.toString();
             }
             boolean fresh = dbgNs != 0 && System.nanoTime() - dbgNs < 300_000_000L;
             if (fresh) {
@@ -278,7 +337,9 @@ public final class PerfOverlay {
         boolean line2 = pointerText.length() > 0;
         boolean line3 = note.length() > 0;
         boolean line4 = glVisible && glStats != null && glText.length() > 0;
-        float bottom = 140f + (line2 ? 44f : 0f) + (line3 ? 44f : 0f) + (line4 ? 44f : 0f);
+        boolean line5 = line4 && spreadText.length() > 0;
+        boolean line6 = line4 && toggleText.length() > 0;
+        float bottom = 140f + (line2 ? 44f : 0f) + (line3 ? 44f : 0f) + (line4 ? 44f : 0f) + (line5 ? 44f : 0f) + (line6 ? 44f : 0f);
         c.drawRect(0f, 0f, 1900f, bottom, panelPaint);
         c.drawText(text, 16f, 38f, textPaint);
         c.drawText(timingText, 16f, 82f, textPaint);
@@ -292,7 +353,15 @@ public final class PerfOverlay {
             c.drawText(note, 16f, y, textPaint);
             y += 44f;
         }
-        if (line4) c.drawText(glText, 16f, y, textPaint);
+        if (line4) {
+            c.drawText(glText, 16f, y, textPaint);
+            y += 44f;
+        }
+        if (line5) {
+            c.drawText(spreadText, 16f, y, textPaint);
+            y += 44f;
+        }
+        if (line6) c.drawText(toggleText, 16f, y, textPaint);
     }
 
     /** One decimal place without allocating a formatter (appends into the shared builder via a tiny string). */

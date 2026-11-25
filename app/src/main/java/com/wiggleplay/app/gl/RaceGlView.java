@@ -37,6 +37,7 @@ public final class RaceGlView extends GLSurfaceView {
     public static final int LOW_W = 960, LOW_H = 540;
 
     private final GlStats stats = new GlStats();
+    private final RenderToggles toggles = new RenderToggles();
     private final GlRenderer renderer;
     private final Context appContext;
     private final HashMap<String, Integer> ids = new HashMap<>();
@@ -61,6 +62,7 @@ public final class RaceGlView extends GLSurfaceView {
         super(context);
         appContext = context.getApplicationContext();
         renderer = new GlRenderer(appContext, stats);
+        renderer.setToggles(toggles);
         setEGLContextClientVersion(2);
         setEGLConfigChooser(new Chooser(stats, high));
         setPreserveEGLContextOnPause(true);
@@ -199,10 +201,11 @@ public final class RaceGlView extends GLSurfaceView {
             sph[i * 4 + 2] = c.cz;
             sph[i * 4 + 3] = c.radius;
         }
+        final int[] noGroups = new int[cm.length];
         queueEvent(new Runnable() {
             @Override
             public void run() {
-                renderer.setChunks(cm, sph);
+                renderer.setChunks(cm, sph, noGroups);
             }
         });
     }
@@ -211,11 +214,27 @@ public final class RaceGlView extends GLSurfaceView {
     public static final class PreparedStatic {
         private final GlMesh[] meshes;
         private final float[] spheres;
+        private final int[] groups;
+        private final boolean split;
 
-        private PreparedStatic(GlMesh[] meshes, float[] spheres) {
+        private PreparedStatic(GlMesh[] meshes, float[] spheres, int[] groups, boolean split) {
             this.meshes = meshes;
             this.spheres = spheres;
+            this.groups = groups;
+            this.split = split;
         }
+    }
+
+    /**
+     * Merges placements into chunks, all together (the normal build).
+     * @param placements the scenery
+     * @param library every mesh the placements name, by name
+     * @param chunkCells block size in cells, at least 1
+     * @return the prepared chunks
+     */
+    public static PreparedStatic prepareStatic(List<StaticBatcher.Placement> placements, final java.util.Map<String, MeshData> library,
+            int chunkCells) {
+        return prepareStatic(placements, library, chunkCells, false);
     }
 
     /**
@@ -224,18 +243,37 @@ public final class RaceGlView extends GLSurfaceView {
      * @param placements the scenery
      * @param library every mesh the placements name, by name
      * @param chunkCells block size in cells, at least 1
+     * @param split true to merge each group (road and the rest, terrain, props with shadows) on its own, so the debug switches
+     *              can skip a group; this makes more chunks, so more draw calls, than the normal build
      * @return the prepared chunks
      */
     public static PreparedStatic prepareStatic(List<StaticBatcher.Placement> placements, final java.util.Map<String, MeshData> library,
-            int chunkCells) {
-        List<StaticBatcher.Chunk> built = StaticBatcher.build(placements, new StaticBatcher.MeshLibrary() {
+            int chunkCells, boolean split) {
+        StaticBatcher.MeshLibrary lib = new StaticBatcher.MeshLibrary() {
             @Override
             public MeshData get(String name) {
                 return library.get(name);
             }
-        }, chunkCells);
+        };
+        List<StaticBatcher.Chunk> built = new ArrayList<>();
+        List<Integer> groupOf = new ArrayList<>();
+        if (split) {
+            for (int g = 0; g < 3; g++) {
+                List<StaticBatcher.Placement> part = new ArrayList<>();
+                for (StaticBatcher.Placement p : placements) {
+                    if (RenderToggles.groupOf(p.meshName) == g) part.add(p);
+                }
+                List<StaticBatcher.Chunk> chunksOfGroup = StaticBatcher.build(part, lib, chunkCells);
+                built.addAll(chunksOfGroup);
+                for (int i = 0; i < chunksOfGroup.size(); i++) groupOf.add(g);
+            }
+        } else {
+            built = StaticBatcher.build(placements, lib, chunkCells);
+            for (int i = 0; i < built.size(); i++) groupOf.add(RenderToggles.GROUP_BASE);
+        }
         GlMesh[] cm = new GlMesh[built.size()];
         float[] sph = new float[built.size() * 4];
+        int[] grp = new int[built.size()];
         for (int i = 0; i < cm.length; i++) {
             StaticBatcher.Chunk c = built.get(i);
             cm[i] = GlMesh.of(c);
@@ -243,8 +281,9 @@ public final class RaceGlView extends GLSurfaceView {
             sph[i * 4 + 1] = c.cy;
             sph[i * 4 + 2] = c.cz;
             sph[i * 4 + 3] = c.radius;
+            grp[i] = groupOf.get(i);
         }
-        return new PreparedStatic(cm, sph);
+        return new PreparedStatic(cm, sph, grp, split);
     }
 
     /**
@@ -254,10 +293,12 @@ public final class RaceGlView extends GLSurfaceView {
     public void commitStatic(PreparedStatic p) {
         final GlMesh[] cm = p.meshes;
         final float[] sph = p.spheres;
+        final int[] grp = p.groups;
+        toggles.setWorld(p.split, cm.length);
         queueEvent(new Runnable() {
             @Override
             public void run() {
-                renderer.setChunks(cm, sph);
+                renderer.setChunks(cm, sph, grp);
             }
         });
     }
@@ -397,6 +438,14 @@ public final class RaceGlView extends GLSurfaceView {
      */
     public GlStats stats() {
         return stats;
+    }
+
+    /**
+     * The debug switches (keys 1 to 5 in the race while the speed meter shows).
+     * @return the switches
+     */
+    public RenderToggles toggles() {
+        return toggles;
     }
 
     /**

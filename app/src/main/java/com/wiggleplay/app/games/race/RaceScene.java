@@ -179,6 +179,10 @@ public final class RaceScene implements Scene {
             // a theme with terrain has its own ground; the others keep the flat ground grid
             if (theme.look.terrain == null) groundId = gl.addMesh("ground", ProcMesh.groundGrid(GROUND_SIZE, GROUND_CELLS));
             final boolean low = GameView.quality == GameView.LOW;
+            // T-30 Gate 0: with the speed meter showing, the static world is merged per group so keys 1 and 2 can switch terrain
+            // and props off (a few more draw calls than the normal build); the other switches work either way
+            final boolean split = env.perf != null && env.perf.isVisible();
+            gl.toggles().reset();
             gl.setSky(theme.sky);   // also puts the plain light back
             gl.setFogColor(theme.horizon);
             gl.setFog(theme.fogNear, theme.fogFar);
@@ -195,7 +199,7 @@ public final class RaceScene implements Scene {
                 @Override
                 public void run() {
                     try {
-                        WorldBuild w = buildWorld(th, lay, def, reversed, lvl, low, built0);
+                        WorldBuild w = buildWorld(th, lay, def, reversed, lvl, low, split, built0);
                         if (gen == buildGen) pendingWorld = w;
                     } catch (Throwable t) {
                         android.util.Log.e("WigglePlayRace", "World build failed: " + t, t);
@@ -491,7 +495,7 @@ public final class RaceScene implements Scene {
 
     /** Builds the road, patches, props, rings, sky dome, detail texture and the merged chunks (worker thread, no GL, no view). */
     private static WorldBuild buildWorld(com.wiggleplay.app.games.race.Theme theme, TrackSpline layout, TrackDef def,
-            boolean reversed, RaceLevel raceLevel, boolean low, long t0) {
+            boolean reversed, RaceLevel raceLevel, boolean low, boolean split, long t0) {
         WorldBuild w = new WorldBuild();
         PaletteSwatches pal = new PaletteSwatches();
         w.pal = pal;
@@ -556,7 +560,7 @@ public final class RaceScene implements Scene {
         }
         if (theme.hasSky()) w.sky = SkyDome.build(theme, pal);
         if (theme.look.detail != null) w.detail = DetailTexture.atlas(theme.look.detail, def.id.hashCode());
-        w.chunks = RaceGlView.prepareStatic(w.placements, w.library, CHUNK_CELLS);
+        w.chunks = RaceGlView.prepareStatic(w.placements, w.library, CHUNK_CELLS, split);
         w.ms = (int) (SystemClock.uptimeMillis() - t0);
         return w;
     }
@@ -751,6 +755,7 @@ public final class RaceScene implements Scene {
             hud.draw(c, 0, 0);
             return;
         }
+        if (gl != null && gl.toggles().isOff(com.wiggleplay.app.gl.RenderToggles.HUD)) return;   // Gate 0: key 5, HUD off
         if (hud.phase() != Hud.END) raceHud.draw(c);
         hud.draw(c, logic.score(0), 0);
     }

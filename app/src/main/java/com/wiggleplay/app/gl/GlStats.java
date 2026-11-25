@@ -11,12 +11,17 @@ public final class GlStats {
     private volatile float ms;
     private volatile int triangles;
     private volatile int draws;
+    private volatile float frameMinMs;
+    private volatile float frameMaxMs;
     private volatile String config = "";
 
     // GL thread only
     private long windowStart;
     private int windowFrames;
     private long windowBusy;
+    private long lastFrameNanos;
+    private long windowMinGap = Long.MAX_VALUE;
+    private long windowMaxGap;
 
     /**
      * Frames rendered per second, averaged over the last full second.
@@ -29,6 +34,18 @@ public final class GlStats {
      * @return milliseconds
      */
     public float ms() { return ms; }
+
+    /**
+     * The shortest time between two rendered frames in the last full second (frame pacing).
+     * @return milliseconds
+     */
+    public float frameMinMs() { return frameMinMs; }
+
+    /**
+     * The longest time between two rendered frames in the last full second (frame pacing).
+     * @return milliseconds
+     */
+    public float frameMaxMs() { return frameMaxMs; }
 
     /**
      * Triangles drawn in the last frame (all viewports).
@@ -66,13 +83,23 @@ public final class GlStats {
         if (windowStart == 0) windowStart = nowNanos;
         windowFrames++;
         windowBusy += busyNanos;
+        if (lastFrameNanos != 0) {
+            long gap = nowNanos - lastFrameNanos;
+            if (gap < windowMinGap) windowMinGap = gap;
+            if (gap > windowMaxGap) windowMaxGap = gap;
+        }
+        lastFrameNanos = nowNanos;
         long elapsed = nowNanos - windowStart;
         if (elapsed >= 1_000_000_000L) {
             fps = windowFrames * 1_000_000_000f / elapsed;
             ms = windowBusy / 1_000_000f / windowFrames;
+            frameMinMs = windowMinGap == Long.MAX_VALUE ? 0f : windowMinGap / 1_000_000f;
+            frameMaxMs = windowMaxGap / 1_000_000f;
             windowStart = nowNanos;
             windowFrames = 0;
             windowBusy = 0;
+            windowMinGap = Long.MAX_VALUE;
+            windowMaxGap = 0;
         }
     }
 
@@ -81,6 +108,11 @@ public final class GlStats {
         windowStart = 0;
         windowFrames = 0;
         windowBusy = 0;
+        lastFrameNanos = 0;
+        windowMinGap = Long.MAX_VALUE;
+        windowMaxGap = 0;
+        frameMinMs = 0f;
+        frameMaxMs = 0f;
         fps = 0f;
         ms = 0f;
         triangles = 0;

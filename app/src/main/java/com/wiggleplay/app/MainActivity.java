@@ -174,6 +174,7 @@ public class MainActivity extends Activity {
         // makes the letterbox bars.
         raceGl = new RaceGlView(this, !"low".equals(profile.quality()));
         perf.setGlStats(raceGl.stats());
+        perf.setToggles(raceGl.toggles());
         gameView.setGlView(raceGl);
         // the race needs the GL view, which is made after the other scenes
         scenes.register("race", settings.host(new com.wiggleplay.app.games.race.RaceScene(env, raceGl)));
@@ -309,8 +310,21 @@ public class MainActivity extends Activity {
         gameView.input().keyUp(keyCode);
     }
 
+    /**
+     * T-30 Gate 0: in the race, with the speed meter showing and test mode on, keys 1 to 5 switch terrain, props, the detail
+     * texture, the sky dome and the HUD off and on (they would otherwise pick a test pose).
+     */
+    private boolean raceDebugKey(int keyCode) {
+        if (keyCode < KeyEvent.KEYCODE_1 || keyCode > KeyEvent.KEYCODE_5) return false;
+        return perf.isVisible() && hub.isTestMode() && "race".equals(scenes.currentName());
+    }
+
     @Override
     public boolean onKeyDown(int keyCode, KeyEvent event) {
+        if (raceDebugKey(keyCode)) {
+            if (event.getRepeatCount() == 0) raceGl.toggles().flip(keyCode - KeyEvent.KEYCODE_1);
+            return true;
+        }
         if (testBodyTakes(keyCode, event)) return true;
         switch (keyCode) {
             case KeyEvent.KEYCODE_BACK:
@@ -361,6 +375,7 @@ public class MainActivity extends Activity {
 
     @Override
     public boolean onKeyUp(int keyCode, KeyEvent event) {
+        if (raceDebugKey(keyCode)) return true;
         if (testBodyTakes(keyCode, event)) return true;
         switch (keyCode) {
             case KeyEvent.KEYCODE_BACK:

@@ -246,6 +246,16 @@ public final class PoseHub {
     }
 
     /**
+     * Whether test mode is on (by hand, or because the camera cannot be used).
+     * @return true in test mode
+     */
+    public boolean isTestMode() {
+        synchronized (lock) {
+            return testActive();
+        }
+    }
+
+    /**
      * Gives a touch or mouse event to the hub. Only used in test mode.
      * @param e the event
      * @param viewW width of the view in pixels
