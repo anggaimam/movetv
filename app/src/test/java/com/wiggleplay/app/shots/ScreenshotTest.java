@@ -696,6 +696,19 @@ public class ScreenshotTest {
         check(BackdropShots.shoot(com.wiggleplay.app.games.race.Themes.ROCKIES, "t30_rockies_backdrop"));
     }
 
+    /** T-30c: the Star Road height map with the craters, and the space props close up. */
+    @Test
+    public void spaceHeightmapAndCloseups() throws Exception {
+        check(SpaceShots.shootHeightmap());
+        check(SpaceShots.shootCloseups());
+    }
+
+    /** T-30c: the Star Road backdrop rings unrolled. */
+    @Test
+    public void spaceBackdrop() throws Exception {
+        check(BackdropShots.shoot(com.wiggleplay.app.games.race.Themes.SPACE, "t30_space_backdrop"));
+    }
+
     /** T-23 Part C: the new coin and the golden star close up, turned 0, 35 and 75 degrees (a software drawing of the mesh). */
     @Test
     public void raceCoinCloseUp() throws Exception {

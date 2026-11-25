@@ -10,6 +10,7 @@ import org.junit.Test;
 public class PropMeshesTest {
     /** The theme that uses a kind: Desert Dunes for the first 8 kinds, City Lights for the next 12, Rocky Lakes for the rest. */
     private static Theme themeOf(int kind) {
+        if (kind >= PropMeshes.HABITAT_DOME) return Themes.SPACE;
         if (kind >= PropMeshes.PINE_GROVE) return Themes.ROCKIES;
         return kind >= PropMeshes.BUILDING ? Themes.CITY : Themes.DESERT;
     }
@@ -61,7 +62,8 @@ public class PropMeshesTest {
                 }
                 // pines, aspens, outcrops and dock posts reach down to stay planted on a slope (T-30b)
                 float floor = k == PropMeshes.PINE_GROVE || k == PropMeshes.PINE || k == PropMeshes.ASPEN || k == PropMeshes.ROCK_OUTCROP
-                        || k == PropMeshes.DOCK || k == PropMeshes.FALLEN_LOG ? -0.55f : -0.03f;
+                        || k == PropMeshes.DOCK || k == PropMeshes.FALLEN_LOG ? -0.55f
+                        : k >= PropMeshes.HABITAT_DOME ? -0.25f : -0.03f;   // T-30c: sunk into crater slopes
                 assertTrue("kind " + k + " base " + min, min >= floor && min <= 0.08f);
                 assertTrue("kind " + k + " height " + max + " vs " + PropMeshes.height(k), max <= PropMeshes.height(k) + 1e-3f);
             }

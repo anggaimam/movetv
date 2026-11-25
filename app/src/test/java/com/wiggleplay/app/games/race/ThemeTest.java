@@ -18,7 +18,7 @@ public class ThemeTest {
         assertSame(Themes.MEADOW, Themes.byId("nope"));
         assertSame(Themes.MEADOW, Themes.byId(null));
         assertSame(Themes.ROCKIES, Themes.byId("rockies"));
-        assertSame(Themes.MEADOW, Themes.byId("space"));
+        assertSame(Themes.SPACE, Themes.byId("space"));
         assertSame(Themes.CITY, Themes.byId("city"));
         assertSame(Themes.DESERT, Themes.byId("desert"));
     }

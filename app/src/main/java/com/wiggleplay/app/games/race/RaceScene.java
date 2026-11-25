@@ -530,7 +530,7 @@ public final class RaceScene implements Scene {
         }
         if (terrain != null) {
             // R2: the ground is a height field cut into 60 m tiles
-            boolean extras = theme.extraCount() >= 4;   // T-30b: water, lake edge, shore and rock ramps
+            boolean extras = theme.look.terrain.kind == Terrain.HILLS;   // T-30b: water, lake edge, shore and rock ramps
             List<Terrain.Tile> tiles = terrain.build(pal, theme.terrainSwatch(0), theme.terrainSwatch(1),
                     theme.look.terrain.parkDark != 0 ? theme.terrainSwatch(2) : -1, extras ? theme.extraSwatch(2) : -1,
                     extras ? theme.extraSwatch(3) : -1);
@@ -574,7 +574,7 @@ public final class RaceScene implements Scene {
         for (int i = 0; i < theme.rings.length && n < 4; i++) {
             if (low && !theme.rings[i].low) continue;
             w.ringNames.add("ring_" + i);
-            w.rings.add(Backdrop.build(theme, i, pal));
+            w.rings.add(Backdrop.build(theme, i, pal, low));
             n++;
         }
         if (theme.hasSky()) w.sky = SkyDome.build(theme, pal);

@@ -83,6 +83,10 @@ public final class Backdrop {
                 return fromVertices(peaks(r, rnd));
             case Theme.RIDGE:
                 return ridge(r, rnd);
+            case Theme.CRATER_RIM:
+                return fromVertices(craterRim(r, rnd));
+            case Theme.HIGHLANDS:
+                return highlands(r, rnd);
             case Theme.MESAS:
                 return mesas(r, rnd);
             case Theme.SKYLINE:
@@ -141,6 +145,47 @@ public final class Backdrop {
             }
         }
         return hv;
+    }
+
+    /**
+     * CRATER_RIM v2 (T-30c): low uneven rims. 10 to 14 humps 6 to 16 columns wide whose flanks fall off steeply, between minH and
+     * maxH, with a little jitter; the flat between them stays at minH.
+     */
+    private static float[] craterRim(Theme.Ring r, Random rnd) {
+        int n = r.segments;
+        float[] hv = new float[n];
+        Arrays.fill(hv, r.minH);
+        int humps = 10 + rnd.nextInt(5);
+        for (int q = 0; q < humps; q++) {
+            int centre = rnd.nextInt(n), w = 6 + rnd.nextInt(11);
+            float h = r.minH + (r.maxH - r.minH) * (0.35f + 0.65f * rnd.nextFloat());
+            for (int k = -w; k <= w; k++) {
+                float u = (float) Math.abs(k) / w;
+                int i = ((centre + k) % n + n) % n;
+                hv[i] = Math.max(hv[i], r.minH + (h - r.minH) * (float) Math.pow(1f - u, 0.8));
+            }
+        }
+        for (int i = 0; i < n; i++) hv[i] = Math.max(r.minH, Math.min(r.maxH, hv[i] + (rnd.nextFloat() - 0.5f) * 0.25f * (hv[i] > r.minH + 0.01f ? 1f : 0f)));
+        return hv;
+    }
+
+    /**
+     * HIGHLANDS (T-30c): jagged stepped terraces. Blocks 3 to 8 columns wide at one of four terrace levels between minH and maxH, each
+     * column a little uneven (0.6 m) and never outside the range.
+     */
+    private static Profile highlands(Theme.Ring r, Random rnd) {
+        int n = r.segments;
+        float[] l = new float[n], rr = new float[n];
+        int pos = 0;
+        while (pos < n) {
+            int w = 3 + rnd.nextInt(6);
+            float h = r.minH + (r.maxH - r.minH) * rnd.nextInt(4) / 3f;
+            for (int i = 0; i < w && pos < n; i++, pos++) {
+                float hh = Math.max(r.minH, Math.min(r.maxH, h + (rnd.nextFloat() - 0.5f) * 0.6f));
+                l[pos] = rr[pos] = hh;
+            }
+        }
+        return new Profile(l, rr);
     }
 
     /**
@@ -258,7 +303,7 @@ public final class Backdrop {
             }
             return 2 * quads;
         }
-        return (r.profile == Theme.PEAKS && r.accent != 0 ? 4 : 2) * r.segments;
+        return ((r.profile == Theme.PEAKS || r.profile == Theme.CRATER_RIM) && r.accent != 0 ? 4 : 2) * r.segments;
     }
 
     /**
@@ -270,10 +315,20 @@ public final class Backdrop {
      * @return the mesh
      */
     public static MeshData build(Theme th, int ringIndex, PaletteSwatches pal) {
+        return build(th, ringIndex, pal, false);
+    }
+
+    /**
+     * Builds a ring; on LOW a STARS ring keeps {@code min(120, segments)} stars (T-30c). A STARS ring of a theme with four extra ramps
+     * also holds the two planets.
+     * @param low true for LOW quality
+     */
+    public static MeshData build(Theme th, int ringIndex, PaletteSwatches pal, boolean low) {
         Theme.Ring r = th.rings[ringIndex];
         Buf b = new Buf();
         if (r.profile == Theme.STARS) {
-            stars(r, th, ringIndex, pal, b);
+            stars(r, th, ringIndex, pal, b, low ? Math.min(120, r.segments) : r.segments);
+            if (th.extraCount() >= 4) planets(th, pal, b);
         } else {
             band(r, th, ringIndex, pal, b);
         }
@@ -285,7 +340,7 @@ public final class Backdrop {
     private static void band(Theme.Ring r, Theme th, int ringIndex, PaletteSwatches pal, Buf b) {
         Profile p = profile(r);
         int n = r.segments;
-        boolean cap = r.profile == Theme.PEAKS && r.accent != 0;
+        boolean cap = (r.profile == Theme.PEAKS || r.profile == Theme.CRATER_RIM) && r.accent != 0;
         if (r.profile == Theme.MESAS && r.accent != 0) {
             float uA = pal.u(th.ringSwatch(ringIndex)), vA = pal.v(th.ringSwatch(ringIndex));
             float uB = pal.u(th.ringAccentSwatch(ringIndex)), vB = pal.v(th.ringAccentSwatch(ringIndex));
@@ -316,11 +371,12 @@ public final class Backdrop {
             float hl = p.left[c], hr = p.right[c];
             if (cap) {
                 // v2: an uneven snow line (wobbling by up to 3 m) and gullies (a column swaps rock and snow colours)
-                float sl = snowLine(r, c, hl), sr = snowLine(r, c + 1, hr);
-                boolean gully = gully(r, c);
+                boolean peaks = r.profile == Theme.PEAKS;
+                float sl = peaks ? snowLine(r, c, hl) : 0.82f * hl, sr = peaks ? snowLine(r, c + 1, hr) : 0.82f * hr;   // CRATER_RIM: lit edge on top
+                boolean gully = peaks && gully(r, c);
                 quad(b, r.radius, a0, a1, BASE_Y, BASE_Y, sl, sr, gully ? u1 : u0, gully ? v1 : v0);
                 quad(b, r.radius, a0, a1, sl, sr, hl, hr, gully ? u0 : u1, gully ? v0 : v1);
-            } else if (r.profile == Theme.ROLLING && r.accent != 0) {
+            } else if ((r.profile == Theme.ROLLING || r.profile == Theme.HIGHLANDS) && r.accent != 0) {
                 boolean streak = Noise.hash(c / 2, 5, r.seed) < 0.2f;   // vertical rock streaks
                 quad(b, r.radius, a0, a1, BASE_Y, BASE_Y, hl, hr, streak ? u1 : u0, streak ? v1 : v0);
             } else {
@@ -401,10 +457,10 @@ public final class Backdrop {
         b.tri(vb1, vt0, vt1);
     }
 
-    private static void stars(Theme.Ring r, Theme th, int ringIndex, PaletteSwatches pal, Buf b) {
+    private static void stars(Theme.Ring r, Theme th, int ringIndex, PaletteSwatches pal, Buf b, int count) {
         Random rnd = new Random(r.seed);
         int[] sw = {Theme.SW_WHITE, th.ringAccentSwatch(ringIndex), Theme.SW_PALE_BLUE};
-        for (int i = 0; i < r.segments; i++) {
+        for (int i = 0; i < count; i++) {
             float a = (float) (rnd.nextDouble() * 2 * Math.PI);
             float h = 2f + rnd.nextFloat() * 38f;
             float side = 0.25f + rnd.nextFloat() * 0.25f;
@@ -419,6 +475,103 @@ public final class Backdrop {
             b.tri(lb, rb, rt);
             b.tri(lb, rt, lt);
         }
+    }
+
+    /** Distance of the planets' centres from the camera (inside the far plane of 60), and their sizes: azimuth degrees, height, radius. */
+    public static final float PLANET_DIST = 56f;
+    static final float[][] PLANETS = {{40f, 24f, 7f}, {200f, 18f, 4f}};
+
+    /**
+     * The two planets (T-30c): a ringed one (azimuth 40 degrees, centre height 24 m, radius 7 m) and a blue one with green blobs
+     * (azimuth 200 degrees, height 18 m, radius 4 m). Discs facing the camera at {@link #PLANET_DIST}, shaded across by their ramp;
+     * the ring's near half is drawn 0.3 m in front of the disc and its far half 0.3 m behind it.
+     */
+    private static void planets(Theme th, PaletteSwatches pal, Buf b) {
+        planetDisc(b, pal, PLANETS[0], th.extraSwatch(0), 0f, 24);
+        // ring: an ellipse 1.35 to 1.95 radii wide, tilted 0.35 rad
+        float az = (float) Math.toRadians(PLANETS[0][0]), h = PLANETS[0][1], rad = PLANETS[0][2];
+        float[] f = frame(az, h);
+        int segs = 32;
+        int[][] in = new int[segs][2], out = new int[segs][2];
+        float tilt = 0.35f, ct = (float) Math.cos(tilt), st = (float) Math.sin(tilt);
+        for (int s = 0; s < segs; s++) {
+            double a = 2.0 * Math.PI * s / segs;
+            for (int q = 0; q < 2; q++) {
+                float rr = rad * (q == 0 ? 1.35f : 1.95f);
+                float ex = (float) Math.cos(a) * rr, ey = (float) Math.sin(a) * rr * 0.32f;
+                float rx = ex * ct - ey * st, ry = ex * st + ey * ct;
+                float depth = ry < 0f ? -0.3f : 0.3f;   // the near half is in front
+                float t = 0.35f + 0.55f * (0.5f + 0.5f * (float) Math.cos(a - 0.8));
+                int[] idx = q == 0 ? in[s] : out[s];
+                float cx = f[0] + f[3] * rx + f[6] * ry + f[9] * depth, cy = f[1] + f[4] * rx + f[7] * ry + f[10] * depth,
+                        cz = f[2] + f[5] * rx + f[8] * ry + f[11] * depth;
+                idx[0] = b.vert(cx, cy, cz, pal.uRamp(th.extraSwatch(1), t), pal.v(th.extraSwatch(1)));
+            }
+        }
+        for (int s = 0; s < segs; s++) {
+            int s2 = (s + 1) % segs;
+            facing(b, in[s][0], out[s][0], out[s2][0]);
+            facing(b, in[s][0], out[s2][0], in[s2][0]);
+        }
+        planetDisc(b, pal, PLANETS[1], th.extraSwatch(2), 0f, 24);
+        // green blobs on the blue planet, 0.05 m in front
+        float az2 = (float) Math.toRadians(PLANETS[1][0]), h2 = PLANETS[1][1], rad2 = PLANETS[1][2];
+        float[] f2 = frame(az2, h2);
+        float[][] blobs = {{-0.35f, 0.25f, 0.34f}, {0.3f, -0.2f, 0.3f}, {0.05f, 0.5f, 0.2f}};
+        for (float[] bl : blobs) {
+            float cx = f2[0] + f2[3] * bl[0] * rad2 + f2[6] * bl[1] * rad2 - f2[9] * 0.05f;
+            float cy = f2[1] + f2[4] * bl[0] * rad2 + f2[7] * bl[1] * rad2 - f2[10] * 0.05f;
+            float cz = f2[2] + f2[5] * bl[0] * rad2 + f2[8] * bl[1] * rad2 - f2[11] * 0.05f;
+            fan(b, pal, cx, cy, cz, f2, bl[2] * rad2, th.extraSwatch(3), 12, 0.6f, 0.4f);
+        }
+    }
+
+    /**
+     * Frame of a planet: centre (3), the unit vector along the sky to the right (3), up (3) and away from the camera (3).
+     */
+    private static float[] frame(float az, float h) {
+        float hd = (float) Math.sqrt(PLANET_DIST * PLANET_DIST - h * h);
+        float cx = (float) Math.sin(az) * hd, cz = (float) Math.cos(az) * hd;
+        float[] dir = {cx / PLANET_DIST, h / PLANET_DIST, cz / PLANET_DIST};
+        float[] u = {(float) Math.cos(az), 0f, -(float) Math.sin(az)};
+        float[] v = {dir[1] * u[2] - dir[2] * u[1], dir[2] * u[0] - dir[0] * u[2], dir[0] * u[1] - dir[1] * u[0]};
+        if (v[1] < 0f) {
+            v[0] = -v[0];
+            v[1] = -v[1];
+            v[2] = -v[2];
+        }
+        return new float[] {cx, h, cz, u[0], u[1], u[2], v[0], v[1], v[2], dir[0], dir[1], dir[2]};
+    }
+
+    private static void planetDisc(Buf b, PaletteSwatches pal, float[] pl, int swatch, float depth, int sides) {
+        float[] f = frame((float) Math.toRadians(pl[0]), pl[1]);
+        fan(b, pal, f[0], f[1], f[2], f, pl[2], swatch, sides, 0.55f, 0.45f);
+    }
+
+    /** A fan disc of radius r in the plane of frame f round (cx, cy, cz), ramp position lit from the upper left. */
+    private static void fan(Buf b, PaletteSwatches pal, float cx, float cy, float cz, float[] f, float r, int swatch, int sides,
+                            float base, float gain) {
+        float v0 = pal.v(swatch);
+        int c = b.vert(cx, cy, cz, pal.uRamp(swatch, base + gain * 0.25f), v0);
+        int[] rim = new int[sides];
+        for (int i = 0; i < sides; i++) {
+            double a = 2.0 * Math.PI * i / sides;
+            float ox = (float) Math.cos(a), oy = (float) Math.sin(a);
+            float t = Math.max(0f, Math.min(1f, base + gain * (-0.6f * ox + 0.8f * oy)));
+            rim[i] = b.vert(cx + (f[3] * ox + f[6] * oy) * r, cy + (f[4] * ox + f[7] * oy) * r, cz + (f[5] * ox + f[8] * oy) * r,
+                    pal.uRamp(swatch, t), v0);
+        }
+        for (int i = 0; i < sides; i++) facing(b, c, rim[i], rim[(i + 1) % sides]);
+    }
+
+    /** A triangle that faces the origin (the centre of the ring). */
+    private static void facing(Buf b, int ia, int ib, int ic) {
+        float[] v = b.v;
+        float ux = v[ib * 8] - v[ia * 8], uy = v[ib * 8 + 1] - v[ia * 8 + 1], uz = v[ib * 8 + 2] - v[ia * 8 + 2];
+        float wx = v[ic * 8] - v[ia * 8], wy = v[ic * 8 + 1] - v[ia * 8 + 1], wz = v[ic * 8 + 2] - v[ia * 8 + 2];
+        float nx = uy * wz - uz * wy, ny = uz * wx - ux * wz, nz = ux * wy - uy * wx;
+        if (nx * -v[ia * 8] + ny * -v[ia * 8 + 1] + nz * -v[ia * 8 + 2] >= 0f) b.tri(ia, ib, ic);
+        else b.tri(ia, ic, ib);
     }
 
     /** Growing vertex and index arrays (every vertex normal is (0, 1, 0)). */

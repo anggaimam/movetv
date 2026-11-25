@@ -118,6 +118,8 @@ public final class Terrain {
     private final float x0, z0;
     private final int gw, gh;
     private final Lakes lakes;
+    /** Craters (T-30c, CRATERED only): centre x, centre z, radius, three numbers per crater. */
+    private float[] crater = new float[0];
     private float[] heights, tones, dists, lakeD;
     private boolean ready;
 
@@ -168,6 +170,64 @@ public final class Terrain {
         tilesZ = (int) Math.ceil((maxZ + MARGIN - z0) / TILE);
         gw = tilesX * cpt + 1;
         gh = tilesZ * cpt + 1;
+        if (pr.kind == CRATERED) placeCraters(minX, maxX, minZ, maxZ);
+    }
+
+    /** Seeded craters: radius 4 to 14, the centre at least 14 m + radius from the road, none overlapping another (T-30c). */
+    private void placeCraters(float minX, float maxX, float minZ, float maxZ) {
+        java.util.Random rnd = new java.util.Random(seed * 7L + 3L);
+        float[] out = new float[3 * pr.craters];
+        int n = 0;
+        for (int tries = 0; tries < 6000 && n < pr.craters; tries++) {
+            float r = 4f + 10f * rnd.nextFloat();
+            float x = minX - 38f + rnd.nextFloat() * (maxX - minX + 76f), z = minZ - 38f + rnd.nextFloat() * (maxZ - minZ + 76f);
+            if (nearestSample(x, z, 1) < 14f + r) continue;
+            boolean clash = false;
+            for (int q = 0; q < n && !clash; q++) {
+                float dx = out[3 * q] - x, dz = out[3 * q + 1] - z, min = (out[3 * q + 2] + r) * 0.95f;
+                clash = dx * dx + dz * dz < min * min;
+            }
+            if (clash) continue;
+            out[3 * n] = x;
+            out[3 * n + 1] = z;
+            out[3 * n + 2] = r;
+            n++;
+        }
+        crater = Arrays.copyOf(out, 3 * n);
+    }
+
+    /**
+     * The craters of this ground (T-30c).
+     * @return centre x, centre z, radius, per crater
+     */
+    public float[] craters() {
+        return crater.clone();
+    }
+
+    /** Height change of the craters at a point (bowl, sharp rim) and, in {@code tone[0]}, how much darker (floor) or lighter (rim) it is. */
+    private float craterField(float x, float z, float[] tone) {
+        float h = 0f, t = 0f;
+        for (int i = 0; i < crater.length; i += 3) {
+            float dx = x - crater[i], dz = z - crater[i + 1], rad = crater[i + 2];
+            float r = (float) Math.sqrt(dx * dx + dz * dz) / rad;
+            if (r > 1.3f) continue;
+            float depth = Math.min(0.25f * rad, 2.5f), rim = 0.08f * rad;
+            if (r < 0.85f) {
+                float u = r / 0.85f;
+                h -= depth * (1f - u * u);
+                t -= 0.3f * (1f - u);
+            } else if (r < 1f) {
+                float u = (r - 0.85f) / 0.15f;
+                h += rim * u * u;
+                t += 0.35f * u;
+            } else {
+                float u = (r - 1f) / 0.3f;
+                h += rim * (1f - u) * (1f - u);
+                t += 0.35f * (1f - u);
+            }
+        }
+        if (tone != null) tone[0] = t;
+        return h;
     }
 
     /**
@@ -263,6 +323,12 @@ public final class Terrain {
 
     private float shapeAt(float x, float z, float d) {
         float ramp = Noise.smoothstep(pr.riseFrom, pr.riseTo, d);
+        if (pr.kind == CRATERED) {
+            // low rolling ground (0 to amplitude) with the craters on top; the craters keep 14 m from the road
+            float n = Noise.fbm(x / pr.wavelength, z / pr.wavelength, 2, seed + 5L);
+            float roll = pr.amplitude * Noise.smoothstep(0.3f, 0.7f, n) + pr.bump * 2f * (Noise.noise(x / 4f, z / 4f, seed + 3L) - 0.5f);
+            return ROAD_Y + ramp * (roll + 0.02f) + (ramp > 0f ? craterField(x, z, null) : 0f);
+        }
         if (ramp <= 0f) return ROAD_Y;
         if (pr.kind == HILLS) {
             // smooth fbm hills: 3 octaves, wavelength pr.wavelength, rounded peaks and wide valleys
@@ -296,6 +362,7 @@ public final class Terrain {
                 heights[i + gw * j] = heightAt(x, z, d, le);
             }
         }
+        float[] ctone = new float[1];
         for (int j = 0; j < gh; j++) {
             for (int i = 0; i < gw; i++) {
                 int ia = Math.max(0, i - 1), ib = Math.min(gw - 1, i + 1), ja = Math.max(0, j - 1), jb = Math.min(gh - 1, j + 1);
@@ -307,6 +374,10 @@ public final class Terrain {
                 float t = 0.5f + 0.25f * (Noise.fbm(x / 18f, z / 18f, 2, seed + 21L) - 0.5f) * 2f
                         + 0.15f * Math.max(facing, 0f) - 0.2f * Math.max(-facing, 0f)
                         - 0.15f * (1f - Noise.smoothstep(FLAT_D, 16f, d));
+                if (pr.kind == CRATERED) {
+                    craterField(x, z, ctone);
+                    t += ctone[0];
+                }
                 tones[i + gw * j] = Math.max(0f, Math.min(1f, t));
             }
         }
@@ -536,8 +607,12 @@ public final class Terrain {
     }
 
     private float nearestSample(float x, float z) {
+        return nearestSample(x, z, 4);
+    }
+
+    private float nearestSample(float x, float z, int step) {
         float best = Float.MAX_VALUE;
-        for (int i = 0; i < px.length; i += 4) {
+        for (int i = 0; i < px.length; i += step) {
             float dx = px[i] - x, dz = pz[i] - z;
             best = Math.min(best, dx * dx + dz * dz);
         }

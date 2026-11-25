@@ -26,18 +26,24 @@ public final class PropMeshes {
     /** Rocky Lakes kinds (T-30b), built by {@link RockyProps}. */
     public static final int PINE_GROVE = 20, PINE = 21, ASPEN = 22, ROCK_OUTCROP = 23, BOULDERS = 24, CABIN = 25, DOCK = 26,
             CANOE = 27, FALLEN_LOG = 28, FERN = 29, WILDFLOWERS = 30, GRASS = 31;
+    /** Star Road kinds (T-30c), built by {@link SpaceProps}. */
+    public static final int HABITAT_DOME = 32, ANTENNA = 33, ROVER = 34, SOLAR_ARRAY = 35, BIG_BOULDER = 36, CRYSTALS = 37,
+            MOON_ROCKS = 38, DUST_PEBBLES = 39;
     /** Number of kinds. */
-    public static final int COUNT = 32;
+    public static final int COUNT = 40;
     /** Triangle limits of the ticket, per kind. */
     public static final int[] MAX_TRIANGLES = {450, 900, 300, 400, 400, 120, 14, 48,
             1000, 600, 120, 300, 500, 300, 120, 80, 80, 60, 40, 150,
-            2000, 350, 300, 700, 400, 800, 200, 120, 150, 100, 60, 14};
+            2000, 350, 300, 700, 400, 800, 200, 120, 150, 100, 60, 14,
+            900, 250, 500, 200, 500, 300, 400, 48};
     /** Number of ramps each kind needs in its rule. */
     public static final int[] RAMPS = {1, 2, 2, 1, 2, 1, 1, 1, 7, 3, 2, 3, 5, 2, 2, 1, 1, 3, 2, 2,
-            2, 2, 2, 1, 1, 3, 1, 1, 1, 1, 3, 1};
+            2, 2, 2, 1, 1, 3, 1, 1, 1, 1, 3, 1,
+            3, 2, 2, 2, 1, 2, 1, 1};
 
     private static final int[] VARIANTS = {3, 2, 3, 3, 2, 1, 2, 2, 3, 3, 2, 2, 3, 2, 2, 1, 2, 3, 2, 1,
-            4, 3, 2, 3, 3, 2, 1, 1, 2, 1, 2, 1};
+            4, 3, 2, 3, 3, 2, 1, 1, 2, 1, 2, 1,
+            2, 2, 2, 1, 2, 3, 2, 1};
     private static final float[] REACH = new float[COUNT];
 
     private PropMeshes() { }
@@ -235,6 +241,30 @@ public final class PropMeshes {
             case GRASS:
                 RockyProps.grass(k, sw, rnd);
                 break;
+            case HABITAT_DOME:
+                SpaceProps.dome(k, variant, sw, rnd);
+                break;
+            case ANTENNA:
+                SpaceProps.antenna(k, variant, sw, rnd);
+                break;
+            case ROVER:
+                SpaceProps.rover(k, variant, sw, rnd);
+                break;
+            case SOLAR_ARRAY:
+                SpaceProps.array(k, sw, rnd);
+                break;
+            case BIG_BOULDER:
+                SpaceProps.bigBoulder(k, variant, sw, rnd);
+                break;
+            case CRYSTALS:
+                SpaceProps.crystals(k, variant, sw, rnd);
+                break;
+            case MOON_ROCKS:
+                SpaceProps.moonRocks(k, variant, sw, rnd);
+                break;
+            case DUST_PEBBLES:
+                SpaceProps.pebbles(k, sw, rnd);
+                break;
             default:
                 throw new IllegalArgumentException("unknown prop kind " + kind);
         }
@@ -370,8 +400,8 @@ public final class PropMeshes {
         }
     }
 
-    private static final float[][] ICO = icoVerts();
-    private static final int[][] ICO_F = {{0, 11, 5}, {0, 5, 1}, {0, 1, 7}, {0, 7, 10}, {0, 10, 11}, {1, 5, 9}, {5, 11, 4},
+    static final float[][] ICO = icoVerts();
+    static final int[][] ICO_F = {{0, 11, 5}, {0, 5, 1}, {0, 1, 7}, {0, 7, 10}, {0, 10, 11}, {1, 5, 9}, {5, 11, 4},
             {11, 10, 2}, {10, 7, 6}, {7, 1, 8}, {3, 9, 4}, {3, 4, 2}, {3, 2, 6}, {3, 6, 8}, {3, 8, 9}, {4, 9, 5}, {2, 4, 11},
             {6, 2, 10}, {8, 6, 7}, {9, 8, 1}};
 
@@ -443,7 +473,7 @@ public final class PropMeshes {
         }
     }
 
-    private static int midpoint(java.util.ArrayList<float[]> verts, java.util.HashMap<Long, Integer> cache, int a, int b) {
+    static int midpoint(java.util.ArrayList<float[]> verts, java.util.HashMap<Long, Integer> cache, int a, int b) {
         long key = ((long) Math.min(a, b) << 32) | Math.max(a, b);
         Integer have = cache.get(key);
         if (have != null) return have;

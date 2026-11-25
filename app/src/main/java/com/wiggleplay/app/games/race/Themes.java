@@ -129,6 +129,44 @@ public final class Themes {
                             Terrain.HILLS, new int[] {0x1F7F95, 0x5FC9D6, 0x9BE3E8, 0x9BE3E8, 0xA39C8E, 0xD2CBBD, 0x6F767C, 0xB9BFC3}, 0)));
 
     /**
+     * Star Road (T-30c): a moon surface under a navy sky. 18 craters with sharp rims in the height field, habitat domes, antennas,
+     * rovers, solar arrays, boulders and crystals, crater rims, terraced highlands and stars behind, a ringed and a blue planet.
+     * The barriers and kerbs are bright so the road edge reads on the dark ground.
+     */
+    public static final Theme SPACE = new Theme("space", 0x12163A, 0x2A2550, 30f, 55f, new float[] {-0.50f, -0.70f, -0.50f},
+            0x4A4566, 0x3E3A58, 0x5A5578, 0, 0f, 0f,
+            new RoadStyle(0x2C3050, 0x3FBFD0, 0xF3EBDD, 0x8C93B8, 0xF2C572, 0x12163A, 0xF3EBDD, 0xC9CEDF, 0x9C7BE0, 0, 0x7A82A8,
+                    0xD6DAF0, 0, 0),
+            new Theme.Ring[] {
+                    new Theme.Ring(50f, 0x2A2740, Theme.CRATER_RIM, 1f, 3.5f, 160, 41L, false, 0x5A5578),
+                    new Theme.Ring(54f, 0x3E3A58, Theme.HIGHLANDS, 4f, 12f, 192, 42L, true, 0x6E6A8C),
+                    new Theme.Ring(57f, 0x2A2550, Theme.STARS, 2f, 40f, 220, 43L, true, 0xF2C572)},
+            0x8A86A6, Theme.SLICK_ICE,
+            new Theme.PropRule[] {
+                    new Theme.PropRule(PropMeshes.HABITAT_DOME, 0.5f, 14f, 35f, 5.5f, 0.95f, 1.1f, false,
+                            new int[] {0xB8B4C8, 0xF2F0F8, 0x2FA9B8, 0x9CF2FA, 0x1E2A55, 0x4A63A8}, Theme.ORIENT_FACE_ROAD, 0f, 0f),
+                    new Theme.PropRule(PropMeshes.ANTENNA, 2f, 8f, 16f, 1.2f, 0.9f, 1.2f, false,
+                            new int[] {0x8A90A6, 0xDDE2F0, 0xA8322C, 0xE5574D}, Theme.ORIENT_FACE_ROAD, 0f, 0f),
+                    new Theme.PropRule(PropMeshes.ROVER, 0.5f, 10f, 25f, 2.4f, 0.95f, 1.05f, false,
+                            new int[] {0xB9BED0, 0xECEFF8, 0x2A2C36, 0x55586A}, Theme.ORIENT_PARALLEL, 0f, 0f),
+                    new Theme.PropRule(PropMeshes.SOLAR_ARRAY, 1f, 10f, 30f, 2.6f, 0.95f, 1.1f, false,
+                            new int[] {0x1E2A55, 0x4A63A8, 0x8A90A6, 0xDDE2F0}, Theme.ORIENT_FACE_ROAD, 0f, 0f),
+                    new Theme.PropRule(PropMeshes.BIG_BOULDER, 1f, 12f, 40f, 2.5f, 0.8f, 1.3f, false, new int[] {0x4A4662, 0x9A95B8}),
+                    new Theme.PropRule(PropMeshes.CRYSTALS, 4f, 7.9f, 30f, 1f, 0.8f, 1.3f, true,
+                            new int[] {0x6A4FB0, 0xC8B4FF, 0x2FA9B8, 0x9CF2FA}),
+                    new Theme.PropRule(PropMeshes.MOON_ROCKS, 6f, 8.1f, 35f, 1.5f, 0.8f, 1.3f, true, new int[] {0x4A4662, 0x9A95B8}),
+                    new Theme.PropRule(PropMeshes.DUST_PEBBLES, 10f, 7f, 15f, 0.5f, 0.8f, 1.3f, true, new int[] {0x3C3854, 0x7A7598})},
+            // hard light and deep shade; grain: moon ground, asphalt road, gravel, concrete
+            new Theme.Look(Theme.Look.scaled(0x4A4F8A, 0.45f), Theme.Look.scaled(0x4A4566, 0.35f),
+                    Theme.Look.scaled(0xF2F0FF, 0.85f), 0x0A0C24, 0xF4F2FF,
+                    new int[] {DetailTexture.MOON, DetailTexture.ASPHALT, DetailTexture.GRAVEL, DetailTexture.CONCRETE},
+                    // rolling 0 to 1.2 m, wavelength 40 m, bump 0.15 m; 18 craters; the extra ramps are the planets (ringed, ring,
+                    // blue, green blobs)
+                    new Terrain.Profile(20f, 1.2f, 40f, 0.15f, 0x3C3854, 0x7A7598, 0x2E2B42, 0x4E4A66, 8f, 20f, false, 0, 0, 0f,
+                            Terrain.CRATERED, new int[] {0xC9772E, 0xF2A55C, 0xD9B45A, 0xF7DE9A, 0x3B6EA0, 0x7FB0DE, 0x6E9C70, 0xA4CEA4},
+                            18)));
+
+    /**
      * The theme of a track.
      * @param id {@code TrackDef.themeId}
      * @return the theme; {@link #MEADOW} for an id that is unknown or not built yet
@@ -137,6 +175,7 @@ public final class Themes {
         if ("desert".equals(id)) return DESERT;
         if ("city".equals(id)) return CITY;
         if ("rockies".equals(id)) return ROCKIES;
+        if ("space".equals(id)) return SPACE;
         return MEADOW;
     }
 }
