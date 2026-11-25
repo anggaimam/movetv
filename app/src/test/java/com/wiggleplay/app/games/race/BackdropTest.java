@@ -187,7 +187,7 @@ public class BackdropTest {
             assertTrue("ring radius " + r.radius, r.radius < 60f);
             tris += Backdrop.triangleCount(r);
         }
-        assertTrue(tris <= 1500);
+        assertTrue("ring triangles " + tris, tris <= 3600);   // 192 segments each, with strata on the mesas
         assertTrue(d.rings.length <= 4);
         PaletteSwatches pal = new PaletteSwatches();
         d.fillPalette(pal);

@@ -47,7 +47,7 @@ public class ThemeTest {
         assertEquals(40, d.patchCount);
         assertEquals(4f, d.patchMinR, 0f);
         assertEquals(12f, d.patchMaxR, 0f);
-        assertEquals(0x8C7E72, d.road.road);
+        assertEquals(0x5A5E65, d.road.road);
         assertEquals(3, d.rings.length);
         assertEquals(50f, d.rings[0].radius, 0f);
         assertEquals(Theme.ROLLING, d.rings[0].profile);
@@ -66,7 +66,7 @@ public class ThemeTest {
         PaletteSwatches p = new PaletteSwatches();
         int n = Themes.DESERT.fillPalette(p);
         assertTrue(n <= PaletteSwatches.MAX);
-        assertEquals(Theme.SW_FIRST_RING + 2 * 3 + 10 + 3, n);   // rings, 2 colours for each of the 5 desert props, 3 sky swatches
+        assertEquals(Theme.SW_FIRST_RING + 2 * 3 + 11 + 3, n);   // rings, 11 prop ramps of the 8 desert kinds, 3 sky swatches
         Set<Integer> used = new HashSet<>();
         for (int i = 0; i < 10; i++) used.add(i); // the road
         for (int i = 0; i < Themes.DESERT.rings.length; i++) {
@@ -74,17 +74,16 @@ public class ThemeTest {
             assertTrue(used.add(Themes.DESERT.ringAccentSwatch(i)));
         }
         for (int r = 0; r < Themes.DESERT.props.length; r++) {
-            for (int c = 0; c < Themes.DESERT.props[r].colors.length; c++) assertTrue(used.add(Themes.DESERT.propSwatch(r, c)));
+            for (int c = 0; c < Themes.DESERT.props[r].ramps(); c++) assertTrue(used.add(Themes.DESERT.propSwatch(r, c)));
         }
         for (int k = 0; k < 3; k++) assertTrue(used.add(Themes.DESERT.skySwatch(k)));
         for (int s : new int[] {Theme.SW_GROUND, Theme.SW_PATCH_A, Theme.SW_PATCH_B, Theme.SW_WHITE, Theme.SW_PALE_BLUE}) {
             assertTrue(s >= 16 && used.add(s));
         }
-        assertEquals(0xE9C98B, p.rgb(Theme.SW_GROUND));
-        assertEquals(0xDDB36F, p.rgb(Theme.SW_PATCH_A));
-        assertEquals(0xF2DCA8, p.rgb(Theme.SW_PATCH_B));
+        assertEquals(16, Themes.DESERT.terrainSwatch(0));   // the terrain ramps take the ground and patch-A places
+        assertEquals(17, Themes.DESERT.terrainSwatch(1));
         assertEquals(0xE2B57C, p.rgb(Themes.DESERT.ringSwatch(0)));
         assertEquals(0xE2B57C, p.rgb(Themes.DESERT.ringAccentSwatch(0))); // no accent: the body colour
-        assertEquals(0x8C7E72, p.rgb(RoadStyle.SW_ROAD));
+        assertEquals(0x5A5E65, p.rgb(RoadStyle.SW_ROAD));
     }
 }

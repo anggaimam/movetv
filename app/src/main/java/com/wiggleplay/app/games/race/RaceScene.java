@@ -163,7 +163,7 @@ public final class RaceScene implements Scene {
         layout = TrackSpline.build(TrackChoice.def(), TrackChoice.reversed(), raceLevel);
         if (gl != null) {
             gl.loadMeshes(TRUCK_MESH[0], TRUCK_MESH[1], TRUCK_MESH[2], TRUCK_MESH[3]);
-            groundId = gl.addMesh("ground", ProcMesh.groundGrid(GROUND_SIZE, GROUND_CELLS));
+            groundId = -1;
             shadowId = gl.addMesh("shadow", ProcMesh.disc(1.2f));
             coinId = gl.addMesh("coin", ProcMesh.coinReeded());
             starId = gl.addMesh("star", ProcMesh.starBevelled(0.9f, 0.4f, 0.2f));
@@ -176,6 +176,8 @@ public final class RaceScene implements Scene {
             }
             // T-29: the theme decides sky, fog, sun, ground, road colours, ground patches and the backdrop rings
             theme = Themes.byId(TrackChoice.def().themeId);
+            // a theme with terrain has its own ground; the others keep the flat ground grid
+            if (theme.look.terrain == null) groundId = gl.addMesh("ground", ProcMesh.groundGrid(GROUND_SIZE, GROUND_CELLS));
             final boolean low = GameView.quality == GameView.LOW;
             gl.setSky(theme.sky);   // also puts the plain light back
             gl.setFogColor(theme.horizon);
@@ -494,7 +496,10 @@ public final class RaceScene implements Scene {
         PaletteSwatches pal = new PaletteSwatches();
         w.pal = pal;
         theme.fillPalette(pal);
-        List<MeshData> pieces = TrackMeshBuilder.build(layout, theme.road, pal);
+        TrackSpline forward = reversed ? TrackSpline.build(def, false, raceLevel) : layout;
+        long seed = def.id.hashCode();
+        Terrain terrain = theme.look.terrain != null ? Terrain.create(forward, theme, seed, low) : null;
+        List<MeshData> pieces = TrackMeshBuilder.build(layout, theme.road, pal, terrain != null ? theme.terrainSwatch(1) : -1);
         float[] ident = new float[16];
         Mat4.identity(ident);
         for (int i = 0; i < pieces.size(); i++) {
@@ -512,12 +517,22 @@ public final class RaceScene implements Scene {
             w.placements.add(new StaticBatcher.Placement(name, ident, (int) Math.floor((minX + maxX) / 2f / CELL),
                     (int) Math.floor((minZ + maxZ) / 2f / CELL)));
         }
-        List<GroundPatches.Patch> patches = GroundPatches.generate(layout, theme, def.id.hashCode(), low);
-        for (int i = 0; i < patches.size(); i++) {
-            GroundPatches.Patch pt = patches.get(i);
-            String name = "patch_" + i;
-            w.library.put(name, GroundPatches.mesh(pt, pal));
-            w.placements.add(new StaticBatcher.Placement(name, ident, (int) Math.floor(pt.x / CELL), (int) Math.floor(pt.z / CELL)));
+        if (terrain != null) {
+            // R2: the ground is a height field cut into 60 m tiles
+            List<Terrain.Tile> tiles = terrain.build(pal, theme.terrainSwatch(0), theme.terrainSwatch(1));
+            for (int i = 0; i < tiles.size(); i++) {
+                String name = "terrain_" + i;
+                w.library.put(name, tiles.get(i).mesh);
+                w.placements.add(new StaticBatcher.Placement(name, ident, tiles.get(i).cellX, tiles.get(i).cellZ));
+            }
+        } else {
+            List<GroundPatches.Patch> patches = GroundPatches.generate(layout, theme, seed, low);
+            for (int i = 0; i < patches.size(); i++) {
+                GroundPatches.Patch pt = patches.get(i);
+                String name = "patch_" + i;
+                w.library.put(name, GroundPatches.mesh(pt, pal));
+                w.placements.add(new StaticBatcher.Placement(name, ident, (int) Math.floor(pt.x / CELL), (int) Math.floor(pt.z / CELL)));
+            }
         }
         // T-29 Part B: props scattered by fixed rules on the forward track (same layout in both directions); the filler tier is
         // left out on LOW (and, with T-24, in 2P)
@@ -529,8 +544,9 @@ public final class RaceScene implements Scene {
                 w.library.put(PropMeshes.name(rule.kind, v), PropMeshes.build(rule.kind, v, pal, theme.propSwatches(r)));
             }
         }
-        TrackSpline forward = reversed ? TrackSpline.build(def, false, raceLevel) : layout;
-        PropScatter.scatter(forward, theme, def.id.hashCode(), tierB, w.placements);
+        List<PropScatter.Instance> instances = new ArrayList<>();
+        PropScatter.scatter(forward, theme, seed, tierB, w.placements, terrain, instances);
+        if (terrain != null) PropShadows.build(terrain, pal, theme.terrainSwatch(0), instances, w.library, w.placements);
         int n = 0;
         for (int i = 0; i < theme.rings.length && n < 4; i++) {
             if (low && !theme.rings[i].low) continue;
@@ -614,7 +630,7 @@ public final class RaceScene implements Scene {
         float gx = GROUND_STEP * (float) Math.floor(eye[0] / GROUND_STEP + 0.5f);
         float gz = GROUND_STEP * (float) Math.floor(eye[2] / GROUND_STEP + 0.5f);
         Mat4.translate(mT, gx, 0f, gz);
-        list.add(groundId, 0, mT, theme.ground, true, 1);
+        if (groundId >= 0) list.add(groundId, 0, mT, theme.ground, true, 1);
         // T-29: the backdrop rings follow the camera's position (not its turning) and are drawn without fog
         for (int i = 0; i < ringCount; i++) {
             Mat4.translate(mT, eye[0], 0f, eye[2]);

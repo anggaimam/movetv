@@ -90,10 +90,9 @@ public final class DetailTexture {
             case ASPHALT: {
                 float grain = hash(px, py, s + 1);
                 float fine = fbm(fx, fy, 64, 2, s + 2);
-                float blot = noise(fx, fy, 3, 3, s + 3);
-                float dark = Math.max(0f, blot - 0.6f) * 2.5f;
                 float speck = hash(px, py, s + 4) > 0.985f ? 1f : 0f;
-                return 0.35f * grain + 0.25f * fine - 0.30f * dark + 0.45f * speck;
+                // no blotches: the road's mottling and wear are in the vertex colours, where they follow the road
+                return 0.45f * grain + 0.30f * fine + 0.45f * speck;
             }
             case GRASS: {
                 float blade = noise(fx, fy, 64, 6, s + 1);

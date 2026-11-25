@@ -21,6 +21,8 @@ public final class Backdrop {
 
     /** Bottom of every band, below the ground. */
     public static final float BASE_Y = -2f;
+    /** Horizontal strata of a MESAS ring that has an accent colour: levels from the base up to maxH, alternating body and accent. */
+    public static final int STRATA = 6;
     /** Share of a peak's height where the snow cap starts. */
     public static final float CAP_START = 0.78f;
     /** Lowest top of a MESAS gap and of a PEAKS valley, as a share of minH. */
@@ -186,6 +188,14 @@ public final class Backdrop {
      */
     public static int triangleCount(Theme.Ring r) {
         if (r.profile == Theme.STARS) return 2 * r.segments;
+        if (r.profile == Theme.MESAS && r.accent != 0) {
+            Profile p = profile(r);
+            int quads = 0;
+            for (int c = 0; c < r.segments; c++) {
+                for (int k = 0; k < STRATA; k++) if (strataQuad(r, p, c, k) != null) quads++;
+            }
+            return 2 * quads;
+        }
         return (r.profile == Theme.PEAKS && r.accent != 0 ? 4 : 2) * r.segments;
     }
 
@@ -214,6 +224,19 @@ public final class Backdrop {
         Profile p = profile(r);
         int n = r.segments;
         boolean cap = r.profile == Theme.PEAKS && r.accent != 0;
+        if (r.profile == Theme.MESAS && r.accent != 0) {
+            float uA = pal.u(th.ringSwatch(ringIndex)), vA = pal.v(th.ringSwatch(ringIndex));
+            float uB = pal.u(th.ringAccentSwatch(ringIndex)), vB = pal.v(th.ringAccentSwatch(ringIndex));
+            for (int c = 0; c < n; c++) {
+                float a0 = (float) (2 * Math.PI * c / n), a1 = (float) (2 * Math.PI * (c + 1) / n);
+                for (int k = 0; k < STRATA; k++) {
+                    float[] q = strataQuad(r, p, c, k);
+                    if (q == null) continue;
+                    quad(b, r.radius, a0, a1, q[0], q[1], q[2], q[3], (k & 1) == 0 ? uA : uB, (k & 1) == 0 ? vA : vB);
+                }
+            }
+            return;
+        }
         float u0 = pal.u(th.ringSwatch(ringIndex)), v0 = pal.v(th.ringSwatch(ringIndex));
         float u1 = pal.u(th.ringAccentSwatch(ringIndex)), v1 = pal.v(th.ringAccentSwatch(ringIndex));
         for (int c = 0; c < n; c++) {
@@ -226,6 +249,16 @@ public final class Backdrop {
                 quad(b, r.radius, a0, a1, BASE_Y, BASE_Y, hl, hr, u0, v0);
             }
         }
+    }
+
+    /** The clipped heights {bottom0, bottom1, top0, top1} of stratum k of column c, or null when the column does not reach it. */
+    private static float[] strataQuad(Theme.Ring r, Profile p, int c, int k) {
+        float unit = (r.maxH - BASE_Y) / STRATA;
+        float lo = BASE_Y + unit * k, hi = lo + unit;
+        float hl = p.left[c], hr = p.right[c];
+        float bl = Math.min(lo, hl), tl = Math.min(hi, hl), br = Math.min(lo, hr), tr = Math.min(hi, hr);
+        if (tl <= bl + 1e-4f && tr <= br + 1e-4f) return null;
+        return new float[] {bl, br, tl, tr};
     }
 
     /**

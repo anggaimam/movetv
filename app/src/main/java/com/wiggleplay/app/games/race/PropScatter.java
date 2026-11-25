@@ -41,6 +41,36 @@ public final class PropScatter {
      * @return the number of props placed
      */
     public static int scatter(TrackSpline t, Theme th, long seed, boolean includeTierB, List<StaticBatcher.Placement> out) {
+        return scatter(t, th, seed, includeTierB, out, null, null);
+    }
+
+    /** One placed prop: what, where (y is the base on the terrain), how it is turned and how big. */
+    public static final class Instance {
+        public final int kind, variant;
+        public final float x, y, z, yaw, scale, footprint;
+
+        Instance(int kind, int variant, float x, float y, float z, float yaw, float scale, float footprint) {
+            this.kind = kind;
+            this.variant = variant;
+            this.x = x;
+            this.y = y;
+            this.z = z;
+            this.yaw = yaw;
+            this.scale = scale;
+            this.footprint = footprint;
+        }
+    }
+
+    /** How far the terrain under a prop may vary before the prop would float or sink (m), and how far its base is sunk in. */
+    public static final float MAX_SLOPE = 0.6f, SINK = 0.1f;
+
+    /**
+     * Places the props of a theme along a track, on a terrain (T-29R R2).
+     * @param terrain the ground the props stand on, or null for a flat world at y = 0
+     * @param instances receives one {@link Instance} per prop (may be null)
+     */
+    public static int scatter(TrackSpline t, Theme th, long seed, boolean includeTierB, List<StaticBatcher.Placement> out,
+                              Terrain terrain, List<Instance> instances) {
         Random rnd = new Random(seed * 131L + 17L);
         float len = t.lapLength();
         int count = t.sampleCount();
@@ -68,6 +98,18 @@ public final class PropScatter {
                     float z = sm[1] - (float) Math.sin(sm[2]) * side;
                     float fp = reach * scale;
                     if (!accept(t, x, z, fp, startSamples, px, pz, pr, placed)) continue;
+                    float y = 0f;
+                    if (terrain != null) {
+                        y = terrain.surface(x, z);
+                        float lo = y, hi = y, rr = Math.min(fp, 3f) * 0.7f;
+                        for (int q = 0; q < 8; q++) {
+                            float h = terrain.surface(x + (float) Math.cos(q * 0.785398) * rr, z + (float) Math.sin(q * 0.785398) * rr);
+                            lo = Math.min(lo, h);
+                            hi = Math.max(hi, h);
+                        }
+                        if (hi - lo > MAX_SLOPE) continue;
+                        y -= SINK;
+                    }
                     if (placed == px.length) {
                         px = java.util.Arrays.copyOf(px, placed * 2);
                         pz = java.util.Arrays.copyOf(pz, placed * 2);
@@ -80,11 +122,12 @@ public final class PropScatter {
                     Mat4.rotY(rot, angle);
                     Mat4.scale(sc, scale, scale, scale);
                     Mat4.multiply(rs, rot, sc);
-                    Mat4.translate(tr, x, 0f, z);
+                    Mat4.translate(tr, x, y, z);
                     float[] m = new float[16];
                     Mat4.multiply(m, tr, rs);
                     out.add(new StaticBatcher.Placement(PropMeshes.name(rule.kind, variant), m, (int) Math.floor(x / 10f),
                             (int) Math.floor(z / 10f)));
+                    if (instances != null) instances.add(new Instance(rule.kind, variant, x, y + SINK, z, angle, scale, fp));
                     break;
                 }
             }

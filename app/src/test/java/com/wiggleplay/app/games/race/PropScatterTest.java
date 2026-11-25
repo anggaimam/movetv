@@ -18,7 +18,9 @@ public class PropScatterTest {
 
     private static List<StaticBatcher.Placement> scatter(TrackDef def, boolean tierB) {
         List<StaticBatcher.Placement> out = new ArrayList<>();
-        PropScatter.scatter(TrackSpline.build(def, false, 5.5f), T, def.id.hashCode(), tierB, out);
+        TrackSpline t = TrackSpline.build(def, false, 5.5f);
+        PropScatter.scatter(t, T, def.id.hashCode(), tierB, out, Terrain.create(t, T, def.id.hashCode(), !tierB),
+                new ArrayList<PropScatter.Instance>());
         return out;
     }
 
@@ -83,7 +85,7 @@ public class PropScatterTest {
     }
 
     @Test
-    public void countIsWithin85To100PercentOfTheAsk() {
+    public void countIsWithin75To100PercentOfTheAsk() {
         for (TrackDef def : TrackDefs.ALL) {
             TrackSpline t = TrackSpline.build(def, false, 5.5f);
             List<StaticBatcher.Placement> all = scatter(def, true);
@@ -91,7 +93,7 @@ public class PropScatterTest {
                 int want = Math.round(r.per100m * t.lapLength() / 100f);
                 int got = 0;
                 for (StaticBatcher.Placement p : all) if (kindOf(p) == r.kind) got++;
-                assertTrue(def.id + " kind " + r.kind + ": " + got + " of " + want, got <= want && got >= Math.floor(0.85 * want));
+                assertTrue(def.id + " kind " + r.kind + ": " + got + " of " + want, got <= want && got >= Math.floor(0.75 * want));
             }
         }
     }
@@ -108,7 +110,8 @@ public class PropScatterTest {
             assertEquals(a.get(i).cellZ, b.get(i).cellZ);
         }
         List<StaticBatcher.Placement> other = new ArrayList<>();
-        PropScatter.scatter(TrackSpline.build(def, false, 5.5f), T, 12345L, true, other);
+        TrackSpline ts = TrackSpline.build(def, false, 5.5f);
+        PropScatter.scatter(ts, T, 12345L, true, other, Terrain.create(ts, T, 12345L, false), new ArrayList<PropScatter.Instance>());
         assertTrue(other.size() != a.size() || !java.util.Arrays.equals(other.get(0).matrix, a.get(0).matrix));
     }
 
@@ -139,8 +142,8 @@ public class PropScatterTest {
                 high += tris;
                 if (!T.props[rule].tierB) low += tris;
             }
-            assertTrue(def.id + " HIGH triangles " + high, high <= 6000);
-            assertTrue(def.id + " LOW triangles " + low, low <= 2500);
+            assertTrue(def.id + " HIGH triangles " + high, high <= 40000);
+            assertTrue(def.id + " LOW triangles " + low, low <= 16000);
         }
     }
 
@@ -154,7 +157,7 @@ public class PropScatterTest {
             List<StaticBatcher.Placement> all = new ArrayList<>();
             float[] ident = new float[16];
             com.wiggleplay.app.gl.Mat4.identity(ident);
-            List<MeshData> pieces = TrackMeshBuilder.build(t, T.road, pal);
+            List<MeshData> pieces = TrackMeshBuilder.build(t, T.road, pal, T.terrainSwatch(1));
             for (int i = 0; i < pieces.size(); i++) {
                 lib.put("trk_road_" + i, pieces.get(i));
                 MeshData.Part part = pieces.get(i).parts[0];
@@ -170,7 +173,17 @@ public class PropScatterTest {
                     lib.put(PropMeshes.name(T.props[r].kind, v), PropMeshes.build(T.props[r].kind, v, pal, T.propSwatches(r)));
                 }
             }
-            PropScatter.scatter(t, T, def.id.hashCode(), true, all);
+            Terrain terrain = Terrain.create(t, T, def.id.hashCode(), false);
+            for (Terrain.Tile tile : terrain.build(pal, T.terrainSwatch(0), T.terrainSwatch(1))) {
+                String name = "terrain_" + all.size();
+                lib.put(name, tile.mesh);
+                all.add(new StaticBatcher.Placement(name, ident, tile.cellX, tile.cellZ));
+            }
+            List<PropScatter.Instance> inst = new ArrayList<>();
+            PropScatter.scatter(t, T, def.id.hashCode(), true, all, terrain, inst);
+            java.util.LinkedHashMap<String, MeshData> shadowLib = new java.util.LinkedHashMap<>();
+            PropShadows.build(terrain, pal, T.terrainSwatch(0), inst, shadowLib, all);
+            lib.putAll(shadowLib);
             List<StaticBatcher.Chunk> chunks = StaticBatcher.build(all, new StaticBatcher.MeshLibrary() {
                 @Override
                 public MeshData get(String name) {
@@ -182,7 +195,7 @@ public class PropScatterTest {
                 assertTrue(def.id + " chunk vertices " + c.vertexCount, c.vertexCount < 65535);
                 tris += c.indexCount / 3;
             }
-            assertTrue(def.id + " whole static world " + tris + " triangles (limit 18,000 with patches)", tris <= 16000);
+            assertTrue(def.id + " whole static world " + tris + " triangles (limit 140,000)", tris <= 140000);
         }
     }
 }

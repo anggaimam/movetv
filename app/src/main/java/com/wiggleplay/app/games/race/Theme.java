@@ -69,8 +69,16 @@ public final class Theme {
         public final int sunDisc;
         /** Grain kinds ({@code DetailTexture.SAND} and so on) of the four tiles: ground, road, rock or aux, kerb and barrier; null = no grain. */
         public final int[] detail;
+        /** The shape and colours of the ground (T-29R R2); null keeps the flat ground grid and the patches. */
+        public final Terrain.Profile terrain;
 
         public Look(float[] skyAmb, float[] groundAmb, float[] sunColor, int zenith, int sunDisc, int[] detail) {
+            this(skyAmb, groundAmb, sunColor, zenith, sunDisc, detail, null);
+        }
+
+        public Look(float[] skyAmb, float[] groundAmb, float[] sunColor, int zenith, int sunDisc, int[] detail,
+                    Terrain.Profile terrain) {
+            this.terrain = terrain;
             this.skyAmb = skyAmb.clone();
             this.groundAmb = groundAmb.clone();
             this.sunColor = sunColor.clone();
@@ -103,7 +111,7 @@ public final class Theme {
         public final float minScale, maxScale;
         /** True for the filler tier, dropped on LOW quality (and in 2P). */
         public final boolean tierB;
-        /** Colours of the prop ({@code 0xRRGGBB}), the meaning of each is set by the kind. */
+        /** Colour ramps of the prop as pairs {@code dark, light} ({@code 0xRRGGBB}); the meaning of each pair is set by the kind. */
         public final int[] colors;
 
         public PropRule(int kind, float per100m, float minDist, float maxDist, float footprint, float minScale,
@@ -117,6 +125,11 @@ public final class Theme {
             this.maxScale = maxScale;
             this.tierB = tierB;
             this.colors = colors.clone();
+        }
+
+        /** Number of ramps (colour pairs). */
+        public int ramps() {
+            return colors.length / 2;
         }
     }
 
@@ -188,7 +201,7 @@ public final class Theme {
     /** First swatch of the sky: the three swatches follow the prop colours. */
     private int skyBase() {
         int n = SW_FIRST_RING + 2 * rings.length;
-        for (PropRule r : props) n += r.colors.length;
+        for (PropRule r : props) n += r.ramps();
         return n;
     }
 
@@ -233,7 +246,7 @@ public final class Theme {
      */
     public int propSwatch(int rule, int colorIndex) {
         int n = SW_FIRST_RING + 2 * rings.length;
-        for (int i = 0; i < rule; i++) n += props[i].colors.length;
+        for (int i = 0; i < rule; i++) n += props[i].ramps();
         return n + colorIndex;
     }
 
@@ -243,7 +256,7 @@ public final class Theme {
      * @return the swatches, one per colour
      */
     public int[] propSwatches(int rule) {
-        int[] out = new int[props[rule].colors.length];
+        int[] out = new int[props[rule].ramps()];
         for (int i = 0; i < out.length; i++) out[i] = propSwatch(rule, i);
         return out;
     }
@@ -275,7 +288,7 @@ public final class Theme {
      */
     public int fillPalette(PaletteSwatches p) {
         int count = SW_FIRST_RING + 2 * rings.length;
-        for (PropRule r : props) count += r.colors.length;
+        for (PropRule r : props) count += r.ramps();
         if (hasSky()) count += 3;
         if (count > PaletteSwatches.MAX) throw new IllegalStateException("theme " + id + " needs " + count + " swatches");
         road.paint(p);
@@ -289,13 +302,27 @@ public final class Theme {
             p.set(ringAccentSwatch(i), rings[i].accent != 0 ? rings[i].accent : rings[i].color);
         }
         for (int r = 0; r < props.length; r++) {
-            for (int c = 0; c < props[r].colors.length; c++) p.set(propSwatch(r, c), props[r].colors[c]);
+            for (int c = 0; c < props[r].ramps(); c++) p.setRamp(propSwatch(r, c), props[r].colors[2 * c], props[r].colors[2 * c + 1]);
         }
         if (hasSky()) {
             p.setRamp(skySwatch(0), horizon, look.zenith);
             p.set(skySwatch(1), look.sunDisc);
             p.setRamp(skySwatch(2), look.sunDisc, skyColorAt(sunElevationDeg() / 90f));
         }
+        if (look.terrain != null) {
+            p.setRamp(terrainSwatch(0), look.terrain.groundDark, look.terrain.groundLight);
+            p.setRamp(terrainSwatch(1), look.terrain.shoulderDark, look.terrain.shoulderLight);
+        }
         return count;
+    }
+
+    /**
+     * The terrain swatches (only with a terrain profile): 0 = the ground ramp, 1 = the packed shoulder ramp. They take the places of the
+     * flat ground and the first patch colour (16 and 17), which a terrain theme does not use; the shader gives blocks 16 to 18 the sand grain.
+     * @param k 0 or 1
+     * @return the swatch index
+     */
+    public int terrainSwatch(int k) {
+        return SW_GROUND + k;
     }
 }
