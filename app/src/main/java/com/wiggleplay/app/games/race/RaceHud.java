@@ -236,8 +236,9 @@ final class RaceHud {
         c.save();
         c.clipRect(ox, 0f, ox + Stage.W / 2f, Stage.H);
         c.translate(ox, 0f);
-        // the lap pill and the position badge sit under the score bubble
-        float x = 40f, y = 156f;
+        // the lap pill and the position badge sit under the score bubble (the outer corner of the half, clear of the shared minimap)
+        float x = side == 0 ? 40f : Stage.W / 2f - 40f - 220f, y = 156f;
+        float px0 = side == 0 ? 150f : Stage.W / 2f - 150f;
         rect.set(x, y, x + 220f, y + 72f);
         fill.setColor(playerColour);
         c.drawRoundRect(rect, 36f, 36f, fill);
@@ -247,17 +248,18 @@ final class RaceHud {
         String[] names = lapTotal == 2 ? LAP_OF_2 : LAP;
         Theme.drawCentered(c, names[Math.max(1, Math.min(names.length, lap)) - 1], x + 110f, y + 50f, 44f, INK);
         if (place > 0) {
-            rect.set(x, y + 90f, x + 140f, y + 90f + 72f);
+            float bx = side == 0 ? x : x + 220f - 140f;
+            rect.set(bx, y + 90f, bx + 140f, y + 90f + 72f);
             fill.setColor(playerColour);
             c.drawRoundRect(rect, 36f, 36f, fill);
-            Theme.drawCentered(c, PLACE[Math.min(2, place)], x + 70f, y + 90f + 52f, 48f, 0xFFFFFFFF);
+            Theme.drawCentered(c, PLACE[Math.min(2, place)], bx + 70f, y + 90f + 52f, 48f, 0xFFFFFFFF);
         }
         for (int i = 0; i < popups.size(); i++) {
             Popup p = popups.at(i);
             float k = 1f - p.life / 0.9f;
             float py = 330f + 20f * k * 4f;
-            Theme.drawCentered(c, PLUS[p.points], 150f, py + 3f, 48f, 0x66000000);
-            Theme.drawCentered(c, PLUS[p.points], 150f, py, 48f, p.points >= 3 ? 0xFFFFE066 : 0xFFFFFFFF);
+            Theme.drawCentered(c, PLUS[p.points], px0, py + 3f, 48f, 0x66000000);
+            Theme.drawCentered(c, PLUS[p.points], px0, py, 48f, p.points >= 3 ? 0xFFFFE066 : 0xFFFFFFFF);
         }
         // the steering icon, smaller, bottom centre of the half
         float cx = 480f, cy = 960f;
