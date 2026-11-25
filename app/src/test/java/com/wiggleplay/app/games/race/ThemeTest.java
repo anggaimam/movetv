@@ -66,12 +66,15 @@ public class ThemeTest {
         PaletteSwatches p = new PaletteSwatches();
         int n = Themes.DESERT.fillPalette(p);
         assertTrue(n <= PaletteSwatches.MAX);
-        assertEquals(Theme.SW_FIRST_RING + 2 * 3, n);
+        assertEquals(Theme.SW_FIRST_RING + 2 * 3 + 10, n);   // rings, then 2 colours for each of the 5 desert props
         Set<Integer> used = new HashSet<>();
         for (int i = 0; i < 10; i++) used.add(i); // the road
         for (int i = 0; i < Themes.DESERT.rings.length; i++) {
             assertTrue(used.add(Themes.DESERT.ringSwatch(i)));
             assertTrue(used.add(Themes.DESERT.ringAccentSwatch(i)));
+        }
+        for (int r = 0; r < Themes.DESERT.props.length; r++) {
+            for (int c = 0; c < Themes.DESERT.props[r].colors.length; c++) assertTrue(used.add(Themes.DESERT.propSwatch(r, c)));
         }
         for (int s : new int[] {Theme.SW_GROUND, Theme.SW_PATCH_A, Theme.SW_PATCH_B, Theme.SW_WHITE, Theme.SW_PALE_BLUE}) {
             assertTrue(s >= 16 && used.add(s));

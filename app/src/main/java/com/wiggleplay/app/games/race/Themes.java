@@ -17,7 +17,18 @@ public final class Themes {
                     new Theme.Ring(50f, 0xE2B57C, Theme.ROLLING, 0.6f, 2.2f, 96, 11L, false, 0),
                     new Theme.Ring(54f, 0xD99A6E, Theme.MESAS, 2f, 6f, 96, 12L, true, 0),
                     new Theme.Ring(57f, 0xEBC4A0, Theme.MESAS, 4f, 11f, 96, 13L, true, 0)},
-            0xE9DCC6, Theme.SLICK_WATER);
+            0xE9DCC6, Theme.SLICK_WATER,
+            new Theme.PropRule[] {
+                    new Theme.PropRule(PropMeshes.SAGUARO, 4f, 8f, 25f, 0.6f, 0.8f, 1.3f, false,
+                            new int[] {0x5E9B5A, 0x4B7F48}),
+                    new Theme.PropRule(PropMeshes.BUTTE, 0.5f, 22f, 38f, 7f, 0.8f, 1.2f, false,
+                            new int[] {0xCF8A5C, 0xE0A574}),
+                    new Theme.PropRule(PropMeshes.BARREL_CACTI, 4f, 7.7f, 20f, 0.8f, 0.8f, 1.2f, true,
+                            new int[] {0x6FA65F, 0xE8A598}),
+                    new Theme.PropRule(PropMeshes.ROCKS, 5f, 8.1f, 30f, 1.2f, 0.7f, 1.4f, true,
+                            new int[] {0xC98B5E, 0xB07450}),
+                    new Theme.PropRule(PropMeshes.JOSHUA_TREE, 1.5f, 10f, 30f, 1f, 0.8f, 1.2f, true,
+                            new int[] {0x8A7356, 0x7FA15A})});
 
     /**
      * The theme of a track.

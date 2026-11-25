@@ -53,6 +53,36 @@ public final class Theme {
         }
     }
 
+    /** One scatter rule of a theme (T-29 Part B): which prop, how many, how far from the road, how big. */
+    public static final class PropRule {
+        /** A {@link PropMeshes} kind. */
+        public final int kind;
+        /** Props per 100 m of lap. */
+        public final float per100m;
+        /** Distance from the centre line, nearest and farthest. {@code minDist} must be at least 6.4 + footprint + 0.5. */
+        public final float minDist, maxDist;
+        /** Radius used for spacing from the road and from other props. */
+        public final float footprint;
+        public final float minScale, maxScale;
+        /** True for the filler tier, dropped on LOW quality (and in 2P). */
+        public final boolean tierB;
+        /** Colours of the prop ({@code 0xRRGGBB}), the meaning of each is set by the kind. */
+        public final int[] colors;
+
+        public PropRule(int kind, float per100m, float minDist, float maxDist, float footprint, float minScale,
+                        float maxScale, boolean tierB, int[] colors) {
+            this.kind = kind;
+            this.per100m = per100m;
+            this.minDist = minDist;
+            this.maxDist = maxDist;
+            this.footprint = footprint;
+            this.minScale = minScale;
+            this.maxScale = maxScale;
+            this.tierB = tierB;
+            this.colors = colors.clone();
+        }
+    }
+
     public final String id;
     /** Clear colour (the upper sky). */
     public final int sky;
@@ -71,10 +101,19 @@ public final class Theme {
     public final int dust;
     /** {@link #SLICK_NONE}, {@link #SLICK_ICE} or {@link #SLICK_WATER} (T-31). */
     public final int slick;
+    /** The props scattered along the track (empty for none). */
+    public final PropRule[] props;
 
     public Theme(String id, int sky, int horizon, float fogNear, float fogFar, float[] sunDir, int ground, int patchA,
                  int patchB, int patchCount, float patchMinR, float patchMaxR, RoadStyle road, Ring[] rings, int dust,
                  int slick) {
+        this(id, sky, horizon, fogNear, fogFar, sunDir, ground, patchA, patchB, patchCount, patchMinR, patchMaxR, road,
+                rings, dust, slick, new PropRule[0]);
+    }
+
+    public Theme(String id, int sky, int horizon, float fogNear, float fogFar, float[] sunDir, int ground, int patchA,
+                 int patchB, int patchCount, float patchMinR, float patchMaxR, RoadStyle road, Ring[] rings, int dust,
+                 int slick, PropRule[] props) {
         this.id = id;
         this.sky = sky;
         this.horizon = horizon;
@@ -91,6 +130,30 @@ public final class Theme {
         this.rings = rings.clone();
         this.dust = dust;
         this.slick = slick;
+        this.props = props.clone();
+    }
+
+    /**
+     * The swatch of colour {@code colorIndex} of prop rule {@code rule} (they follow the rings).
+     * @param rule index into {@link #props}
+     * @param colorIndex index into that rule's colours
+     * @return the swatch index
+     */
+    public int propSwatch(int rule, int colorIndex) {
+        int n = SW_FIRST_RING + 2 * rings.length;
+        for (int i = 0; i < rule; i++) n += props[i].colors.length;
+        return n + colorIndex;
+    }
+
+    /**
+     * The swatch indices of one prop rule's colours.
+     * @param rule index into {@link #props}
+     * @return the swatches, one per colour
+     */
+    public int[] propSwatches(int rule) {
+        int[] out = new int[props[rule].colors.length];
+        for (int i = 0; i < out.length; i++) out[i] = propSwatch(rule, i);
+        return out;
     }
 
     /**
@@ -120,6 +183,7 @@ public final class Theme {
      */
     public int fillPalette(PaletteSwatches p) {
         int count = SW_FIRST_RING + 2 * rings.length;
+        for (PropRule r : props) count += r.colors.length;
         if (count > PaletteSwatches.MAX) throw new IllegalStateException("theme " + id + " needs " + count + " swatches");
         road.paint(p);
         p.set(SW_GROUND, ground);
@@ -130,6 +194,9 @@ public final class Theme {
         for (int i = 0; i < rings.length; i++) {
             p.set(ringSwatch(i), rings[i].color);
             p.set(ringAccentSwatch(i), rings[i].accent != 0 ? rings[i].accent : rings[i].color);
+        }
+        for (int r = 0; r < props.length; r++) {
+            for (int c = 0; c < props[r].colors.length; c++) p.set(propSwatch(r, c), props[r].colors[c]);
         }
         return count;
     }

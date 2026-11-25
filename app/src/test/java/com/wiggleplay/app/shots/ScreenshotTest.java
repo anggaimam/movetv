@@ -664,6 +664,12 @@ public class ScreenshotTest {
         check(BackdropShots.shootDesert());
     }
 
+    /** T-29 Part B: the Desert Dunes props on a top view of the track. */
+    @Test
+    public void desertPropsMap() throws Exception {
+        check(PropShots.shootDesert());
+    }
+
     /** T-23 Part C: the new coin and the golden star close up, turned 0, 35 and 75 degrees (a software drawing of the mesh). */
     @Test
     public void raceCoinCloseUp() throws Exception {

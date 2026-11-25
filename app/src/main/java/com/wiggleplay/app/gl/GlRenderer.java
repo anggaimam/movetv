@@ -156,6 +156,8 @@ public final class GlRenderer implements GLSurfaceView.Renderer {
     private int fogRgb = -1;   // -1: the fog colour is the sky colour
     private final float[] sun = {Shaders.SUN_X / SUN_LEN, Shaders.SUN_Y / SUN_LEN, Shaders.SUN_Z / SUN_LEN};
     private float fogNear = 25f, fogFar = 55f;
+    /** Chunks entirely farther than this from a viewport's eye are skipped; 0 = off. */
+    private float chunkCull;
     private int viewports = 1;
     private final float[][] camEye = {{0f, 3f, -6f}, {0f, 3f, -6f}};
     private final float[][] camTarget = {{0f, 1f, 4f}, {0f, 1f, 4f}};
@@ -220,6 +222,12 @@ public final class GlRenderer implements GLSurfaceView.Renderer {
         synchronized (lock) {
             fogNear = near;
             fogFar = Math.max(far, near + 0.01f);
+        }
+    }
+
+    void setChunkCullDistance(float metres) {
+        synchronized (lock) {
+            chunkCull = Math.max(0f, metres);
         }
     }
 
@@ -322,7 +330,7 @@ public final class GlRenderer implements GLSurfaceView.Renderer {
         for (GlMesh m : chunks) if (m != null && !m.isUploaded()) m.upload();
 
         int sky, fog, nv;
-        float fn, ff;
+        float fn, ff, cullDist;
         float sx, sy, sz;
         RenderList list;
         synchronized (lock) {
@@ -333,6 +341,7 @@ public final class GlRenderer implements GLSurfaceView.Renderer {
             sz = sun[2];
             fn = fogNear;
             ff = fogFar;
+            cullDist = chunkCull;
             nv = viewports;
             for (int v = 0; v < 2; v++) {
                 System.arraycopy(camEye[v], 0, snapEye[v], 0, 3);
@@ -391,6 +400,10 @@ public final class GlRenderer implements GLSurfaceView.Renderer {
                 if (!frustum.sphereVisible(spheres[s], spheres[s + 1], spheres[s + 2], spheres[s + 3])) continue;
                 float dx = spheres[s] - eye[0], dy = spheres[s + 1] - eye[1], dz = spheres[s + 2] - eye[2];
                 float d2 = dx * dx + dy * dy + dz * dz;
+                if (cullDist > 0f) {
+                    float lim = cullDist + spheres[s + 3];
+                    if (d2 > lim * lim) continue;
+                }
                 int j = visible++;
                 while (j > 0 && dist[j - 1] > d2) {
                     dist[j] = dist[j - 1];

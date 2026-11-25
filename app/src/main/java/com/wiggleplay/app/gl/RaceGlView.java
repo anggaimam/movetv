@@ -279,6 +279,15 @@ public final class RaceGlView extends GLSurfaceView {
     }
 
     /**
+     * Skips static chunks that lie entirely farther than this from a viewport's eye (T-29 Part B; the 2P rule uses 45 m).
+     * Off (0) by default, so 1P is unchanged.
+     * @param metres distance from the eye, 0 or less to turn it off
+     */
+    public void setChunkCullDistance(float metres) {
+        renderer.setChunkCullDistance(metres);
+    }
+
+    /**
      * The speed numbers of the GL thread.
      * @return the stats (read from any thread)
      */

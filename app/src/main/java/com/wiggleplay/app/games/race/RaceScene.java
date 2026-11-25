@@ -201,6 +201,19 @@ public final class RaceScene implements Scene {
                 gl.addMesh(name, GroundPatches.mesh(pt, pal));
                 all.add(new StaticBatcher.Placement(name, ident, (int) Math.floor(pt.x / CELL), (int) Math.floor(pt.z / CELL)));
             }
+            // T-29 Part B: props scattered by fixed rules on the forward track (same layout in both directions); the filler
+            // tier is left out on LOW (and, with T-24, in 2P)
+            boolean tierB = !low;
+            for (int r = 0; r < theme.props.length; r++) {
+                Theme.PropRule rule = theme.props[r];
+                if (rule.tierB && !tierB) continue;
+                for (int v = 0; v < PropMeshes.variants(rule.kind); v++) {
+                    gl.addMesh(PropMeshes.name(rule.kind, v), PropMeshes.build(rule.kind, v, pal, theme.propSwatches(r)));
+                }
+            }
+            TrackSpline forward = TrackChoice.reversed()
+                    ? TrackSpline.build(TrackChoice.def(), false, raceLevel) : layout;
+            PropScatter.scatter(forward, theme, TrackChoice.def().id.hashCode(), tierB, all);
             ringCount = 0;
             for (int i = 0; i < theme.rings.length && ringCount < ringId.length; i++) {
                 if (low && !theme.rings[i].low) continue;
