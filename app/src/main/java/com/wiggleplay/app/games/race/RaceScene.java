@@ -205,7 +205,7 @@ public final class RaceScene implements Scene {
             // tier is left out on LOW (and, with T-24, in 2P)
             boolean tierB = !low;
             for (int r = 0; r < theme.props.length; r++) {
-                Theme.PropRule rule = theme.props[r];
+                com.wiggleplay.app.games.race.Theme.PropRule rule = theme.props[r];
                 if (rule.tierB && !tierB) continue;
                 for (int v = 0; v < PropMeshes.variants(rule.kind); v++) {
                     gl.addMesh(PropMeshes.name(rule.kind, v), PropMeshes.build(rule.kind, v, pal, theme.propSwatches(r)));
