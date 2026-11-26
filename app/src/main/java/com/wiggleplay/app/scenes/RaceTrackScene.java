@@ -66,8 +66,7 @@ public final class RaceTrackScene implements Scene {
             tiles.add(cards[i]);
         }
         // T-34: one on/off switch for the direction, beside the settings gear
-        dirTile = new TileMenu.Tile("dir", "Other way", null, Theme.PAPER, null, 1290f, 20f, 300f, 300f);
-        dirTile.setCustom(directionBitmap());
+        dirTile = RoundButton.direction(1920f - RoundButton.CORNER_X - 260f, RoundButton.CORNER_Y, reversed);
         tiles.add(dirTile);
         menu.setTiles(tiles, "t_" + last);
         env.say("Pick a track");
@@ -91,7 +90,7 @@ public final class RaceTrackScene implements Scene {
 
     private void showDirection() {
         for (int i = 0; i < cards.length; i++) cards[i].setCustom(cardBitmap(TrackDefs.ALL[i]));
-        dirTile.setCustom(directionBitmap());
+        RoundButton.setDirection(dirTile, reversed);
     }
 
     @Override

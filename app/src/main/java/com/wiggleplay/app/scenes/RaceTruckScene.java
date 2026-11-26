@@ -287,13 +287,17 @@ public final class RaceTruckScene implements Scene {
     public void draw(Canvas c) {
         drawGarage(c);
         if (np == 1) {
-            Theme.drawBanner(c, "Pick Your Truck", 700f, 110f, 72f, 0xE6F3EBDD, Theme.INK);
-            Theme.drawCentered(c, name(0), 700f, 226f, 38f, 0xFFE9EEF2);
+            Theme.drawBanner(c, "Pick Your Truck", Stage.W / 2f, 110f, 72f, 0xE6F3EBDD, Theme.INK);
+            Theme.drawCentered(c, name(0), Stage.W / 2f, 226f, 38f, 0xFFE9EEF2);
         } else {
-            Theme.drawBanner(c, "Pick Your Truck", 700f, 110f, 72f, 0xE6F3EBDD, Theme.INK);
+            Theme.drawBanner(c, "Pick Your Truck", Stage.W / 2f, 110f, 72f, 0xE6F3EBDD, Theme.INK);
             for (int p = 0; p < 2; p++) {
                 Theme.drawCentered(c, name(p), p * 960f + 480f, 606f, 38f, 0xFFE9EEF2);
             }
+        }
+        if (np == 2) {   // the divider between the two halves, under the buttons
+            paintFill.setColor(Theme.INK);
+            c.drawRect(Stage.W / 2f - 3f, 330f, Stage.W / 2f + 3f, Stage.H, paintFill);
         }
         menu.draw(c);
         for (int p = 0; p < np; p++) {
@@ -306,8 +310,6 @@ public final class RaceTruckScene implements Scene {
             if (!(ready[0] && ready[1]) && (ready[0] || ready[1])) {
                 Theme.drawBanner(c, "Waiting for the other player", Stage.W / 2f, 1036f, 40f, 0xE6F3EBDD, Theme.INK);
             }
-            paintFill.setColor(Theme.INK);
-            c.drawRect(Stage.W / 2f - 3f, 330f, Stage.W / 2f + 3f, Stage.H, paintFill);   // the divider between the two halves
             if (left <= 5 && left > 0) Theme.drawCentered(c, String.valueOf(left), Stage.W / 2f, 420f, 90f, 0xFFF2C572);
         }
     }

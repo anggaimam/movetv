@@ -115,6 +115,38 @@ public final class RoundButton {
         return t;
     }
 
+    private static boolean dirReversed;
+
+    /**
+     * The "other way" button of the track screen: a round button with a turn-around arrow, lit green while the track runs
+     * the other way. Same size as Back and Settings.
+     * @param cx centre x
+     * @param cy centre y
+     * @return a tile with id "dir"
+     */
+    public static TileMenu.Tile direction(float cx, float cy, boolean reversed) {
+        dirReversed = reversed;
+        return make("dir", "Other way", "dir", cx, cy);
+    }
+
+    /** Shows the new state on a button made by {@link #direction}. */
+    public static void setDirection(TileMenu.Tile t, boolean reversed) {
+        dirReversed = reversed;
+        bake(t);
+    }
+
+    private static void paintTurn(Canvas c, int w, int h, boolean on) {
+        LINE.setColor(on ? 0xFFB5E0A8 : Theme.PAPER);
+        LINE.setStrokeWidth(w * 0.08f);
+        RectF r = new RectF(w * 0.28f, h * 0.30f, w * 0.72f, h * 0.74f);
+        c.drawArc(r, 200f, 280f, false, LINE);                 // a loop that turns back on itself
+        Path p = new Path();
+        p.moveTo(w * 0.18f, h * 0.40f);
+        p.lineTo(w * 0.29f, h * 0.55f);
+        p.lineTo(w * 0.42f, h * 0.40f);
+        c.drawPath(p, LINE);
+    }
+
     private static TileMenu.Tile make(String id, String title, String kind, float cx, float cy) {
         TileMenu.Tile t = new TileMenu.Tile(id, title, null, Theme.INK, null, cx - HIT / 2f, cy - HIT / 2f, HIT, HIT);
         t.round = true;
@@ -126,7 +158,9 @@ public final class RoundButton {
     static void bake(TileMenu.Tile t) {
         final boolean home = "home".equals(t.id);
         final boolean gear = "settings".equals(t.id);
-        t.body = SpriteCache.shared().get("round_body_" + (home ? "home" : gear ? "settings" : "back"),
+        final boolean dir = "dir".equals(t.id);
+        final boolean dirOn = dirReversed;
+        t.body = SpriteCache.shared().get("round_body_" + (home ? "home" : gear ? "settings" : dir ? "dir" + dirOn : "back"),
                 (int) DIAMETER, (int) DIAMETER,
                 (c, w, h) -> {
                     FILL.setColor(Theme.INK);
@@ -134,7 +168,7 @@ public final class RoundButton {
                     LINE.setColor(0x33FFFFFF);
                     LINE.setStrokeWidth(5f);
                     c.drawCircle(w / 2f, h / 2f, w / 2f - 12f, LINE);
-                    if (home) paintHouse(c, w, h); else if (gear) paintGear(c, w, h); else paintArrow(c, w, h);
+                    if (home) paintHouse(c, w, h); else if (gear) paintGear(c, w, h); else if (dir) paintTurn(c, w, h, dirOn); else paintArrow(c, w, h);
                 });
         t.shadow = SpriteCache.shared().get("round_shadow", (int) DIAMETER, (int) DIAMETER, (c, w, h) -> {
             FILL.setColor(0xCC1B232B);
