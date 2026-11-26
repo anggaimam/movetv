@@ -662,6 +662,15 @@ public class ScreenshotTest {
                 (frame, now, body, input) -> { }));
     }
 
+    /** T-34: the Pick Your Truck screen, one player (flat stand-in for the 3D truck) and two players, plus the track screen. */
+    @Test
+    public void raceTruckScreen() throws Exception {
+        check(ShotRig.shoot("race_truck_1p", new com.wiggleplay.app.scenes.RaceTruckScene(env(), null),
+                Scene.SceneArgs.of("level", 2, "players", 1), 1, 40, null));
+        check(ShotRig.shoot("race_truck_2p", new com.wiggleplay.app.scenes.RaceTruckScene(env(), null),
+                Scene.SceneArgs.of("level", 2, "players", 2), 2, 40, null));
+    }
+
     /** T-28 Part D: the race HUD with the minimap of a reversed track and the two-lap pill. */
     @Test
     public void raceReversedTrackHud() throws Exception {

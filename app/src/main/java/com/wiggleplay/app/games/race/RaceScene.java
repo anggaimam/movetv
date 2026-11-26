@@ -84,6 +84,7 @@ public final class RaceScene implements Scene {
     private SteerInput steerIn2 = steerModes2[2];
     private final RaceHud raceHud2 = new RaceHud();
     private int np = 1;
+    private final int[] pickTruck = new int[2], pickPaint = new int[2];   // T-34
     private float noneT2;
     private float finalT2 = 99f;
     private PlayerPose introPose2;
@@ -182,6 +183,11 @@ public final class RaceScene implements Scene {
         level = Math.max(1, Math.min(3, args.getInt("level", 1)));
         raceLevel = RaceLevel.fromNumber(level);
         np = args.getInt("players", env.players) == 2 ? 2 : 1;   // T-24
+        int own = env.profile != null ? com.wiggleplay.app.core.ProfileLogic.raceTruckIndex(env.profile.raceTruck()) : 0;
+        pickTruck[0] = Math.floorMod(args.getInt("truck0", own), 4);
+        pickTruck[1] = Math.floorMod(args.getInt("truck1", own + 1), 4);
+        pickPaint[0] = TruckPaints.clean(args.getInt("paint0", env.profile != null ? env.profile.racePaint() : 0));
+        pickPaint[1] = TruckPaints.clean(args.getInt("paint1", 0));
         long built0 = SystemClock.uptimeMillis();
         worldReady = false;
         pendingWorld = null;
@@ -202,9 +208,10 @@ public final class RaceScene implements Scene {
             nitroId = gl.addMesh("nitro", ProcMesh.nitroCan());
             magnetId = gl.addMesh("magnet", ProcMesh.magnet());
             // T-32 Part B: the player drives the saved colour, the three scenery trucks the next three in the order yellow, red, green, purple
-            int mine = env.profile != null ? com.wiggleplay.app.core.ProfileLogic.raceTruckIndex(env.profile.raceTruck()) : 0;
+            // T-34: the Pick Your Truck screen passes each player's truck and paint; the scenery trucks follow player 1's model
+            int mine = pickTruck[0];
             for (int t = 0; t < 4; t++) {
-                truckId[t] = gl.meshId(TRUCK_MESH[(mine + t) % 4]);
+                truckId[t] = gl.meshId(TRUCK_MESH[t < np ? pickTruck[t] : (mine + t) % 4]);
                 truckData[t] = gl.meshData(truckId[t]);
                 for (int p = 0; p < 6; p++) partIdx[t][p] = truckData[t].partIndex(PART_NAMES[p]);
             }
@@ -971,7 +978,7 @@ public final class RaceScene implements Scene {
                 Mat4.multiply(mC, mB, mR);
                 list.add(truckId[t], partIdx[t][p], mC, 0, false, vm);
             } else {
-                list.add(truckId[t], partIdx[t][p], mB, 0, false, vm);
+                list.add(truckId[t], partIdx[t][p], mB, t < np ? TruckPaints.renderColour(pickPaint[t]) : 0, false, vm);   // T-34: paint
             }
         }
         Mat4.translate(mA, x, 0.06f, z);

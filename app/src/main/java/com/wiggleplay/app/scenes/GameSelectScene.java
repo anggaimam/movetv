@@ -157,7 +157,7 @@ public final class GameSelectScene implements Scene {
             showPage(more ? sel : null);
             return;
         }
-        if (sel != null) env.go("race".equals(sel) ? "racetrack" : "players", SceneArgs.of("gameId", sel));   // T-32: Turbo Trucks picks its track first
+        if (sel != null) env.go("players", SceneArgs.of("gameId", sel));
     }
 
     @Override

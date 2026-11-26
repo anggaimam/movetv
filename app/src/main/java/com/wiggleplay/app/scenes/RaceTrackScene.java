@@ -28,7 +28,7 @@ import java.util.List;
 public final class RaceTrackScene implements Scene {
 
     private static final String CARD_PREFIX = "race_card_";
-    private static final float CARD_Y = 220f, DIR_Y = 850f;
+    private static final float CARD_Y = 330f;
     private static final float[] CARD_X = {90f, 530f, 970f, 1410f};
 
     private final TileMenu.Env env;
@@ -37,7 +37,8 @@ public final class RaceTrackScene implements Scene {
     private float time;
     private boolean reversed;
     private final TileMenu.Tile[] cards = new TileMenu.Tile[4];
-    private TileMenu.Tile thisWay, otherWay;
+    private TileMenu.Tile dirTile;
+    private int level = 1, players = 1;
 
     /**
      * Creates the screen.
@@ -51,6 +52,8 @@ public final class RaceTrackScene implements Scene {
     @Override
     public void enter(SceneArgs args) {
         env.menuMusic();
+        level = args.getInt("level", 1);
+        players = args.getInt("players", 1);
         reversed = env.profile != null && env.profile.raceReversed();
         String last = env.profile != null ? env.profile.raceTrack() : TrackChoice.def().id;
         List<TileMenu.Tile> tiles = new ArrayList<>();
@@ -62,12 +65,10 @@ public final class RaceTrackScene implements Scene {
             cards[i].setCustom(cardBitmap(def));
             tiles.add(cards[i]);
         }
-        thisWay = new TileMenu.Tile("dir_this", "This way", null, Theme.PAPER, null, 630f, DIR_Y, 300f, 110f);
-        otherWay = new TileMenu.Tile("dir_other", "Other way", null, Theme.PAPER, null, 990f, DIR_Y, 300f, 110f);
-        thisWay.setCustom(directionBitmap(false));
-        otherWay.setCustom(directionBitmap(true));
-        tiles.add(thisWay);
-        tiles.add(otherWay);
+        // T-34: one on/off switch for the direction, beside the settings gear
+        dirTile = new TileMenu.Tile("dir", "Other way", null, Theme.PAPER, null, 1290f, 20f, 300f, 300f);
+        dirTile.setCustom(directionBitmap());
+        tiles.add(dirTile);
         menu.setTiles(tiles, "t_" + last);
         env.say("Pick a track");
     }
@@ -82,16 +83,15 @@ public final class RaceTrackScene implements Scene {
                 (c, w, h) -> TrackCardArt.paint(c, def, rev, best));
     }
 
-    private Bitmap directionBitmap(final boolean other) {
-        final boolean ticked = other == reversed;
-        return SpriteCache.shared().get(CARD_PREFIX + "dir_" + (other ? "o" : "t") + (ticked ? "1" : "0"), 300, 110,
-                (c, w, h) -> TrackCardArt.paintDirection(c, other, ticked));
+    private Bitmap directionBitmap() {
+        final boolean rev = reversed;
+        return SpriteCache.shared().get(CARD_PREFIX + "dir_" + (rev ? "1" : "0"), 300, 300,
+                (c, w, h) -> TrackCardArt.paintDirectionToggle(c, w, h, rev));
     }
 
     private void showDirection() {
         for (int i = 0; i < cards.length; i++) cards[i].setCustom(cardBitmap(TrackDefs.ALL[i]));
-        thisWay.setCustom(directionBitmap(false));
-        otherWay.setCustom(directionBitmap(true));
+        dirTile.setCustom(directionBitmap());
     }
 
     @Override
@@ -106,7 +106,7 @@ public final class RaceTrackScene implements Scene {
         String sel = menu.update(dt, f);
         if (f.input.pressed(KeyEvent.KEYCODE_BACK) || "back".equals(sel)) {
             env.sfx("back");
-            env.go("gameselect", SceneArgs.EMPTY);
+            env.go("levelselect", SceneArgs.of("gameId", "race", "players", players));
             return;
         }
         if ("settings".equals(sel)) {
@@ -115,13 +115,10 @@ public final class RaceTrackScene implements Scene {
             return;
         }
         if (sel == null) return;
-        if ("dir_this".equals(sel) || "dir_other".equals(sel)) {
-            boolean want = "dir_other".equals(sel);
-            if (want != reversed) {
-                reversed = want;
-                if (env.profile != null) env.profile.setRaceReversed(reversed);
-                showDirection();
-            }
+        if ("dir".equals(sel)) {
+            reversed = !reversed;
+            if (env.profile != null) env.profile.setRaceReversed(reversed);
+            showDirection();
             env.sfx("select");
             return;
         }
@@ -133,7 +130,7 @@ public final class RaceTrackScene implements Scene {
                 }
                 TrackChoice.set(i * 2 + (reversed ? 1 : 0));
                 env.sfx("select");
-                env.go("players", SceneArgs.of("gameId", "race"));
+                env.go("racetruck", SceneArgs.of("gameId", "race", "level", level, "players", players));
                 return;
             }
         }
@@ -142,7 +139,7 @@ public final class RaceTrackScene implements Scene {
     @Override
     public void draw(Canvas c) {
         Theme.drawBackdrop(c, camera, time);
-        Theme.drawBanner(c, "Pick a track", Stage.W / 2f, 110f, 72f, 0xE6F3EBDD, Theme.INK);
+        Theme.drawBanner(c, "Pick a track", 700f, 110f, 72f, 0xE6F3EBDD, Theme.INK);
         menu.draw(c);
         Theme.drawBanner(c, "Hold your hand on a track to pick it", Stage.W / 2f, 1036f, 40f, 0xE6F3EBDD, Theme.INK);
     }

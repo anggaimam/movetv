@@ -94,6 +94,19 @@ public final class RoundButton {
     /** Width and height of a page-arrow zone: as tall as the game tiles, so it is easy to reach. */
     public static final float PAGER_W = 200f, PAGER_H = 520f;
 
+    /**
+     * A page-style arrow with its own id (for screens with two of each, such as a split screen). An id that starts with
+     * "next" points right, any other points left.
+     * @param id the tile id
+     * @param title the spoken name
+     * @param cx centre x
+     * @param cy centre y
+     * @return the tile
+     */
+    public static TileMenu.Tile arrow(String id, String title, float cx, float cy) {
+        return pageArrow(id, title, cx, cy);
+    }
+
     private static TileMenu.Tile pageArrow(String id, String title, float cx, float cy) {
         TileMenu.Tile t = new TileMenu.Tile(id, title, null, Theme.INK, null, cx - PAGER_W / 2f, cy - PAGER_H / 2f,
                 PAGER_W, PAGER_H);
@@ -265,7 +278,7 @@ public final class RoundButton {
             LINE.setColor(((int) (hv * 0x66) << 24) | (Theme.INK & 0x00FFFFFF));
             c.drawRoundRect(R, 56f, 56f, LINE);
         }
-        float dir = "next".equals(t.id) ? 1f : -1f, nudge = hv * 6f * dir, hw = 34f, hh = 70f;
+        float dir = t.id.startsWith("next") ? 1f : -1f, nudge = hv * 6f * dir, hw = 34f, hh = 70f;
         CHEV.reset();
         CHEV.moveTo(cx - dir * hw + nudge, cy - hh);
         CHEV.lineTo(cx + dir * hw + nudge, cy);

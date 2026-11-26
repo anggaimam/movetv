@@ -14,7 +14,7 @@ import java.util.Map;
 public final class Profile {
 
     private static final String FILE = "movetv_profile";
-    private static final String K_HOLD = "hold_ms", K_PLAYERS = "players", K_BOOST = "light_boost", K_POINTER = "pointer", K_DANCE_CAM = "dance_camera", K_RACE_STEER = "race_steer", K_QUALITY = "quality", K_RACE_TRACK = "raceTrack", K_RACE_REVERSED = "raceReversed", K_RACE_TRUCK = "raceTruck";
+    private static final String K_HOLD = "hold_ms", K_PLAYERS = "players", K_BOOST = "light_boost", K_POINTER = "pointer", K_DANCE_CAM = "dance_camera", K_RACE_STEER = "race_steer", K_QUALITY = "quality", K_RACE_TRACK = "raceTrack", K_RACE_REVERSED = "raceReversed", K_RACE_TRUCK = "raceTruck", K_RACE_PAINT = "raceTruckPaint";
 
     private final SharedPreferences prefs;
 
@@ -222,6 +222,22 @@ public final class Profile {
      */
     public void setRaceTruck(String colour) {
         prefs.edit().putString(K_RACE_TRUCK, ProfileLogic.cleanRaceTruck(colour)).apply();
+    }
+
+    /**
+     * The paint job of the Turbo Trucks truck (T-34).
+     * @return 0 (the truck's own colours) to 5
+     */
+    public int racePaint() {
+        return com.wiggleplay.app.games.race.TruckPaints.clean(ProfileLogic.cleanInt(prefs.getAll().get(K_RACE_PAINT)));
+    }
+
+    /**
+     * Saves the paint job of the Turbo Trucks truck.
+     * @param paint 0 to 5 (anything else is saved as 0)
+     */
+    public void setRacePaint(int paint) {
+        prefs.edit().putInt(K_RACE_PAINT, com.wiggleplay.app.games.race.TruckPaints.clean(paint)).apply();
     }
 
     /**

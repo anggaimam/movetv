@@ -318,6 +318,41 @@ public final class TrackCardArt {
      * @param reversed false for "This way", true for "Other way"
      * @param ticked true for the chosen direction
      */
+    public static void paintDirectionToggle(Canvas c, int w, int h, boolean reversed) {
+        Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
+        RectF r = new RectF(6f, 6f, w - 6f, h - 6f);
+        p.setStyle(Paint.Style.FILL);
+        p.setColor(PAPER);
+        c.drawRoundRect(r, 44f, 44f, p);
+        p.setStyle(Paint.Style.STROKE);
+        p.setStrokeWidth(6f);
+        p.setColor(INK);
+        c.drawRoundRect(r, 44f, 44f, p);
+        Theme.drawCentered(c, "Other way", w / 2f, 84f, 44f, INK);
+        // the on/off switch: green with the knob on the right when the track runs the other way
+        float sw = 150f, sh = 76f, sx = (w - sw) / 2f, sy = 120f;
+        RectF track = new RectF(sx, sy, sx + sw, sy + sh);
+        p.setStyle(Paint.Style.FILL);
+        p.setColor(reversed ? Theme.SAGE : 0xFFBFB6A6);
+        c.drawRoundRect(track, sh / 2f, sh / 2f, p);
+        p.setStyle(Paint.Style.STROKE);
+        p.setStrokeWidth(5f);
+        p.setColor(INK);
+        c.drawRoundRect(track, sh / 2f, sh / 2f, p);
+        p.setStyle(Paint.Style.FILL);
+        p.setColor(0xFFFFFFFF);
+        c.drawCircle(reversed ? sx + sw - sh / 2f : sx + sh / 2f, sy + sh / 2f, sh / 2f - 8f, p);
+        p.setStyle(Paint.Style.STROKE);
+        c.drawCircle(reversed ? sx + sw - sh / 2f : sx + sh / 2f, sy + sh / 2f, sh / 2f - 8f, p);
+        Theme.drawCentered(c, reversed ? "On" : "Off", w / 2f, 250f, 40f, INK);
+    }
+
+    /**
+     * Older two-tile direction picture (kept for the screenshot rig).
+     * @param c canvas
+     * @param reversed true for the "Other way" tile
+     * @param ticked true for the chosen direction
+     */
     public static void paintDirection(Canvas c, boolean reversed, boolean ticked) {
         Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
         RectF r = new RectF(3f, 3f, 297f, 107f);

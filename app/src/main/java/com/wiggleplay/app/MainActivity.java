@@ -179,6 +179,7 @@ public class MainActivity extends Activity {
         gameView.setGlView(raceGl);
         // the race needs the GL view, which is made after the other scenes
         scenes.register("race", settings.host(new com.wiggleplay.app.games.race.RaceScene(env, raceGl)));
+        scenes.register("racetruck", settings.host(new com.wiggleplay.app.scenes.RaceTruckScene(env, raceGl)));   // T-34
         root = new FrameLayout(this);
         root.setBackgroundColor(android.graphics.Color.BLACK);
         root.addView(raceGl, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,

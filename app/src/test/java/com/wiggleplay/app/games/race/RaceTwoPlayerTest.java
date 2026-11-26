@@ -128,4 +128,16 @@ public class RaceTwoPlayerTest {
         float after = (float) Math.hypot(b.x() - a.x(), b.z() - a.z());
         assertTrue("not pushed apart: " + before + " -> " + after, after < 1.5f);
     }
+
+    @Test
+    public void paintJobsStayInRangeAndOnlyFactoryKeepsTheTruckColours() {
+        assertEquals(0, TruckPaints.clean(-1));
+        assertEquals(0, TruckPaints.clean(TruckPaints.RGB.length));
+        assertEquals(3, TruckPaints.clean(3));
+        assertEquals(0, TruckPaints.renderColour(0));
+        assertEquals(0, TruckPaints.renderColour(99));
+        assertEquals(0x014FA8E8, TruckPaints.renderColour(1));
+        assertEquals(TruckPaints.RGB.length, TruckPaints.NAMES.length);
+        assertEquals(4, TruckPaints.TRUCK_NAMES.length);
+    }
 }

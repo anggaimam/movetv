@@ -117,6 +117,15 @@ public final class ProfileLogic {
     }
 
     /**
+     * Reads a saved whole number.
+     * @param o the saved value (anything, even null)
+     * @return the number, or 0 when it is not a number
+     */
+    public static int cleanInt(Object o) {
+        return o instanceof Integer ? (Integer) o : 0;
+    }
+
+    /**
      * The position of a truck colour in {@link #RACE_TRUCKS}.
      * @param cur a saved colour (anything, even null)
      * @return 0 (yellow), 1 (red), 2 (green) or 3 (purple)

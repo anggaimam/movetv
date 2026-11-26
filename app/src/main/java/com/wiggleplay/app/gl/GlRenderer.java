@@ -44,6 +44,9 @@ public final class GlRenderer implements GLSurfaceView.Renderer {
     // ---- <plain-java> (no Android classes inside: the unit tests extract and run this part) ----
 
     /** Opacity of an item from its colour: bits 24..31 are the alpha, where 0 and 255 both mean fully opaque. */
+    /** A textured (not flat) item whose colour has this in bits 24..31 is painted: texture brightness times the colour. */
+    public static final int TINT_FLAG = 1;
+
     static float alphaOf(int colorRgb) {
         int a = (colorRgb >>> 24) & 0xFF;
         return (a == 0 || a == 255) ? 1f : a / 255f;
@@ -561,6 +564,9 @@ public final class GlRenderer implements GLSurfaceView.Renderer {
                     }
                     if (flat) {
                         GLES20.glUniform1f(uFlat, 1f);
+                        GLES20.glUniform3f(uColor, ((color >> 16) & 0xFF) / 255f, ((color >> 8) & 0xFF) / 255f, (color & 0xFF) / 255f);
+                    } else if ((color >>> 24) == TINT_FLAG) {   // T-34: the texture's light and dark, in one paint colour
+                        GLES20.glUniform1f(uFlat, 2f);
                         GLES20.glUniform3f(uColor, ((color >> 16) & 0xFF) / 255f, ((color >> 8) & 0xFF) / 255f, (color & 0xFF) / 255f);
                     } else {
                         GLES20.glUniform1f(uFlat, 0f);
