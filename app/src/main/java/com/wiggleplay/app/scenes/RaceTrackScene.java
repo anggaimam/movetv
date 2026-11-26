@@ -28,7 +28,7 @@ import java.util.List;
 public final class RaceTrackScene implements Scene {
 
     private static final String CARD_PREFIX = "race_card_";
-    private static final float CARD_Y = 330f;
+    private static final float CARD_Y = 350f;
     private static final float[] CARD_X = {90f, 530f, 970f, 1410f};
 
     private final TileMenu.Env env;
