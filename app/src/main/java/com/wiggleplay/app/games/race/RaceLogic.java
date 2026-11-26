@@ -58,6 +58,7 @@ public final class RaceLogic {
     private final float[] meter = {1f, 1f};
     private final float[] boostLeft = new float[2];
     private final boolean[] boosting = new boolean[2];
+    private final int[] bonus = new int[2];
     private final int[] score = new int[2], offered = new int[2], laps = new int[2], finishPlace = new int[2];
     private final float[] lastS = new float[2], progress = new float[2], sinceCount = new float[2], finishTime = new float[2];
     private final boolean[] finished = new boolean[2];
@@ -233,6 +234,7 @@ public final class RaceLogic {
             if (laps[p] >= lapTotal) {
                 finished[p] = true;
                 finishTime[p] = time;
+                bonus[p] = timeBonus(time, lapTotal * lap / level.baseSpeed);
                 finishPlace[p] = ++finishedCount;
                 if (firstFinishTime < 0f) firstFinishTime = time;
             }
@@ -403,7 +405,24 @@ public final class RaceLogic {
      * @param p player 0 or 1
      * @return coins plus 5 per star, never negative
      */
-    public int score(int p) { return score[p]; }
+    public int score(int p) { return score[p] + bonus[p]; }
+
+    /** Most points an early finish can earn. */
+    public static final int MAX_TIME_BONUS = 40;
+    /** The time budget is this many times the time the laps take at normal speed. */
+    public static final float BUDGET_FACTOR = 1.3f;
+
+    /** Early-finish bonus: {@link #MAX_TIME_BONUS} with 40% or more of the budget left, falling in a line to 0 at the budget. */
+    public static int timeBonus(float finishTime, float baseTime) {
+        float budget = baseTime * BUDGET_FACTOR;
+        if (budget <= 0f) return 0;
+        float left = 1f - finishTime / budget;
+        if (left <= 0f) return 0;
+        return Math.round(MAX_TIME_BONUS * Math.min(1f, left / 0.4f));
+    }
+
+    /** Points from the early finish alone (already part of {@link #score(int)}). */
+    public int timeBonus(int p) { return bonus[p]; }
 
     /**
      * Points offered to this player so far (collected, or driven past).

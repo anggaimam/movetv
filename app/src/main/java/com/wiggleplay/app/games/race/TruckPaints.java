@@ -22,10 +22,11 @@ public final class TruckPaints {
     /**
      * The colour value to give the render list for a paint job on the body and accessories.
      * @param paint a paint job number (anything out of range counts as Factory)
+     * @param truck the truck number 0..3 (the renderer finds that truck's body colour from it)
      * @return 0 for the truck's own colours, else the colour with the paint flag set
      */
-    public static int renderColour(int paint) {
-        return paint > 0 && paint < RGB.length ? RGB[paint] | TINT : 0;
+    public static int renderColour(int paint, int truck) {
+        return paint > 0 && paint < RGB.length ? RGB[paint] | (TINT + (Math.max(0, Math.min(3, truck)) << 24)) : 0;
     }
 
     /**

@@ -978,7 +978,7 @@ public final class RaceScene implements Scene {
                 Mat4.multiply(mC, mB, mR);
                 list.add(truckId[t], partIdx[t][p], mC, 0, false, vm);
             } else {
-                list.add(truckId[t], partIdx[t][p], mB, t < np ? TruckPaints.renderColour(pickPaint[t]) : 0, false, vm);   // T-34: paint
+                list.add(truckId[t], partIdx[t][p], mB, t < np && p == 1 ? TruckPaints.renderColour(pickPaint[t], pickTruck[t]) : 0, false, vm);   // T-34: paint
             }
         }
         Mat4.translate(mA, x, 0.06f, z);

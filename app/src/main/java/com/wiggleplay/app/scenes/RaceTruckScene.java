@@ -41,7 +41,7 @@ import java.util.List;
 public final class RaceTruckScene implements Scene {
 
     private static final int WALL = 0xFF262B33, FLOOR = 0xFF1B1F25, FLOOR_RGB = 0x1B1F25;
-    private static final float SLIDE_SECONDS = 0.5f, AUTO_START_SECONDS = 20f;
+    private static final float SLIDE_SECONDS = 0.5f, AUTO_START_SECONDS = 120f;
     private static final String[] PART_NAMES = {"underside", "body", "wheel-front-left", "wheel-front-right",
             "wheel-back-left", "wheel-back-right"};
     private static final String PICS = "truckpick_";
@@ -71,6 +71,7 @@ public final class RaceTruckScene implements Scene {
     private final float[] mT = new float[16], mR = new float[16], mA = new float[16], mB = new float[16], mC = new float[16],
             mBase = new float[16];
     private final float[] eye = {0f, 2.0f, 6.6f}, target = {0f, 1.75f, 0f};
+    private final float[] eye2 = {0f, 2.7f, 9.6f}, target2 = {0f, 2.5f, 0f};   // two players: the trucks are smaller so the arrows do not cut them off
 
     private final Paint paintFill = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final RectF rect = new RectF();
@@ -116,7 +117,9 @@ public final class RaceTruckScene implements Scene {
         List<TileMenu.Tile> tiles = new ArrayList<>();
         tiles.add(RoundButton.back());
         tiles.add(RoundButton.settings());
-        steerTile = new TileMenu.Tile("steer", "Steering", null, Theme.ORANGE, null, 1290f, 20f, 300f, 300f);
+        steerTile = np == 2
+                ? new TileMenu.Tile("steer", "Steering", null, Theme.ORANGE, null, 835f, 330f, 250f, 200f)
+                : new TileMenu.Tile("steer", "Steering", null, Theme.ORANGE, null, 830f, 320f, 300f, 230f);
         tiles.add(steerTile);
         for (int p = 0; p < np; p++) {
             float x0 = np == 2 ? p * 960f : 0f;
@@ -124,9 +127,12 @@ public final class RaceTruckScene implements Scene {
             float mid = x0 + pw / 2f;
             tiles.add(RoundButton.arrow("prev" + p, "Earlier truck", x0 + (np == 2 ? 110f : 120f), 800f));
             tiles.add(RoundButton.arrow("next" + p, "Next truck", x0 + pw - (np == 2 ? 110f : 120f), 800f));
-            paintTile[p] = new TileMenu.Tile("paint" + p, "Paint", null, Theme.INK, null, mid - 250f, 330f, 230f, 210f);
+            float tw = np == 2 ? 250f : 300f, th = np == 2 ? 200f : 230f, ty = np == 2 ? 330f : 320f;
+            float px = np == 2 ? (p == 0 ? 150f : 1110f) : 490f;
+            float gx = np == 2 ? (p == 0 ? 420f : 1380f) : 1170f;
+            paintTile[p] = new TileMenu.Tile("paint" + p, "Paint", null, Theme.BLUE, null, px, ty, tw, th);
             tiles.add(paintTile[p]);
-            TileMenu.Tile go = new TileMenu.Tile("go" + p, "Go", null, Theme.SAGE, Theme::paintDone, mid + 20f, 320f, 300f, 230f);
+            TileMenu.Tile go = new TileMenu.Tile("go" + p, "Go", null, Theme.SAGE, Theme::paintDone, gx, ty, tw, th);
             tiles.add(go);
         }
         menu.setTiles(tiles, "go0");
@@ -227,29 +233,38 @@ public final class RaceTruckScene implements Scene {
 
     private void showSteerIcon() {
         final int mode = steerMode;
-        steerTile.setIcon(mode == RaceArt.MODE_LEAN ? "lean" : "wheel", (c, bw, bh) -> RaceArt.paintSteerButton(c, bw, bh, mode));
+        steerTile.setIcon(mode == RaceArt.MODE_LEAN ? "lean_s" : "wheel_s", (c, bw, bh) -> {
+            c.save();   // smaller, to match the size of the Go icon
+            c.translate(bw * 0.19f, bh * 0.19f);
+            c.scale(0.62f, 0.62f);
+            RaceArt.paintSteerButton(c, bw, bh, mode);
+            c.restore();
+        });
     }
 
-    /** The white-outline paint can on a dim round plate, with a blob of the current paint on it. */
+    /** The paint can icon, in the same style as the Go icon: a round plate with a white-outline can and a blob of the current paint. */
     private void showPaintIcon(final int p) {
         final int rgb = TruckPaints.RGB[paint[p]];
-        Bitmap b = SpriteCache.shared().get(PICS + "can_" + paint[p], 230, 210, (c, w, h) -> paintCan(c, w, h, rgb));
-        paintTile[p].setCustom(b);
+        paintTile[p].setIcon("can" + paint[p], (c, bw, bh) -> paintCan(c, bw, bh, rgb));
     }
 
     private static void paintCan(Canvas c, int w, int h, int rgb) {
         Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
         p.setStyle(Paint.Style.FILL);
-        p.setColor(0x80000000);
-        c.drawRoundRect(new RectF(4f, 4f, w - 4f, h - 4f), 52f, 52f, p);
-        float cx = w / 2f;
+        p.setColor(0xFF4A78A0);
+        c.drawCircle(w * 0.5f, h * 0.5f, w * 0.40f, p);
+        c.save();
+        c.scale(w / 230f, h / 210f);   // draw in a 230 x 210 box
+        c.scale(0.62f, 0.62f, 115f, 105f);
+        c.translate(0f, 12f);
+        float cx = 115f;
         RectF body = new RectF(cx - 48f, 70f, cx + 48f, 160f);
         if (rgb != 0) {   // the paint inside, showing at the front of the can
             p.setColor(0xFF000000 | rgb);
             c.drawRoundRect(new RectF(body.left + 8f, 100f, body.right - 8f, 150f), 8f, 8f, p);
         }
         p.setStyle(Paint.Style.STROKE);
-        p.setStrokeWidth(8f);
+        p.setStrokeWidth(10f);
         p.setStrokeCap(Paint.Cap.ROUND);
         p.setColor(0xFFFFFFFF);
         c.drawRoundRect(body, 12f, 12f, p);
@@ -259,6 +274,7 @@ public final class RaceTruckScene implements Scene {
         handle.quadTo(cx, 6f, cx + 52f, 66f);
         c.drawPath(handle, p);
         c.drawLine(body.left, 118f, body.right, 118f, p);              // the label band
+        c.restore();
     }
 
     // ---- drawing ----
@@ -370,15 +386,15 @@ public final class RaceTruckScene implements Scene {
                 Mat4.translate(mT, 1.95f * (float) Math.sin(a), 0.02f, 1.95f * (float) Math.cos(a));
                 list.add(dotId, 0, mT, i % 3 == 0 ? 0xF2C572 : 0x5ED0E8, true, bit);
             }
+            float slideX = np == 2 ? 4.5f : 6.5f;
             float k = slide[p] >= 1f ? 1f : 1f - (float) Math.pow(1f - slide[p], 3);
             if (slide[p] < 1f) {
-                addTruck(oldTruck[p], oldPaint[p], -slideDir[p] * 6.5f * k, yaw, spin, bit);
-                addTruck(truck[p], paint[p], slideDir[p] * 6.5f * (1f - k), yaw, spin, bit);
+                addTruck(oldTruck[p], oldPaint[p], -slideDir[p] * slideX * k, yaw, spin, bit);
+                addTruck(truck[p], paint[p], slideDir[p] * slideX * (1f - k), yaw, spin, bit);
             } else {
                 addTruck(truck[p], paint[p], 0f, yaw, spin, bit);
             }
-            float[] ey = eye;
-            gl.setCamera(p, ey, target, 40f);
+            gl.setCamera(p, np == 2 ? eye2 : eye, np == 2 ? target2 : target, 40f);
         }
         gl.setViewports(np);
         gl.submit(list);
@@ -389,7 +405,7 @@ public final class RaceTruckScene implements Scene {
         Mat4.rotY(mR, yaw);
         Mat4.multiply(mBase, mT, mR);
         MeshData md = meshData[m];
-        int tint = TruckPaints.renderColour(paintJob);
+        int tint = TruckPaints.renderColour(paintJob, m);
         for (int k = 0; k < 6; k++) {
             MeshData.Part part = md.parts[partIdx[m][k]];
             Mat4.translate(mA, part.translation[0], part.translation[1], part.translation[2]);
@@ -399,7 +415,7 @@ public final class RaceTruckScene implements Scene {
                 Mat4.multiply(mC, mB, mR);
                 list.add(meshId[m], partIdx[m][k], mC, 0, false, bit);
             } else {
-                list.add(meshId[m], partIdx[m][k], mB, tint, false, bit);
+                list.add(meshId[m], partIdx[m][k], mB, k == 1 ? tint : 0, false, bit);
             }
         }
         Mat4.translate(mA, ox, 0.05f, 0f);

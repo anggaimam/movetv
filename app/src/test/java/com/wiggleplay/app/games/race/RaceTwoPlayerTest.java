@@ -134,9 +134,13 @@ public class RaceTwoPlayerTest {
         assertEquals(0, TruckPaints.clean(-1));
         assertEquals(0, TruckPaints.clean(TruckPaints.RGB.length));
         assertEquals(3, TruckPaints.clean(3));
-        assertEquals(0, TruckPaints.renderColour(0));
-        assertEquals(0, TruckPaints.renderColour(99));
-        assertEquals(0x014FA8E8, TruckPaints.renderColour(1));
+        assertEquals(0, TruckPaints.renderColour(0, 0));
+        assertEquals(0, TruckPaints.renderColour(99, 0));
+        assertEquals(0x014FA8E8, TruckPaints.renderColour(1, 0));
+        assertEquals(0x034FA8E8, TruckPaints.renderColour(1, 2));
+        assertEquals(40, RaceLogic.timeBonus(10f, 100f));
+        assertEquals(0, RaceLogic.timeBonus(200f, 100f));
+        assertTrue(RaceLogic.timeBonus(100f, 100f) < 40 && RaceLogic.timeBonus(100f, 100f) > 0);
         assertEquals(TruckPaints.RGB.length, TruckPaints.NAMES.length);
         assertEquals(4, TruckPaints.TRUCK_NAMES.length);
     }

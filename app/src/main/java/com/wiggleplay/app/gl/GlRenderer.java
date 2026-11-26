@@ -46,6 +46,9 @@ public final class GlRenderer implements GLSurfaceView.Renderer {
     /** Opacity of an item from its colour: bits 24..31 are the alpha, where 0 and 255 both mean fully opaque. */
     /** A textured (not flat) item whose colour has this in bits 24..31 is painted: texture brightness times the colour. */
     public static final int TINT_FLAG = 1;
+    /** Body colour of each truck in colormap.png: hue (0..1), hue window, brightness. */
+    private static final float[][] BODY_SRC = {
+        {42f / 360f, 7f / 360f, 1.0f}, {13f / 360f, 9f / 360f, 0.98f}, {154f / 360f, 12f / 360f, 0.61f}, {262f / 360f, 12f / 360f, 0.89f}};
 
     static float alphaOf(int colorRgb) {
         int a = (colorRgb >>> 24) & 0xFF;
@@ -182,7 +185,7 @@ public final class GlRenderer implements GLSurfaceView.Renderer {
     private PaletteSwatches palette;
     private boolean programFailed;
     private int aPos, aNormal, aUv;
-    private int uMvp, uModel, uSunDir, uEye, uFogNear, uFogFar, uTex, uFlat, uColor, uFogColor, uAlpha;
+    private int uMvp, uModel, uSunDir, uEye, uFogNear, uFogFar, uTex, uFlat, uColor, uSrc, uFogColor, uAlpha;
     private GlMesh[] meshes = new GlMesh[0];
     private GlMesh[] chunks = new GlMesh[0];
     private float[] spheres = new float[0];
@@ -565,8 +568,10 @@ public final class GlRenderer implements GLSurfaceView.Renderer {
                     if (flat) {
                         GLES20.glUniform1f(uFlat, 1f);
                         GLES20.glUniform3f(uColor, ((color >> 16) & 0xFF) / 255f, ((color >> 8) & 0xFF) / 255f, (color & 0xFF) / 255f);
-                    } else if ((color >>> 24) == TINT_FLAG) {   // T-34: the texture's light and dark, in one paint colour
+                    } else if ((color >>> 24) >= TINT_FLAG && (color >>> 24) <= TINT_FLAG + 3) {   // T-34: repaint only the truck's body colour
+                        int ti = (color >>> 24) - TINT_FLAG;
                         GLES20.glUniform1f(uFlat, 2f);
+                        GLES20.glUniform3f(uSrc, BODY_SRC[ti][0], BODY_SRC[ti][1], BODY_SRC[ti][2]);
                         GLES20.glUniform3f(uColor, ((color >> 16) & 0xFF) / 255f, ((color >> 8) & 0xFF) / 255f, (color & 0xFF) / 255f);
                     } else {
                         GLES20.glUniform1f(uFlat, 0f);
@@ -633,6 +638,7 @@ public final class GlRenderer implements GLSurfaceView.Renderer {
         uTex = GLES20.glGetUniformLocation(p, "uTex");
         uFlat = GLES20.glGetUniformLocation(p, "uFlat");
         uColor = GLES20.glGetUniformLocation(p, "uColor");
+        uSrc = GLES20.glGetUniformLocation(p, "uSrc");
         uFogColor = GLES20.glGetUniformLocation(p, "uFogColor");
         uAlpha = GLES20.glGetUniformLocation(p, "uAlpha");
         uSkyAmb = GLES20.glGetUniformLocation(p, "uSkyAmb");
