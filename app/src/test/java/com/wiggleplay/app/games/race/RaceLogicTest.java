@@ -29,7 +29,7 @@ public class RaceLogicTest {
             r.update(DT);
             for (int p = 0; p < players; p++) worst = Math.max(worst, Math.abs(r.car(p).offset()));
         }
-        return new float[] {r.finished(0) ? 1f : 0f, r.time(), worst, r.score(0), r.offered(0), r.stars(0)};
+        return new float[] {r.finished(0) ? 1f : 0f, r.time(), worst, (r.score(0) - r.timeBonus(0)), r.offered(0), r.stars(0)};
     }
 
     @Test public void autoDriverFinishesAllLapsOnAllMaps() {
@@ -115,8 +115,8 @@ public class RaceLogicTest {
             r.setControls(0, 0f, false);
             r.update(DT);
         }
-        assertTrue(r.score(0) >= 0);
-        assertTrue(r.offered(0) >= r.score(0));
+        assertTrue((r.score(0) - r.timeBonus(0)) >= 0);
+        assertTrue(r.offered(0) >= (r.score(0) - r.timeBonus(0)));
         assertTrue(r.stars(0) >= 1 && r.stars(0) <= 3);
         // a good driver gets coins
         float[] res = drive(1, 1, 5L, 7f);
@@ -217,7 +217,7 @@ public class RaceLogicTest {
             corner++;
             if (best[k] <= RaceLogic.PICKUP_RADIUS) got++;
         }
-        return new int[] {r.score(0), r.offered(0), got, corner};
+        return new int[] {(r.score(0) - r.timeBonus(0)), r.offered(0), got, corner};
     }
 
     private static final String[] DRIVER_NAMES = {"cutter(7)", "centre(2.5)", "seeker"};
@@ -319,7 +319,7 @@ public class RaceLogicTest {
         }
         assertEquals(1, r.lapsDone(0));
         assertEquals(coinsAndStar, r.offered(0));
-        assertTrue(r.score(0) <= r.offered(0));
+        assertTrue((r.score(0) - r.timeBonus(0)) <= r.offered(0));
     }
 
     // ---- the magnet ----
@@ -472,7 +472,7 @@ public class RaceLogicTest {
             r.update(DT);
             cans += r.consumeNitro(0);
         }
-        return new float[] {r.score(0), r.offered(0), cans, r.finished(0) ? 1f : 0f, r.time()};
+        return new float[] {(r.score(0) - r.timeBonus(0)), r.offered(0), cans, r.finished(0) ? 1f : 0f, r.time()};
     }
 
     /** T-28 B: three auto-drivers on 4 layouts x 2 directions x 3 levels (24 races each, the magnet on, seed 42). */
