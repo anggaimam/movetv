@@ -20,7 +20,7 @@ import com.wiggleplay.app.gl.ProcMesh;
 import com.wiggleplay.app.gl.RaceGlView;
 import com.wiggleplay.app.gl.RenderList;
 import com.wiggleplay.app.ui.RoundButton;
-import com.wiggleplay.app.ui.Stage;
+import com.wiggleplay.app.core.Stage;
 import com.wiggleplay.app.ui.Theme;
 import com.wiggleplay.app.ui.TileMenu;
 
