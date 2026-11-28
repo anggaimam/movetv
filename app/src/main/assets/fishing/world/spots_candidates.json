@@ -1,0 +1,258 @@
+{
+ "landmarks": [
+  {
+   "groundY": 16.3,
+   "type": "HOTEL",
+   "x": -348.0,
+   "z": -1275.0
+  },
+  {
+   "drop": 29.4,
+   "type": "WATERFALL",
+   "x": -1107.3,
+   "z": -625.6
+  }
+ ],
+ "spots": [
+  {
+   "depth": 2.3,
+   "distFromStart": 66.0,
+   "id": 0,
+   "radius": 14,
+   "score": 1.939,
+   "type": "PIER",
+   "x": -423.0,
+   "z": -910.3
+  },
+  {
+   "depth": 0.0,
+   "distFromStart": 81.0,
+   "id": 1,
+   "radius": 14,
+   "score": 2.366,
+   "type": "PIER",
+   "x": -303.5,
+   "z": -827.2
+  },
+  {
+   "depth": 2.4,
+   "distFromStart": 287.0,
+   "id": 2,
+   "radius": 14,
+   "score": 0.98,
+   "type": "STREAM",
+   "x": -410.0,
+   "z": -1150.0
+  },
+  {
+   "depth": 2.3,
+   "distFromStart": 290.0,
+   "id": 3,
+   "radius": 14,
+   "score": 0.99,
+   "type": "STREAM",
+   "x": -294.0,
+   "z": -586.0
+  },
+  {
+   "depth": 2.0,
+   "distFromStart": 318.0,
+   "id": 4,
+   "radius": 14,
+   "score": 1.103,
+   "type": "BAY",
+   "x": -622.0,
+   "z": -1066.0
+  },
+  {
+   "depth": 1.9,
+   "distFromStart": 356.0,
+   "id": 5,
+   "radius": 14,
+   "score": 1.114,
+   "type": "BAY",
+   "x": -558.0,
+   "z": -1170.0
+  },
+  {
+   "depth": 4.3,
+   "distFromStart": 374.0,
+   "id": 6,
+   "radius": 14,
+   "score": 0.984,
+   "type": "BAY",
+   "x": -222.0,
+   "z": -1206.0
+  },
+  {
+   "depth": 2.4,
+   "distFromStart": 425.0,
+   "id": 7,
+   "radius": 14,
+   "score": 0.929,
+   "type": "STREAM",
+   "x": -302.0,
+   "z": -446.0
+  },
+  {
+   "depth": 4.4,
+   "distFromStart": 540.0,
+   "id": 8,
+   "radius": 14,
+   "score": 0.972,
+   "type": "BAY",
+   "x": 158.0,
+   "z": -946.0
+  },
+  {
+   "depth": 8.5,
+   "distFromStart": 667.0,
+   "id": 9,
+   "radius": 14,
+   "score": 0.851,
+   "type": "DROPOFF",
+   "x": 30.0,
+   "z": -1394.0
+  },
+  {
+   "depth": 2.3,
+   "distFromStart": 683.0,
+   "id": 10,
+   "radius": 14,
+   "score": 1.061,
+   "type": "BEACH",
+   "x": -398.0,
+   "z": -182.0
+  },
+  {
+   "depth": 2.2,
+   "distFromStart": 787.0,
+   "id": 11,
+   "radius": 14,
+   "score": 1.062,
+   "type": "BEACH",
+   "x": -514.0,
+   "z": -90.0
+  },
+  {
+   "depth": 11.7,
+   "distFromStart": 849.0,
+   "id": 12,
+   "radius": 14,
+   "score": 0.964,
+   "type": "DROPOFF",
+   "x": 238.0,
+   "z": -278.0
+  },
+  {
+   "depth": 2.3,
+   "distFromStart": 943.0,
+   "id": 13,
+   "radius": 14,
+   "score": 0.948,
+   "type": "BEACH",
+   "x": -650.0,
+   "z": 38.0
+  },
+  {
+   "depth": 2.3,
+   "distFromStart": 1109.0,
+   "id": 14,
+   "radius": 14,
+   "score": 0.894,
+   "type": "BEACH",
+   "x": -794.0,
+   "z": 162.0
+  },
+  {
+   "depth": 11.9,
+   "distFromStart": 1111.0,
+   "id": 15,
+   "radius": 14,
+   "score": 0.908,
+   "type": "DROPOFF",
+   "x": 674.0,
+   "z": -502.0
+  },
+  {
+   "depth": 11.9,
+   "distFromStart": 1304.0,
+   "id": 16,
+   "radius": 14,
+   "score": 1.162,
+   "type": "DROPOFF",
+   "x": 822.0,
+   "z": -350.0
+  },
+  {
+   "depth": 120.0,
+   "distFromStart": 1560.0,
+   "id": 17,
+   "radius": 14,
+   "score": 1.0,
+   "type": "BASIN",
+   "x": -242.0,
+   "z": 690.0
+  },
+  {
+   "depth": 120.0,
+   "distFromStart": 1623.0,
+   "id": 18,
+   "radius": 14,
+   "score": 1.0,
+   "type": "BASIN",
+   "x": -342.0,
+   "z": 758.0
+  },
+  {
+   "depth": 120.0,
+   "distFromStart": 1722.0,
+   "id": 19,
+   "radius": 14,
+   "score": 1.0,
+   "type": "BASIN",
+   "x": -270.0,
+   "z": 854.0
+  },
+  {
+   "depth": 120.0,
+   "distFromStart": 1832.0,
+   "id": 20,
+   "radius": 14,
+   "score": 1.0,
+   "type": "BASIN",
+   "x": -318.0,
+   "z": 966.0
+  },
+  {
+   "depth": 120.0,
+   "distFromStart": 1916.0,
+   "id": 21,
+   "radius": 14,
+   "score": 1.0,
+   "type": "BASIN",
+   "x": -226.0,
+   "z": 1046.0
+  },
+  {
+   "depth": 11.9,
+   "distFromStart": 1970.0,
+   "id": 22,
+   "radius": 14,
+   "score": 0.829,
+   "type": "DROPOFF",
+   "x": -542.0,
+   "z": 1098.0
+  },
+  {
+   "depth": 120.0,
+   "distFromStart": 2032.0,
+   "id": 23,
+   "radius": 14,
+   "score": 1.0,
+   "type": "BASIN",
+   "x": -178.0,
+   "z": 1158.0
+  }
+ ]
+}

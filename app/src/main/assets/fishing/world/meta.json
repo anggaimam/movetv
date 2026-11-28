@@ -1,0 +1,38 @@
+{
+ "centreLonLat": [
+  -113.90174,
+  49.04615
+ ],
+ "farRadius": 2318,
+ "files": {
+  "depth": "depth.bin",
+  "height": "height.bin",
+  "heightFar": "height_far.bin",
+  "masks": "masks.bin",
+  "shore": "shore.bin"
+ },
+ "hotel": {
+  "groundY": 16.34,
+  "x": -348.0,
+  "z": -1275.0
+ },
+ "lakeZmm": 6.348,
+ "mPerMm": 23.181,
+ "playRadius": 1500,
+ "reliefM": [
+  -10.5,
+  300.7
+ ],
+ "start": {
+  "openWaterM": 795,
+  "pierId": 3,
+  "x": -375.8,
+  "yawDeg": 120.0,
+  "z": -864.6
+ },
+ "ve": 1.5,
+ "waterSlabsUsed": [
+  0,
+  2
+ ]
+}
